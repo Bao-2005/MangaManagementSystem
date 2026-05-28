@@ -1,0 +1,211 @@
+# =========================
+# Build results
+# =========================
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+
+# =========================
+# Visual Studio
+# =========================
+.vs/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
+*.csproj.user
+
+# =========================
+# Rider / JetBrains
+# =========================
+.idea/
+*.sln.iml
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# =========================
+# .NET Core / ASP.NET Core
+# =========================
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+.nuget/
+artifacts/
+TestResults/
+coverage/
+coverage.xml
+coverage.json
+*.coverage
+*.coveragexml
+*.trx
+
+# =========================
+# NuGet packages
+# =========================
+packages/
+*.nupkg
+*.snupkg
+
+# Uncomment if you use packages.config
+# !packages/repositories.config
+
+# =========================
+# User secrets / local config
+# =========================
+secrets.json
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.Development.local.json
+appsettings.Production.local.json
+
+# Do NOT ignore normal appsettings by default.
+# Keep these committed with placeholders, not real secrets:
+# appsettings.json
+# appsettings.Development.json
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Database files
+# =========================
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# EF Core generated temp files
+# =========================
+MigrationsBackup/
+*.Designer.cs.tmp
+
+# =========================
+# Publish output
+# =========================
+publish/
+PublishProfiles/
+*.pubxml.user
+
+# If your .pubxml contains secrets, uncomment this:
+# *.pubxml
+
+# =========================
+# IIS / Azure / Deployment
+# =========================
+*.Publish.xml
+*.pubxml.user
+ServiceDependencies/
+ServiceDependencies.local.json
+
+# =========================
+# Docker
+# =========================
+**/docker-compose.override.yml
+.docker/
+docker-compose.*.override.yml
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+serilog/
+Seq/
+NLog/
+LogFiles/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.orig
+*.rej
+~$*
+*.cache
+
+# =========================
+# Resharper
+# =========================
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# =========================
+# Node / frontend if included
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+.next/
+.nuxt/
+coverage-final.json
+
+# =========================
+# File upload folders
+# =========================
+uploads/
+wwwroot/uploads/
+Storage/
+storage/
+Files/
+files/
+
+# =========================
+# Certificates / keys
+# =========================
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+
+# =========================
+# Backup / archive files
+# =========================
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
