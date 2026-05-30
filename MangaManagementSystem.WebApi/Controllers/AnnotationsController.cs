@@ -225,19 +225,22 @@ namespace MangaManagementSystem.WebApi.Controllers
         // ─── Private helpers ────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Lấy UserId của user đang gọi API từ header X-User-Id.
-        /// 
-        /// TODO: Khi có JWT, thay bằng:
-        ///   var sub = User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        ///   return sub != null ? Guid.Parse(sub) : null;
+        /// Lấy UserId của user đang đăng nhập từ JWT claims.
+        ///
+        /// TODO (teammate): Implement JWT authentication, sau đó thay body method này bằng:
+        ///   var sub = User.FindFirst("sub")?.Value
+        ///             ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        ///   return sub != null ? Guid.Parse(sub) : (Guid?)null;
+        ///
+        /// Yêu cầu thêm: using System.Security.Claims;
         /// </summary>
         private Guid? GetCurrentUserId()
         {
-            var headerValue = Request.Headers["X-User-Id"].FirstOrDefault();
-            if (string.IsNullOrEmpty(headerValue))
-                return null;
-
-            return Guid.TryParse(headerValue, out var userId) ? userId : null;
+            // TODO: implement JWT — đọc userId từ claims
+            // Trả null = tất cả request sẽ bị 401 cho đến khi JWT được implement
+            throw new NotImplementedException(
+                "GetCurrentUserId chưa được implement. " +
+                "Teammate cần wire JWT claims vào đây.");
         }
     }
 }
