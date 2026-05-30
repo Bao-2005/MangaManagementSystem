@@ -50,9 +50,9 @@ namespace MangaManagementSystem.WebApi.Controllers
                     new { manuscriptId },
                     result);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Forbid();
+                return StatusCode(403, new { message = ex.Message });
             }
             catch (KeyNotFoundException ex)
             {
@@ -94,9 +94,9 @@ namespace MangaManagementSystem.WebApi.Controllers
 
                 return Ok(new { annotations });
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Forbid();
+                return StatusCode(403, new { message = ex.Message });
             }
             catch (KeyNotFoundException ex)
             {
@@ -128,9 +128,9 @@ namespace MangaManagementSystem.WebApi.Controllers
 
                 return Ok(new { count });
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Forbid();
+                return StatusCode(403, new { message = ex.Message });
             }
             catch (KeyNotFoundException ex)
             {
@@ -164,9 +164,9 @@ namespace MangaManagementSystem.WebApi.Controllers
 
                 return Ok(result);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Forbid();
+                return StatusCode(403, new { message = ex.Message });
             }
             catch (KeyNotFoundException ex)
             {
@@ -208,9 +208,9 @@ namespace MangaManagementSystem.WebApi.Controllers
 
                 return NoContent();
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Forbid();
+                return StatusCode(403, new { message = ex.Message });
             }
             catch (KeyNotFoundException ex)
             {
