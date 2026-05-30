@@ -1,4 +1,4 @@
-﻿using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Entities.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Data;
@@ -377,32 +377,70 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.AnnotationId);
 
+            // VersionNo — copy từ Manuscript.VersionNo tại thời điểm tạo (BR-78)
+            entity.Property(x => x.VersionNo)
+                .IsRequired();
+
+            entity.Property(x => x.PageNo)
+                .IsRequired();
+
+            // Tọa độ dùng decimal(5,2) theo spec Pin Annotation
             entity.Property(x => x.PositionX)
-                .HasPrecision(18, 4);
+                .HasColumnType("decimal(5,2)")
+                .IsRequired();
 
             entity.Property(x => x.PositionY)
-                .HasPrecision(18, 4);
+                .HasColumnType("decimal(5,2)")
+                .IsRequired();
 
             entity.Property(x => x.Content)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(1000);
 
             entity.Property(x => x.CreatedAt)
                 .IsRequired();
 
+            entity.Property(x => x.UpdatedAt);
+
+            entity.Property(x => x.IsDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            // Check constraints — enforce 0 <= Position <= 100 và PageNo >= 1 ở DB level
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Annotation_PositionX", "[PositionX] >= 0 AND [PositionX] <= 100");
+                t.HasCheckConstraint("CK_Annotation_PositionY", "[PositionY] >= 0 AND [PositionY] <= 100");
+                t.HasCheckConstraint("CK_Annotation_PageNo", "[PageNo] >= 1");
+            });
+
+            // Relationships
             entity.HasOne(x => x.Manuscript)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.ManuscriptId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // ChapterPageId là nullable — optional FK
             entity.HasOne(x => x.ChapterPage)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.ChapterPageId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(x => x.Author)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.AuthorId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Indexes để query theo manuscript version (BR-73, BR-78)
+            entity.HasIndex(x => new { x.ManuscriptId, x.VersionNo })
+                .HasDatabaseName("IX_Annotations_ManuscriptId_VersionNo");
+
+            entity.HasIndex(x => new { x.ManuscriptId, x.VersionNo, x.PageNo })
+                .HasDatabaseName("IX_Annotations_ManuscriptId_VersionNo_PageNo");
+
+            entity.HasIndex(x => x.AuthorId)
+                .HasDatabaseName("IX_Annotations_AuthorId");
         });
     }
 }

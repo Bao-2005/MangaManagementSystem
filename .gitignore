@@ -209,3 +209,8 @@ files/
 *.7z
 *.tar
 *.gz
+
+# =========================
+# Project context / planning docs
+# =========================
+pin_annotation_3_files_fixed/
