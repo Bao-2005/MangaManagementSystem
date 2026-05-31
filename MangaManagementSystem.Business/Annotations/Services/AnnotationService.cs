@@ -1,6 +1,7 @@
 using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.Annotations.DTOs;
 using MangaManagementSystem.Business.Annotations.Interfaces;
+using MangaManagementSystem.Business.Auth.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
     {
         private readonly IAnnotationRepository _annotationRepository;
         private readonly MangaDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
         // Role name constants — khớp với giá trị trong bảng Roles
         private const string RoleTantouEditor = "TANTOU_EDITOR";
@@ -28,10 +30,12 @@ namespace MangaManagementSystem.Business.Annotations.Services
 
         public AnnotationService(
             IAnnotationRepository annotationRepository,
-            MangaDbContext context)
+            MangaDbContext context,
+            ICurrentUserService currentUserService)
         {
             _annotationRepository = annotationRepository;
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         /// <inheritdoc />
@@ -42,10 +46,11 @@ namespace MangaManagementSystem.Business.Annotations.Services
             CancellationToken cancellationToken = default)
         {
             // 1. Kiểm tra role: phải là Tantou Editor (BR-03, BR-74)
-            var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
-            if (!userRoles.Contains(RoleTantouEditor))
+            if (!_currentUserService.BypassAuthorization)
             {
-                throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được tạo annotation.");
+                var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
+                if (!userRoles.Contains(RoleTantouEditor))
+                    throw new UnauthorizedAccessException("Ònly Tantou Editor mới được tạo annotation.");
             }
 
             // 2. Load Manuscript + Chapter + Series (BR-04)
@@ -58,7 +63,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             var series = manuscript.Chapter.Series;
 
             // 3. Kiểm tra object-level authorization: editor phải phụ trách series này (BR-74)
-            if (series.TantouEditorId != currentUserId)
+            if (!_currentUserService.BypassAuthorization && series.TantouEditorId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Bạn không phụ trách series này.");
             }
@@ -145,15 +150,16 @@ namespace MangaManagementSystem.Business.Annotations.Services
             var series = manuscript.Chapter.Series;
 
             // 2. Kiểm tra quyền xem: phải là assigned editor hoặc mangaka của series (BR-04)
-            var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
-            var canView =
-                (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
-                (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
-                userRoles.Contains(RoleAdmin);
-
-            if (!canView)
+            if (!_currentUserService.BypassAuthorization)
             {
-                throw new UnauthorizedAccessException("Bạn không có quyền xem annotation của series này.");
+                var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
+                var canView =
+                    (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
+                    (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
+                    userRoles.Contains(RoleAdmin);
+
+                if (!canView)
+                    throw new UnauthorizedAccessException("Bạn không có quyền xem annotation của series này.");
             }
 
             // 3. Nếu không truyền versionNo, dùng latest version
@@ -183,15 +189,16 @@ namespace MangaManagementSystem.Business.Annotations.Services
             var series = manuscript.Chapter.Series;
 
             // Kiểm tra quyền: editor hoặc mangaka của series
-            var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
-            var canView =
-                (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
-                (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
-                userRoles.Contains(RoleAdmin);
-
-            if (!canView)
+            if (!_currentUserService.BypassAuthorization)
             {
-                throw new UnauthorizedAccessException("Bạn không có quyền truy cập annotation của series này.");
+                var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
+                var canView =
+                    (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
+                    (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
+                    userRoles.Contains(RoleAdmin);
+
+                if (!canView)
+                    throw new UnauthorizedAccessException("Bạn không có quyền truy cập annotation của series này.");
             }
 
             var targetVersionNo = versionNo ?? await _annotationRepository.GetLatestManuscriptVersionNoAsync(
@@ -210,10 +217,11 @@ namespace MangaManagementSystem.Business.Annotations.Services
             CancellationToken cancellationToken = default)
         {
             // 1. Kiểm tra role (BR-03)
-            var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
-            if (!userRoles.Contains(RoleTantouEditor))
+            if (!_currentUserService.BypassAuthorization)
             {
-                throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được sửa annotation.");
+                var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
+                if (!userRoles.Contains(RoleTantouEditor))
+                    throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được sửa annotation.");
             }
 
             // 2. Tìm annotation
@@ -230,7 +238,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             }
 
             // 4. Kiểm tra current user là author của annotation (BR-04)
-            if (annotation.AuthorId != currentUserId)
+            if (!_currentUserService.BypassAuthorization && annotation.AuthorId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Bạn không phải author của annotation này.");
             }
@@ -245,7 +253,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             var series = manuscript.Chapter.Series;
 
             // 6. Kiểm tra vẫn là assigned editor của series (BR-74)
-            if (series.TantouEditorId != currentUserId)
+            if (!_currentUserService.BypassAuthorization && series.TantouEditorId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Bạn không còn phụ trách series này.");
             }
@@ -322,10 +330,11 @@ namespace MangaManagementSystem.Business.Annotations.Services
             CancellationToken cancellationToken = default)
         {
             // 1. Kiểm tra role (BR-03)
-            var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
-            if (!userRoles.Contains(RoleTantouEditor))
+            if (!_currentUserService.BypassAuthorization)
             {
-                throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được xóa annotation.");
+                var userRoles = await GetUserRolesAsync(currentUserId, cancellationToken);
+                if (!userRoles.Contains(RoleTantouEditor))
+                    throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được xóa annotation.");
             }
 
             // 2. Tìm annotation
@@ -342,7 +351,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             }
 
             // 4. Kiểm tra current user là author của annotation (BR-04)
-            if (annotation.AuthorId != currentUserId)
+            if (!_currentUserService.BypassAuthorization && annotation.AuthorId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Bạn không phải author của annotation này.");
             }
@@ -357,7 +366,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             var series = manuscript.Chapter.Series;
 
             // 6. Kiểm tra vẫn là assigned editor của series (BR-74)
-            if (series.TantouEditorId != currentUserId)
+            if (!_currentUserService.BypassAuthorization && series.TantouEditorId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Bạn không còn phụ trách series này.");
             }

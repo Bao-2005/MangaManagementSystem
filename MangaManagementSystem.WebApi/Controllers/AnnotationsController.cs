@@ -1,5 +1,6 @@
 using MangaManagementSystem.Business.Annotations.DTOs;
 using MangaManagementSystem.Business.Annotations.Interfaces;
+using MangaManagementSystem.Business.Auth.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -10,18 +11,22 @@ namespace MangaManagementSystem.WebApi.Controllers
     /// <summary>
     /// API endpoints cho Pin Annotation feature.
     /// 
-    /// Auth tạm thời dùng header X-User-Id (vì project chưa có JWT).
-    /// Khi implement JWT, thay bằng: currentUserId = Guid.Parse(User.FindFirst("sub").Value)
+    /// Auth hiện tại dùng DevCurrentUserService — bỏ qua hoàn toàn khi test.
+    /// Teammate implement JWT: tạo JwtCurrentUserService và đổi DI trong ServiceCollection.cs.
     /// </summary>
     [ApiController]
     [Route("api/manuscripts/{manuscriptId:guid}/annotations")]
     public class AnnotationsController : ControllerBase
     {
         private readonly IAnnotationService _annotationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public AnnotationsController(IAnnotationService annotationService)
+        public AnnotationsController(
+            IAnnotationService annotationService,
+            ICurrentUserService currentUserService)
         {
             _annotationService = annotationService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -36,9 +41,9 @@ namespace MangaManagementSystem.WebApi.Controllers
             [FromBody] CreateAnnotationRequest request,
             CancellationToken cancellationToken = default)
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetCurrentUserId();
             if (currentUserId == null)
-                return Unauthorized(new { message = "Header X-User-Id là bắt buộc." });
+                return Unauthorized(new { message = "Chưa xác thực. Vui lòng đăng nhập." });
 
             try
             {
@@ -83,9 +88,9 @@ namespace MangaManagementSystem.WebApi.Controllers
             [FromQuery] int? pageNo = null,
             CancellationToken cancellationToken = default)
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetCurrentUserId();
             if (currentUserId == null)
-                return Unauthorized(new { message = "Header X-User-Id là bắt buộc." });
+                return Unauthorized(new { message = "Chưa xác thực. Vui lòng đăng nhập." });
 
             try
             {
@@ -117,9 +122,9 @@ namespace MangaManagementSystem.WebApi.Controllers
             [FromQuery] int? versionNo = null,
             CancellationToken cancellationToken = default)
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetCurrentUserId();
             if (currentUserId == null)
-                return Unauthorized(new { message = "Header X-User-Id là bắt buộc." });
+                return Unauthorized(new { message = "Chưa xác thực. Vui lòng đăng nhập." });
 
             try
             {
@@ -153,9 +158,9 @@ namespace MangaManagementSystem.WebApi.Controllers
             [FromBody] UpdateAnnotationRequest request,
             CancellationToken cancellationToken = default)
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetCurrentUserId();
             if (currentUserId == null)
-                return Unauthorized(new { message = "Header X-User-Id là bắt buộc." });
+                return Unauthorized(new { message = "Chưa xác thực. Vui lòng đăng nhập." });
 
             try
             {
@@ -197,9 +202,9 @@ namespace MangaManagementSystem.WebApi.Controllers
             [FromRoute] Guid annotationId,
             CancellationToken cancellationToken = default)
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetCurrentUserId();
             if (currentUserId == null)
-                return Unauthorized(new { message = "Header X-User-Id là bắt buộc." });
+                return Unauthorized(new { message = "Chưa xác thực. Vui lòng đăng nhập." });
 
             try
             {
@@ -222,25 +227,5 @@ namespace MangaManagementSystem.WebApi.Controllers
             }
         }
 
-        // ─── Private helpers ────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Lấy UserId của user đang đăng nhập từ JWT claims.
-        ///
-        /// TODO (teammate): Implement JWT authentication, sau đó thay body method này bằng:
-        ///   var sub = User.FindFirst("sub")?.Value
-        ///             ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        ///   return sub != null ? Guid.Parse(sub) : (Guid?)null;
-        ///
-        /// Yêu cầu thêm: using System.Security.Claims;
-        /// </summary>
-        private Guid? GetCurrentUserId()
-        {
-            // TODO: implement JWT — đọc userId từ claims
-            // Trả null = tất cả request sẽ bị 401 cho đến khi JWT được implement
-            throw new NotImplementedException(
-                "GetCurrentUserId chưa được implement. " +
-                "Teammate cần wire JWT claims vào đây.");
-        }
     }
 }
