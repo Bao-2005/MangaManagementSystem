@@ -246,6 +246,19 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.Feedback)
                 .HasMaxLength(2000);
 
+            // SubmittedBy — required, FK → Users (BR-72, BR-129)
+            entity.Property(x => x.SubmittedBy)
+                .IsRequired();
+
+            // ReviewedBy — nullable FK → Users (audit)
+            entity.Property(x => x.ReviewedBy)
+                .IsRequired(false);
+
+            // RevisionCount — đếm revision rounds (BR-83), default 0
+            entity.Property(x => x.RevisionCount)
+                .IsRequired()
+                .HasDefaultValue(0);
+
             entity.HasOne(x => x.Chapter)
                 .WithMany(x => x.Manuscripts)
                 .HasForeignKey(x => x.ChapterId)
@@ -261,8 +274,24 @@ public class MangaDbContext : DbContext
                 .HasForeignKey(x => x.SourceFileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // FK tới User (Submitter) — Restrict để giữ record khi user bị xóa
+            entity.HasOne(x => x.Submitter)
+                .WithMany(x => x.SubmittedManuscripts)
+                .HasForeignKey(x => x.SubmittedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // FK tới User (Reviewer) — nullable, Restrict
+            entity.HasOne(x => x.Reviewer)
+                .WithMany(x => x.ReviewedManuscripts)
+                .HasForeignKey(x => x.ReviewedBy)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(x => new { x.ChapterId, x.VersionNo })
                 .IsUnique();
+
+            entity.HasIndex(x => x.SubmittedBy)
+                .HasDatabaseName("IX_Manuscripts_SubmittedBy");
         });
     }
 
