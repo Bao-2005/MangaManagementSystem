@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using MangaManagementSystem.DataAccess.Entities.Enums;
+
 namespace MangaManagementSystem.DataAccess.Entities.Models
 {
     public class PageTaskSubmission
@@ -16,7 +18,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Guid SubmittedFileAssetId { get; set; }
 
-        public string Status { get; set; } = "Submitted";
+        public PageTaskSubmissionStatus Status { get; set; } = PageTaskSubmissionStatus.Submitted;
 
         public string? Note { get; set; }
 

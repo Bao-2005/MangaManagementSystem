@@ -384,6 +384,7 @@ public class MangaDbContext : DbContext
                 .HasMaxLength(1000);
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 
@@ -419,6 +420,7 @@ public class MangaDbContext : DbContext
                 .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 

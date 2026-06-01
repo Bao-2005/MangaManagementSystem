@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using MangaManagementSystem.DataAccess.Entities.Enums;
+
 namespace MangaManagementSystem.DataAccess.Entities.Models
 {
     public class PageTask
@@ -26,7 +28,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public DateTime? DueDate { get; set; }
 
-        public string Status { get; set; } = "Assigned";
+        public PageTaskStatus Status { get; set; } = PageTaskStatus.Assigned;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -11,11 +11,13 @@ namespace MangaManagementSystem.Business.Mappers.Profiles
             CreateMap<PageTask, PageTaskResponse>()
                 .ForMember(dest => dest.ChapterTitle, opt => opt.MapFrom(src => src.Chapter.Title))
                 .ForMember(dest => dest.AssistantName, opt => opt.MapFrom(src => src.Assistant.DisplayName))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
                 .ForMember(
                     dest => dest.Submissions,
                     opt => opt.MapFrom(src => src.Submissions.OrderByDescending(x => x.VersionNo)));
 
             CreateMap<PageTaskSubmission, PageTaskSubmissionResponse>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
                 .ForMember(
                     dest => dest.SubmittedFileName,
                     opt => opt.MapFrom(src => src.SubmittedFileAsset.OriginalFileName));

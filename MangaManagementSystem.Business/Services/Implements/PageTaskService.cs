@@ -2,6 +2,7 @@
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
@@ -12,15 +13,6 @@ namespace MangaManagementSystem.Business.Services.Implements
     {
         private const string ActiveStatus = "Active";
         private const string AssistantRoleName = "Assistant";
-
-        private const string TaskStatusAssigned = "Assigned";
-        private const string TaskStatusSubmitted = "Submitted";
-        private const string TaskStatusApproved = "Approved";
-        private const string TaskStatusRejected = "Rejected";
-
-        private const string SubmissionStatusSubmitted = "Submitted";
-        private const string SubmissionStatusApproved = "Approved";
-        private const string SubmissionStatusRejected = "Rejected";
 
         private readonly IRepository<PageTask> _pageTaskRepository;
         private readonly IRepository<PageTaskSubmission> _submissionRepository;
@@ -102,7 +94,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 TaskType = request.TaskType.Trim(),
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 DueDate = request.DueDate,
-                Status = TaskStatusAssigned,
+                Status = PageTaskStatus.Assigned,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -144,7 +136,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (pageTask.AssistantId != assistantId)
                 throw new UnauthorizedAccessException("Ban khong co quyen submit task nay.");
 
-            if (string.Equals(pageTask.Status, TaskStatusApproved, StringComparison.OrdinalIgnoreCase))
+            if (pageTask.Status == PageTaskStatus.Approved)
                 throw new InvalidOperationException("Task da duoc approve, khong the submit tiep.");
 
             var fileAsset = await _fileAssetRepository.GetAll()
@@ -165,12 +157,12 @@ namespace MangaManagementSystem.Business.Services.Implements
                 PageTaskId = pageTask.PageTaskId,
                 VersionNo = nextVersionNo,
                 SubmittedFileAssetId = request.SubmittedFileAssetId,
-                Status = SubmissionStatusSubmitted,
+                Status = PageTaskSubmissionStatus.Submitted,
                 Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
                 SubmittedAt = DateTime.UtcNow
             };
 
-            pageTask.Status = TaskStatusSubmitted;
+            pageTask.Status = PageTaskStatus.Submitted;
             pageTask.UpdatedAt = DateTime.UtcNow;
 
             await _submissionRepository.AddAsync(submission);
@@ -183,13 +175,13 @@ namespace MangaManagementSystem.Business.Services.Implements
         {
             var submission = await GetSubmissionForReviewAsync(mangakaId, submissionId);
 
-            if (!string.Equals(submission.Status, SubmissionStatusSubmitted, StringComparison.OrdinalIgnoreCase))
+            if (submission.Status != PageTaskSubmissionStatus.Submitted)
                 throw new InvalidOperationException("Submission nay da duoc review.");
 
-            submission.Status = SubmissionStatusApproved;
+            submission.Status = PageTaskSubmissionStatus.Approved;
             submission.ReviewedAt = DateTime.UtcNow;
             submission.RejectReason = null;
-            submission.PageTask.Status = TaskStatusApproved;
+            submission.PageTask.Status = PageTaskStatus.Approved;
             submission.PageTask.ApprovedAt = DateTime.UtcNow;
             submission.PageTask.UpdatedAt = DateTime.UtcNow;
 
@@ -207,13 +199,13 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             var submission = await GetSubmissionForReviewAsync(mangakaId, submissionId);
 
-            if (!string.Equals(submission.Status, SubmissionStatusSubmitted, StringComparison.OrdinalIgnoreCase))
+            if (submission.Status != PageTaskSubmissionStatus.Submitted)
                 throw new InvalidOperationException("Submission nay da duoc review.");
 
-            submission.Status = SubmissionStatusRejected;
+            submission.Status = PageTaskSubmissionStatus.Rejected;
             submission.RejectReason = request.RejectReason.Trim();
             submission.ReviewedAt = DateTime.UtcNow;
-            submission.PageTask.Status = TaskStatusRejected;
+            submission.PageTask.Status = PageTaskStatus.Rejected;
             submission.PageTask.UpdatedAt = DateTime.UtcNow;
 
             await _submissionRepository.SaveChangeAsync();
@@ -273,12 +265,12 @@ namespace MangaManagementSystem.Business.Services.Implements
             foreach (var submission in approvedSubmission.PageTask.Submissions)
             {
                 if (submission.SubmissionId == approvedSubmission.SubmissionId ||
-                    !string.Equals(submission.Status, SubmissionStatusSubmitted, StringComparison.OrdinalIgnoreCase))
+                    submission.Status != PageTaskSubmissionStatus.Submitted)
                 {
                     continue;
                 }
 
-                submission.Status = SubmissionStatusRejected;
+                submission.Status = PageTaskSubmissionStatus.Rejected;
                 submission.RejectReason = "Da co submission khac duoc approve.";
                 submission.ReviewedAt = DateTime.UtcNow;
             }
