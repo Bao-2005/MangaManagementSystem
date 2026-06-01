@@ -19,6 +19,9 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public string? Feedback { get; set; }
 
+        /// <summary>Ghi chú của Mangaka gửi kèm cho Biên tập viên khi submit bản thảo.</summary>
+        public string? Notes { get; set; }
+
         public DateTime? SubmittedAt { get; set; }
 
         public DateTime? ReviewedAt { get; set; }

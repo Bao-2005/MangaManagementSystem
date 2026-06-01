@@ -1,6 +1,6 @@
 using System;
 
-namespace MangaManagementSystem.Business.Annotations.DTOs
+namespace MangaManagementSystem.Business.DTOs.Responses
 {
     /// <summary>
     /// Response DTO trả về cho client sau khi CREATE hoặc GET annotation.

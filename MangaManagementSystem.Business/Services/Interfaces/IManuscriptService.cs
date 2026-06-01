@@ -1,10 +1,11 @@
-using MangaManagementSystem.Business.Manuscripts.DTOs;
+using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Responses;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MangaManagementSystem.Business.Manuscripts.Interfaces
+namespace MangaManagementSystem.Business.Services.Interfaces
 {
     /// <summary>
     /// Service xử lý toàn bộ business logic cho Manuscript feature.
@@ -29,6 +30,14 @@ namespace MangaManagementSystem.Business.Manuscripts.Interfaces
         /// </summary>
         Task<List<ManuscriptSummaryResponse>> GetListByChapterAsync(
             Guid chapterId,
+            Guid currentUserId,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Lấy toàn bộ manuscripts trong hệ thống (dành cho Tantou Editor / Admin).
+        /// Tương ứng endpoint GET /manuscripts theo API Contract.
+        /// </summary>
+        Task<List<ManuscriptSummaryResponse>> GetAllAsync(
             Guid currentUserId,
             CancellationToken ct = default);
 

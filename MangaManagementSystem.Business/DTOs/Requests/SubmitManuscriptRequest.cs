@@ -1,6 +1,7 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
-namespace MangaManagementSystem.Business.Manuscripts.DTOs
+namespace MangaManagementSystem.Business.DTOs.Requests
 {
     /// <summary>
     /// Request để submit manuscript mới hoặc resubmit (tạo version mới).
@@ -17,5 +18,12 @@ namespace MangaManagementSystem.Business.Manuscripts.DTOs
         /// ID của FileAsset gốc (source file). Nullable — để null khi test không có file.
         /// </summary>
         public Guid? SourceFileAssetId { get; set; }
+
+        /// <summary>
+        /// Ghi chú của Mangaka gửi kèm cho Biên tập viên khi nộp bản thảo.
+        /// Tối đa 2000 ký tự. Nullable.
+        /// </summary>
+        [MaxLength(2000, ErrorMessage = "Notes tối đa 2000 ký tự")]
+        public string? Notes { get; set; }
     }
 }

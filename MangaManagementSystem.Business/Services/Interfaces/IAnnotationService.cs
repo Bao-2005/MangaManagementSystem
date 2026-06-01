@@ -1,10 +1,11 @@
-using MangaManagementSystem.Business.Annotations.DTOs;
+using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Responses;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MangaManagementSystem.Business.Annotations.Interfaces
+namespace MangaManagementSystem.Business.Services.Interfaces
 {
     /// <summary>
     /// Service xử lý business logic cho Pin Annotation.

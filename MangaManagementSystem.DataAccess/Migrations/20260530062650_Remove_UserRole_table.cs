@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,16 +11,36 @@ namespace MangaManagementSystem.DataAccess.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "UserRoles");
-
+            // 1. Thêm cột RoleId cho phép NULL tạm thời để tránh conflict khóa ngoại
             migrationBuilder.AddColumn<Guid>(
                 name: "RoleId",
                 table: "Users",
                 type: "uniqueidentifier",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                nullable: true);
 
+            // 2. Di chuyển dữ liệu từ UserRoles sang Users.RoleId
+            migrationBuilder.Sql(
+                "UPDATE Users SET RoleId = ur.RoleId FROM Users u INNER JOIN UserRoles ur ON u.UserId = ur.UserId");
+
+            // 3. Gán Role mặc định cho những user chưa có role (nếu có) để tránh lỗi khi chuyển sang NOT NULL
+            migrationBuilder.Sql(
+                "UPDATE Users SET RoleId = (SELECT TOP 1 RoleId FROM Roles) WHERE RoleId IS NULL");
+
+            // 4. Đổi cột RoleId thành NOT NULL
+            migrationBuilder.AlterColumn<Guid>(
+                name: "RoleId",
+                table: "Users",
+                type: "uniqueidentifier",
+                nullable: false,
+                oldClrType: typeof(Guid),
+                oldType: "uniqueidentifier",
+                oldNullable: true);
+
+            // 5. Xóa bảng UserRoles cũ
+            migrationBuilder.DropTable(
+                name: "UserRoles");
+
+            // 6. Tạo index và foreign key như cũ
             migrationBuilder.CreateIndex(
                 name: "IX_Users_RoleId",
                 table: "Users",

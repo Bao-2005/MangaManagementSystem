@@ -311,6 +311,9 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.Feedback)
                 .HasMaxLength(2000);
 
+            entity.Property(x => x.Notes)
+                .HasMaxLength(2000);
+
             // SubmittedBy — required, FK → Users (BR-72, BR-129)
             entity.Property(x => x.SubmittedBy)
                 .IsRequired();

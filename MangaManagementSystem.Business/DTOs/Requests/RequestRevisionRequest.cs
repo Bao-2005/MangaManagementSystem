@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MangaManagementSystem.Business.Manuscripts.DTOs
+namespace MangaManagementSystem.Business.DTOs.Requests
 {
     /// <summary>
     /// Request để Editor yêu cầu Mangaka chỉnh sửa bản thảo (BR-77).

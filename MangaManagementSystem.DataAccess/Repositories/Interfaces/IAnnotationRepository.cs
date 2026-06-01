@@ -45,5 +45,15 @@ namespace MangaManagementSystem.DataAccess.Repositories.Interfaces
         Task<int?> GetLatestManuscriptVersionNoAsync(
             Guid chapterId,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lấy chi tiết Manuscript cùng Chapter và Series theo ManuscriptId.
+        /// </summary>
+        Task<Manuscript?> GetManuscriptWithDetailsAsync(Guid manuscriptId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lấy Role Name của User theo UserId.
+        /// </summary>
+        Task<string?> GetUserRoleNameAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

@@ -1,22 +1,21 @@
-using MangaManagement.DataAccess.DbContexts;
-using MangaManagementSystem.Business.Annotations.DTOs;
-using MangaManagementSystem.Business.Annotations.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Responses;
+using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.Business.Auth.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MangaManagementSystem.Business.Annotations.Services
+namespace MangaManagementSystem.Business.Services.Implements
 {
     public class AnnotationService : IAnnotationService
     {
         private readonly IAnnotationRepository _annotationRepository;
-        private readonly MangaDbContext _context;
         private readonly ICurrentUserService _currentUserService;
 
         // Role name constants — khớp với giá trị trong bảng Roles
@@ -24,17 +23,15 @@ namespace MangaManagementSystem.Business.Annotations.Services
         private const string RoleMangaka = "MANGAKA";
         private const string RoleAdmin = "ADMIN";
 
-        // Manuscript status constants
-        private const string ManuscriptStatusApproved = "Approved";
-        private const string ManuscriptStatusDraft = "Draft";
+        // Manuscript status constants - lấy từ Enum
+        private static readonly string ManuscriptStatusApproved = ManuscriptStatus.Approved.ToStorageValue();
+        private static readonly string ManuscriptStatusDraft = ManuscriptStatus.Draft.ToStorageValue();
 
         public AnnotationService(
             IAnnotationRepository annotationRepository,
-            MangaDbContext context,
             ICurrentUserService currentUserService)
         {
             _annotationRepository = annotationRepository;
-            _context = context;
             _currentUserService = currentUserService;
         }
 
@@ -119,7 +116,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
                 Content = trimmedContent,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = null,
-                IsDeleted = false
+                IsDeleted = AnnotationStatus.Active.ToIsDeleted()
             };
 
             await _annotationRepository.AddAsync(annotation, cancellationToken);
@@ -389,7 +386,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             }
 
             // 9. Soft delete — không hard delete để giữ audit history (BR-08)
-            annotation.IsDeleted = true;
+            annotation.IsDeleted = AnnotationStatus.Deleted.ToIsDeleted();
             annotation.UpdatedAt = DateTime.UtcNow;
 
             _annotationRepository.Update(annotation);
@@ -410,10 +407,7 @@ namespace MangaManagementSystem.Business.Annotations.Services
             Guid manuscriptId,
             CancellationToken cancellationToken)
         {
-            return await _context.Manuscripts
-                .Include(m => m.Chapter)
-                    .ThenInclude(c => c.Series)
-                .FirstOrDefaultAsync(m => m.ManuscriptId == manuscriptId, cancellationToken);
+            return await _annotationRepository.GetManuscriptWithDetailsAsync(manuscriptId, cancellationToken);
         }
 
         /// <summary>
@@ -423,12 +417,11 @@ namespace MangaManagementSystem.Business.Annotations.Services
             Guid userId,
             CancellationToken cancellationToken)
         {
-            var roles = await _context.UserRoles
-                .Where(ur => ur.UserId == userId)
-                .Select(ur => ur.Role.RoleName)
-                .ToListAsync(cancellationToken);
+            var roleName = await _annotationRepository.GetUserRoleNameAsync(userId, cancellationToken);
 
-            return new HashSet<string>(roles, StringComparer.OrdinalIgnoreCase);
+            return roleName != null
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { roleName }
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>

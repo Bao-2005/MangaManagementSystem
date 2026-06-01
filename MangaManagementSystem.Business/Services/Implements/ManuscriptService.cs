@@ -1,23 +1,22 @@
-using MangaManagement.DataAccess.DbContexts;
-using MangaManagementSystem.Business.Manuscripts.DTOs;
-using MangaManagementSystem.Business.Manuscripts.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Responses;
+using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.Business.Auth.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MangaManagementSystem.Business.Manuscripts.Services
+namespace MangaManagementSystem.Business.Services.Implements
 {
     public class ManuscriptService : IManuscriptService
     {
         private readonly IManuscriptRepository _manuscriptRepository;
         private readonly IAnnotationRepository _annotationRepository;
-        private readonly MangaDbContext _context;
         private readonly ICurrentUserService _currentUserService;
 
         // Role name constants — khớp với giá trị trong bảng Roles
@@ -25,16 +24,16 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
         private const string RoleMangaka = "MANGAKA";
         private const string RoleAdmin = "ADMIN";
 
-        // Manuscript status constants (phụ lục roadmap)
-        private const string StatusSubmitted = "Submitted";
-        private const string StatusUnderReview = "Under Review";
-        private const string StatusRevisionRequired = "Revision Required";
-        private const string StatusApproved = "Approved";
+        // Manuscript status constants (phụ lục roadmap) - lấy từ Enum
+        private static readonly string StatusSubmitted = ManuscriptStatus.Submitted.ToStorageValue();
+        private static readonly string StatusUnderReview = ManuscriptStatus.UnderReview.ToStorageValue();
+        private static readonly string StatusRevisionRequired = ManuscriptStatus.RevisionRequired.ToStorageValue();
+        private static readonly string StatusApproved = ManuscriptStatus.Approved.ToStorageValue();
 
         // Chapter status constants (phụ lục roadmap)
-        private const string ChapterStatusSubmitted = "Submitted";
-        private const string ChapterStatusRevisionRequired = "Revision Required";
-        private const string ChapterStatusPublished = "Published";
+        private const string ChapterStatusSubmitted = "SUBMITTED";
+        private const string ChapterStatusRevisionRequired = "REVISION_REQUIRED";
+        private const string ChapterStatusPublished = "PUBLISHED";
 
         // PageTask status constants
         private const string PageTaskStatusApproved = "Approved";
@@ -48,12 +47,10 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
         public ManuscriptService(
             IManuscriptRepository manuscriptRepository,
             IAnnotationRepository annotationRepository,
-            MangaDbContext context,
             ICurrentUserService currentUserService)
         {
             _manuscriptRepository = manuscriptRepository;
             _annotationRepository = annotationRepository;
-            _context = context;
             _currentUserService = currentUserService;
         }
 
@@ -73,9 +70,7 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
             }
 
             // 2. Load Chapter + Series — 404 nếu không tìm thấy
-            var chapter = await _context.Chapters
-                .Include(c => c.Series)
-                .FirstOrDefaultAsync(c => c.ChapterId == chapterId, ct);
+            var chapter = await _manuscriptRepository.GetChapterWithSeriesAsync(chapterId, ct);
 
             if (chapter == null)
                 throw new KeyNotFoundException($"Không tìm thấy chapter với ID: {chapterId}");
@@ -98,17 +93,13 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                     "Chapter này đã có manuscript được Approved. Không thể submit thêm (BR-80).");
 
             // 6. Check tất cả PageTask của chapter đều ở trạng thái Approved (BR-67)
-            var totalTasks = await _context.PageTasks
-                .Where(t => t.ChapterId == chapterId)
-                .CountAsync(ct);
+            var totalTasks = await _manuscriptRepository.GetTotalPageTasksCountAsync(chapterId, ct);
 
             if (totalTasks == 0)
                 throw new InvalidOperationException(
                     "Chapter chưa có PageTask nào. Phải có ít nhất 1 PageTask trước khi submit (BR-67).");
 
-            var unapprovedCount = await _context.PageTasks
-                .Where(t => t.ChapterId == chapterId && t.Status != PageTaskStatusApproved)
-                .CountAsync(ct);
+            var unapprovedCount = await _manuscriptRepository.GetUnapprovedPageTasksCountAsync(chapterId, PageTaskStatusApproved, ct);
 
             if (unapprovedCount > 0)
                 throw new InvalidOperationException(
@@ -134,6 +125,7 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                 // RevisionCount: tăng khi editor yêu cầu revision, không tăng theo version.
                 RevisionCount = nextRevisionCount,
                 Feedback = null,
+                Notes = request.Notes,
                 PreviewFileAssetId = request.PreviewFileAssetId,
                 SourceFileAssetId = request.SourceFileAssetId
             };
@@ -159,9 +151,7 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
             CancellationToken ct = default)
         {
             // 1. Load Chapter + Series — 404 nếu không tìm thấy
-            var chapter = await _context.Chapters
-                .Include(c => c.Series)
-                .FirstOrDefaultAsync(c => c.ChapterId == chapterId, ct);
+            var chapter = await _manuscriptRepository.GetChapterWithSeriesAsync(chapterId, ct);
 
             if (chapter == null)
                 throw new KeyNotFoundException($"Không tìm thấy chapter với ID: {chapterId}");
@@ -185,7 +175,10 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
             // 3. Lấy danh sách manuscripts, sort theo VersionNo
             var manuscripts = await _manuscriptRepository.GetByChapterIdAsync(chapterId, ct);
 
-            return manuscripts.Select(MapToSummary).ToList();
+            // 4. Tính progress của chapter (dùng lại cho tất cả versions vì cùng chapter)
+            var progress = await _manuscriptRepository.GetChapterProgressAsync(chapterId, ct);
+
+            return manuscripts.Select(m => MapToSummary(m, progress)).ToList();
         }
 
         /// <inheritdoc />
@@ -215,7 +208,10 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                         "Bạn không có quyền xem manuscript này.");
             }
 
-            return MapToResponse(manuscript);
+            // 3. Tính progress của chapter
+            var progress = await _manuscriptRepository.GetChapterProgressAsync(manuscript.ChapterId, ct);
+
+            return MapToResponse(manuscript, progress);
         }
 
         /// <inheritdoc />
@@ -315,13 +311,9 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                     $"Trạng thái hiện tại: {manuscript.Status}.");
 
             // 6. BR-84: Check chapter completion = 100%
-            var totalTasks = await _context.PageTasks
-                .Where(t => t.ChapterId == chapter.ChapterId)
-                .CountAsync(ct);
+            var totalTasks = await _manuscriptRepository.GetTotalPageTasksCountAsync(chapter.ChapterId, ct);
 
-            var approvedTasks = await _context.PageTasks
-                .Where(t => t.ChapterId == chapter.ChapterId && t.Status == PageTaskStatusApproved)
-                .CountAsync(ct);
+            var approvedTasks = await _manuscriptRepository.GetApprovedPageTasksCountAsync(chapter.ChapterId, PageTaskStatusApproved, ct);
 
             if (totalTasks == 0 || approvedTasks < totalTasks)
                 throw new InvalidOperationException(
@@ -452,6 +444,46 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
             return MapToResponse(manuscript);
         }
 
+        /// <summary>
+        /// Lấy toàn bộ manuscripts trong hệ thống.
+        /// Tantou Editor thấy tất cả; Mangaka chỉ thấy series mình phụ trách; Admin thấy tất cả.
+        /// </summary>
+        public async Task<List<ManuscriptSummaryResponse>> GetAllAsync(
+            Guid currentUserId,
+            CancellationToken ct = default)
+        {
+            var manuscripts = await _manuscriptRepository.GetAllWithDetailsAsync(ct);
+
+            // Lấy roles của user để quyết định filter
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+
+            // Filter theo role
+            IEnumerable<Manuscript> filtered;
+            if (userRoles.Contains(RoleAdmin) || userRoles.Contains(RoleTantouEditor))
+            {
+                filtered = manuscripts;
+            }
+            else if (userRoles.Contains(RoleMangaka))
+            {
+                filtered = manuscripts.Where(m =>
+                    m.Chapter?.Series?.MangakaId == currentUserId);
+            }
+            else
+            {
+                return new List<ManuscriptSummaryResponse>();
+            }
+
+            // Lấy progress theo từng chapter (cache để tránh query trùng)
+            var chapterIds = filtered.Select(m => m.ChapterId).Distinct().ToList();
+            var progressMap = new Dictionary<Guid, int>();
+            foreach (var chapterId in chapterIds)
+            {
+                progressMap[chapterId] = await _manuscriptRepository.GetChapterProgressAsync(chapterId, ct);
+            }
+
+            return filtered.Select(m => MapToSummary(m, progressMap.GetValueOrDefault(m.ChapterId, 0))).ToList();
+        }
+
         // ─── Private helpers ────────────────────────────────────────────────────────
 
         /// <summary>
@@ -462,16 +494,15 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
             Guid userId,
             CancellationToken ct)
         {
-            var roles = await _context.UserRoles
-                .Where(ur => ur.UserId == userId)
-                .Select(ur => ur.Role.RoleName)
-                .ToListAsync(ct);
+            var roleName = await _manuscriptRepository.GetUserRoleNameAsync(userId, ct);
 
-            return new HashSet<string>(roles, StringComparer.OrdinalIgnoreCase);
+            return roleName != null
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { roleName }
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>Map Manuscript entity sang ManuscriptResponse DTO.</summary>
-        private static ManuscriptResponse MapToResponse(Manuscript manuscript)
+        /// <summary>Map Manuscript entity sang ManuscriptResponse DTO đầy đủ.</summary>
+        private static ManuscriptResponse MapToResponse(Manuscript manuscript, int progress = 0)
         {
             return new ManuscriptResponse
             {
@@ -480,6 +511,7 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                 VersionNo = manuscript.VersionNo,
                 Status = manuscript.Status,
                 Feedback = manuscript.Feedback,
+                Notes = manuscript.Notes,
                 SubmittedBy = manuscript.SubmittedBy,
                 SubmittedAt = manuscript.SubmittedAt,
                 ReviewedBy = manuscript.ReviewedBy,
@@ -487,12 +519,18 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                 ApprovedAt = manuscript.ApprovedAt,
                 RevisionCount = manuscript.RevisionCount,
                 PreviewFileAssetId = manuscript.PreviewFileAssetId,
-                SourceFileAssetId = manuscript.SourceFileAssetId
+                SourceFileAssetId = manuscript.SourceFileAssetId,
+                // Fields từ navigation properties
+                SeriesId = manuscript.Chapter?.Series?.SeriesId,
+                SeriesTitle = manuscript.Chapter?.Series?.Title,
+                ChapterNumber = manuscript.Chapter?.ChapterNo ?? 0,
+                ChapterTitle = manuscript.Chapter?.Title,
+                Progress = progress
             };
         }
 
         /// <summary>Map Manuscript entity sang ManuscriptSummaryResponse DTO (nhẹ hơn, cho list).</summary>
-        private static ManuscriptSummaryResponse MapToSummary(Manuscript manuscript)
+        private static ManuscriptSummaryResponse MapToSummary(Manuscript manuscript, int progress = 0)
         {
             return new ManuscriptSummaryResponse
             {
@@ -501,7 +539,13 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                 Status = manuscript.Status,
                 SubmittedBy = manuscript.SubmittedBy,
                 SubmittedAt = manuscript.SubmittedAt,
-                RevisionCount = manuscript.RevisionCount
+                RevisionCount = manuscript.RevisionCount,
+                // Fields từ navigation properties
+                SeriesId = manuscript.Chapter?.Series?.SeriesId,
+                SeriesTitle = manuscript.Chapter?.Series?.Title,
+                ChapterNumber = manuscript.Chapter?.ChapterNo ?? 0,
+                ChapterTitle = manuscript.Chapter?.Title,
+                Progress = progress
             };
         }
     }

@@ -1,7 +1,9 @@
-using MangaManagementSystem.Business.Annotations.DTOs;
-using MangaManagementSystem.Business.Annotations.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Responses;
+using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.Business.Auth.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +18,7 @@ namespace MangaManagementSystem.WebApi.Controllers
     /// </summary>
     [ApiController]
     [Route("api/manuscripts/{manuscriptId:guid}/annotations")]
+    [Tags("Annotations")]
     public class AnnotationsController : ControllerBase
     {
         private readonly IAnnotationService _annotationService;
@@ -36,6 +39,9 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Chỉ Tantou Editor được assign cho series mới được tạo.
         /// </summary>
         [HttpPost]
+        [SwaggerOperation(
+            Summary = "Create annotation",
+            Description = "Tạo một ghi chú ghim (Pin Annotation) mới trên trang của bản thảo. Chỉ Tantou Editor được phân công phụ trách series mới có quyền thực hiện.")]
         public async Task<IActionResult> CreateAnnotation(
             [FromRoute] Guid manuscriptId,
             [FromBody] CreateAnnotationRequest request,
@@ -82,6 +88,9 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Tantou Editor hoặc Mangaka owner của series mới được xem.
         /// </summary>
         [HttpGet]
+        [SwaggerOperation(
+            Summary = "Get annotations",
+            Description = "Lấy danh sách ghi chú theo bản thảo. Hỗ trợ lọc theo số phiên bản (versionNo) và số trang (pageNo). Tantou Editor hoặc Mangaka sở hữu series mới có quyền xem.")]
         public async Task<IActionResult> GetAnnotations(
             [FromRoute] Guid manuscriptId,
             [FromQuery] int? versionNo = null,
@@ -117,6 +126,9 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// (Revision Required phải có ít nhất 1 annotation).
         /// </summary>
         [HttpGet("count")]
+        [SwaggerOperation(
+            Summary = "Count annotations",
+            Description = "Đếm số lượng ghi chú theo phiên bản bản thảo. Phục vụ việc kiểm tra điều kiện chuyển trạng thái yêu cầu sửa đổi.")]
         public async Task<IActionResult> CountAnnotations(
             [FromRoute] Guid manuscriptId,
             [FromQuery] int? versionNo = null,
@@ -152,6 +164,9 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Annotation phải thuộc latest version.
         /// </summary>
         [HttpPatch("{annotationId:guid}")]
+        [SwaggerOperation(
+            Summary = "Update annotation",
+            Description = "Cập nhật vị trí và/hoặc nội dung của ghi chú. Chỉ tác giả của ghi chú mới được sửa. Bản thảo phải chưa được duyệt và ghi chú phải thuộc phiên bản mới nhất.")]
         public async Task<IActionResult> UpdateAnnotation(
             [FromRoute] Guid manuscriptId,
             [FromRoute] Guid annotationId,
@@ -197,6 +212,9 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Annotation phải thuộc latest version.
         /// </summary>
         [HttpDelete("{annotationId:guid}")]
+        [SwaggerOperation(
+            Summary = "Delete annotation",
+            Description = "Xóa mềm (soft delete) ghi chú. Chỉ người tạo ghi chú mới có quyền xóa. Bản thảo phải chưa được duyệt và ghi chú phải thuộc phiên bản mới nhất.")]
         public async Task<IActionResult> DeleteAnnotation(
             [FromRoute] Guid manuscriptId,
             [FromRoute] Guid annotationId,

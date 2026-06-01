@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace MangaManagementSystem.Business.Annotations.DTOs
+namespace MangaManagementSystem.Business.DTOs.Requests
 {
     /// <summary>
     /// Request DTO để tạo Pin Annotation mới.

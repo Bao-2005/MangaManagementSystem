@@ -25,9 +25,40 @@ namespace MangaManagementSystem.DataAccess.Repositories.Implements
             CancellationToken ct = default)
         {
             return await _context.Manuscripts
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
                 .Where(m => m.ChapterId == chapterId)
                 .OrderBy(m => m.VersionNo)
                 .ToListAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Manuscript>> GetAllWithDetailsAsync(
+            CancellationToken ct = default)
+        {
+            return await _context.Manuscripts
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
+                .OrderByDescending(m => m.SubmittedAt)
+                .ToListAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetChapterProgressAsync(
+            Guid chapterId,
+            CancellationToken ct = default)
+        {
+            var total = await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId)
+                .CountAsync(ct);
+
+            if (total == 0) return 0;
+
+            var approved = await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId && t.Status == "Approved")
+                .CountAsync(ct);
+
+            return (int)Math.Round((double)approved / total * 100);
         }
 
         /// <inheritdoc />
@@ -71,7 +102,48 @@ namespace MangaManagementSystem.DataAccess.Repositories.Implements
         {
             return await _context.Manuscripts
                 .AnyAsync(m => m.ChapterId == chapterId
-                            && m.Status == "Approved", ct);
+                            && m.Status == "APPROVED", ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<Chapter?> GetChapterWithSeriesAsync(Guid chapterId, CancellationToken ct = default)
+        {
+            return await _context.Chapters
+                .Include(c => c.Series)
+                .FirstOrDefaultAsync(c => c.ChapterId == chapterId, ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetTotalPageTasksCountAsync(Guid chapterId, CancellationToken ct = default)
+        {
+            return await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId)
+                .CountAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetUnapprovedPageTasksCountAsync(Guid chapterId, string approvedStatus, CancellationToken ct = default)
+        {
+            return await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId && t.Status != approvedStatus)
+                .CountAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetApprovedPageTasksCountAsync(Guid chapterId, string approvedStatus, CancellationToken ct = default)
+        {
+            return await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId && t.Status == approvedStatus)
+                .CountAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<string?> GetUserRoleNameAsync(Guid userId, CancellationToken ct = default)
+        {
+            return await _context.Users
+                .Where(u => u.UserId == userId)
+                .Select(u => u.Role.RoleName)
+                .FirstOrDefaultAsync(ct);
         }
     }
 }

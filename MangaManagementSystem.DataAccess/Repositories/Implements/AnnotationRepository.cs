@@ -75,5 +75,23 @@ namespace MangaManagementSystem.DataAccess.Repositories.Implements
 
             return maxVersion;
         }
+
+        /// <inheritdoc />
+        public async Task<Manuscript?> GetManuscriptWithDetailsAsync(Guid manuscriptId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Manuscripts
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
+                .FirstOrDefaultAsync(m => m.ManuscriptId == manuscriptId, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public async Task<string?> GetUserRoleNameAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .Where(u => u.UserId == userId)
+                .Select(u => u.Role.RoleName)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
     }
 }
