@@ -4,19 +4,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using MangaManagementSystem.DataAccess.Entities.Enums;
-
-namespace MangaManagementSystem.DataAccess.Entities.Models
+namespace MangaManagementSystem.Business.DTOs.Responses
 {
-    public class PageTask
+    public class PageTaskResponse
     {
         public Guid PageTaskId { get; set; }
 
         public Guid ChapterId { get; set; }
 
+        public string ChapterTitle { get; set; } = null!;
+
         public Guid ManuscriptId { get; set; }
 
         public Guid AssistantId { get; set; }
+
+        public string AssistantName { get; set; } = null!;
 
         public int PageStart { get; set; }
 
@@ -28,20 +30,16 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public DateTime? DueDate { get; set; }
 
-        public PageTaskStatus Status { get; set; } = PageTaskStatus.Assigned;
+        public string Status { get; set; } = null!;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; }
 
         public DateTime? ApprovedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
 
-        public Chapter Chapter { get; set; } = null!;
-
-        public Manuscript Manuscript { get; set; } = null!;
-
-        public User Assistant { get; set; } = null!;
-
-        public ICollection<PageTaskSubmission> Submissions { get; set; } = new List<PageTaskSubmission>();
+        public IReadOnlyCollection<PageTaskSubmissionResponse> Submissions { get; set; } =
+            Array.Empty<PageTaskSubmissionResponse>();
     }
 }
+
