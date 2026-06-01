@@ -12,6 +12,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public string RoleName { get; set; } = null!;
 
-        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+        public ICollection<User> Users { get; set; } = new List<User>();
+
+        //public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     }
 }

@@ -1,0 +1,103 @@
+# Refactor AuthController and Implement AutoMapper
+
+The goal is to:
+1. Replace the custom `ApiResponse<T>` with the existing `BaseResponse` class.
+2. Change the controller methods to return `IActionResult` instead of `ActionResult<T>`.
+3. Implement AutoMapper to automatically map `User` entities to `AuthResponse` DTOs, removing manual mapping logic.
+4. Clean up the unused `ApiResponse` file.
+
+## Open Questions
+
+- `BaseResponse` is in the `WarehouseService.Application.DTOs` namespace. Should I keep this namespace or move it to `MangaManagementSystem.Business.DTOs.Responses`? I will assume we keep the current namespace unless specified otherwise.
+- `BaseResponse` only has `Data` (object) and `Message` (string) properties. It does not have a `Success` boolean. I will set the `Message` to "Success" for successful responses, and use appropriate HTTP status codes (like 401 Unauthorized or 400 BadRequest) with an error `Message` for failures. Is this acceptable?
+
+## Proposed Changes
+
+### 1. AutoMapper Integration
+
+#### [NEW] [UserProfile.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.Business/Mappers/Profiles/UserProfile.cs)
+- Create an AutoMapper `Profile` class to configure the mapping from `User` to `AuthResponse`.
+- Map `User.Role.RoleName` to `AuthResponse.RoleName`.
+
+#### Manual Service Mapping Conversion Plan
+- Current manual mapping scope:
+  - `AuthService.MapToAuthResponse(User user)` manually creates `AuthResponse`.
+  - `RegisterAsync`, `LoginAsync`, and `GetCurrentUserAsync` call `MapToAuthResponse`.
+- Add a dedicated AutoMapper profile in `MangaManagementSystem.Business/Mappers/Profiles/UserProfile.cs`.
+- Configure `CreateMap<User, AuthResponse>()` and explicitly map:
+  - `RoleName` from `User.Role.RoleName`.
+  - Direct properties (`UserId`, `UserName`, `Email`, `DisplayName`) by convention.
+- Inject `IMapper` into `AuthService`.
+- Replace each `MapToAuthResponse(...)` call with `_mapper.Map<AuthResponse>(...)`.
+- Remove the private `MapToAuthResponse` method after all callers are replaced.
+- Keep entity creation in `RegisterAsync` manual; AutoMapper should only replace entity-to-response mapping, not password hashing, token generation, or database update logic.
+- Verify every mapped `User` query includes `.Include(x => x.Role)` before mapping so `RoleName` is available.
+- Confirm `services.AddAutoMapper(typeof(DependencyInjection))` discovers the new profile through the Business assembly.
+
+#### [MODIFY] [AuthService.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.Business/Services/Implements/AuthService.cs)
+- Inject `IMapper` into the constructor.
+- Remove the manual `MapToAuthResponse(User user)` method.
+- Replace all instances of manual mapping with `_mapper.Map<AuthResponse>(user)`.
+
+### 2. Controller Refactoring
+
+#### [MODIFY] [AuthController.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.WebApi/Controllers/AuthController.cs)
+- Change all method return types from `Task<ActionResult<ApiResponse<T>>>` to `Task<IActionResult>`.
+- Update `[ProducesResponseType]` attributes to use `typeof(BaseResponse)`.
+- Replace `ApiResponse<T>.Ok(data)` with `Ok(new BaseResponse { Data = data, Message = "Success" })`.
+- Replace `ApiResponse<T>.Fail()` with `new BaseResponse { Message = "..." }` passed to `Unauthorized()` or `BadRequest()`.
+- Add `using WarehouseService.Application.DTOs;` to the top of the file.
+
+### 3. DTO Cleanup
+
+#### [DELETE] [ApiResponse.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.Business/DTOs/Responses/ApiResponse.cs)
+- Delete this file as it is no longer used.
+
+## Verification Plan
+
+### Automated Tests
+- Run `dotnet build MangaManagementSystem.sln` to ensure the project compiles successfully without any missing references or type mismatches.
+- Ensure the `IMapper` is properly registered in dependency injection (usually done in `MangaManagementSystem.Business.Mappers` setup).
+- Add or run mapper-focused verification if tests exist:
+  - AutoMapper configuration is valid.
+  - `User.Role.RoleName` maps to `AuthResponse.RoleName`.
+  - `AuthService` still returns the same response fields for register, login, and current-user flows.
+
+## Exception Type Refactor Plan
+
+### Goal
+- Replace generic `throw new Exception(...)` in service code with the most appropriate built-in .NET exception type.
+- Add custom application exceptions only when built-in .NET exceptions do not express the case clearly enough.
+- Update API exception handling so these exception types produce the intended HTTP status codes.
+
+### 1. AuthService Exception Mapping
+
+#### [MODIFY] [AuthService.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.Business/Services/Implements/AuthService.cs)
+- Replace duplicate email/username failure with `InvalidOperationException`.
+- Replace missing role failure with `KeyNotFoundException`.
+- Replace invalid login credentials with `UnauthorizedAccessException`.
+- Replace inactive/locked account failures with `UnauthorizedAccessException`.
+- Replace invalid/expired refresh token failure with `UnauthorizedAccessException`.
+- Replace missing user failures with `KeyNotFoundException`.
+- Replace wrong current password failure with `UnauthorizedAccessException`.
+- Keep exception messages unchanged.
+- Do not change repository usage, AutoMapper mapping, password hashing, token generation, refresh token rotation, or response DTOs.
+
+### 2. Exception Middleware Mapping
+
+#### [MODIFY] [ExceptionMiddleware.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.WebApi/Middleware/ExceptionMiddleware.cs)
+- Keep `ArgumentException` mapped to HTTP 400 Bad Request.
+- Keep `KeyNotFoundException` mapped to HTTP 404 Not Found.
+- Add `UnauthorizedAccessException` mapped to HTTP 401 Unauthorized.
+- Add `InvalidOperationException` mapped to HTTP 409 Conflict.
+- Keep all unknown exceptions mapped to HTTP 500 Internal Server Error.
+
+### 3. Custom Exception Rule
+- Do not add custom exceptions for the current auth service because built-in .NET exception types are expressive enough.
+- If future cases need custom exceptions, place them under `MangaManagementSystem.Business/Exceptions`.
+- Middleware must map any new custom exception type explicitly.
+
+### 4. Verification
+- Search for `throw new Exception` and confirm none remain in the solution.
+- Run `dotnet build MangaManagementSystem.sln`.
+- Confirm auth/business failures now resolve to specific exception types that middleware can map to expected HTTP status codes.
