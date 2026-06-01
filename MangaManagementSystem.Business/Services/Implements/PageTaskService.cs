@@ -4,6 +4,7 @@ using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 
 namespace MangaManagementSystem.Business.Services.Implements
 {
@@ -28,6 +29,7 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<UserAssignment> _userAssignmentRepository;
         private readonly IRepository<FileAsset> _fileAssetRepository;
+        private readonly IMapper _mapper;
 
         public PageTaskService(
             IRepository<PageTask> pageTaskRepository,
@@ -36,7 +38,8 @@ namespace MangaManagementSystem.Business.Services.Implements
             IRepository<Manuscript> manuscriptRepository,
             IRepository<User> userRepository,
             IRepository<UserAssignment> userAssignmentRepository,
-            IRepository<FileAsset> fileAssetRepository)
+            IRepository<FileAsset> fileAssetRepository,
+            IMapper mapper)
         {
             _pageTaskRepository = pageTaskRepository;
             _submissionRepository = submissionRepository;
@@ -45,6 +48,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             _userRepository = userRepository;
             _userAssignmentRepository = userAssignmentRepository;
             _fileAssetRepository = fileAssetRepository;
+            _mapper = mapper;
         }
 
         public async Task<PageTaskResponse> CreateAsync(Guid mangakaId, CreatePageTaskRequest request)
@@ -115,7 +119,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
-            return tasks.Select(MapTask).ToList();
+            return _mapper.Map<IReadOnlyCollection<PageTaskResponse>>(tasks);
         }
 
         public async Task<IReadOnlyCollection<PageTaskResponse>> GetForAssistantAsync(Guid assistantId)
@@ -125,7 +129,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
-            return tasks.Select(MapTask).ToList();
+            return _mapper.Map<IReadOnlyCollection<PageTaskResponse>>(tasks);
         }
 
         public async Task<PageTaskSubmissionResponse> SubmitAsync(Guid assistantId, Guid pageTaskId, SubmitPageTaskRequest request)
@@ -193,7 +197,7 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             await _submissionRepository.SaveChangeAsync();
 
-            return MapSubmission(submission);
+            return _mapper.Map<PageTaskSubmissionResponse>(submission);
         }
 
         public async Task<PageTaskSubmissionResponse> RejectSubmissionAsync(Guid mangakaId, Guid submissionId, RejectPageTaskSubmissionRequest request)
@@ -214,7 +218,7 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             await _submissionRepository.SaveChangeAsync();
 
-            return MapSubmission(submission);
+            return _mapper.Map<PageTaskSubmissionResponse>(submission);
         }
 
         private IQueryable<PageTask> BaseTaskQuery()
@@ -232,7 +236,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var pageTask = await BaseTaskQuery()
                 .FirstAsync(x => x.PageTaskId == pageTaskId);
 
-            return MapTask(pageTask);
+            return _mapper.Map<PageTaskResponse>(pageTask);
         }
 
         private async Task<PageTaskSubmissionResponse> GetSubmissionResponseAsync(Guid submissionId)
@@ -241,7 +245,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 .Include(x => x.SubmittedFileAsset)
                 .FirstAsync(x => x.SubmissionId == submissionId);
 
-            return MapSubmission(submission);
+            return _mapper.Map<PageTaskSubmissionResponse>(submission);
         }
 
         private async Task<PageTaskSubmission> GetSubmissionForReviewAsync(Guid mangakaId, Guid submissionId)
@@ -280,47 +284,5 @@ namespace MangaManagementSystem.Business.Services.Implements
             }
         }
 
-        private static PageTaskResponse MapTask(PageTask pageTask)
-        {
-            return new PageTaskResponse
-            {
-                PageTaskId = pageTask.PageTaskId,
-                ChapterId = pageTask.ChapterId,
-                ChapterTitle = pageTask.Chapter.Title,
-                ManuscriptId = pageTask.ManuscriptId,
-                AssistantId = pageTask.AssistantId,
-                AssistantName = pageTask.Assistant.DisplayName,
-                PageStart = pageTask.PageStart,
-                PageEnd = pageTask.PageEnd,
-                TaskType = pageTask.TaskType,
-                Description = pageTask.Description,
-                DueDate = pageTask.DueDate,
-                Status = pageTask.Status,
-                CreatedAt = pageTask.CreatedAt,
-                ApprovedAt = pageTask.ApprovedAt,
-                UpdatedAt = pageTask.UpdatedAt,
-                Submissions = pageTask.Submissions
-                    .OrderByDescending(x => x.VersionNo)
-                    .Select(MapSubmission)
-                    .ToList()
-            };
-        }
-
-        private static PageTaskSubmissionResponse MapSubmission(PageTaskSubmission submission)
-        {
-            return new PageTaskSubmissionResponse
-            {
-                SubmissionId = submission.SubmissionId,
-                PageTaskId = submission.PageTaskId,
-                VersionNo = submission.VersionNo,
-                SubmittedFileAssetId = submission.SubmittedFileAssetId,
-                SubmittedFileName = submission.SubmittedFileAsset.OriginalFileName,
-                Status = submission.Status,
-                Note = submission.Note,
-                RejectReason = submission.RejectReason,
-                SubmittedAt = submission.SubmittedAt,
-                ReviewedAt = submission.ReviewedAt
-            };
-        }
     }
 }
