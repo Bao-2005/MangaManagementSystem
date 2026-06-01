@@ -61,12 +61,8 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             var isMangaka = string.Equals(role.RoleName, MangakaRoleName, StringComparison.OrdinalIgnoreCase);
 
-            if (!isMangaka && request.TantouEditorId.HasValue)
-                throw new ArgumentException("Tantou Editor chỉ được gán khi tạo tài khoản Mangaka.");
-
             var user = new User
             {
-                UserId = Guid.NewGuid(),
                 UserName = userName,
                 Email = email,
                 DisplayName = request.DisplayName.Trim(),
@@ -79,29 +75,28 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             UserAssignment? userAssignment = null;
 
-            if (isMangaka)
+            if (isMangaka && !request.AssignedFromUserId.HasValue)
+                throw new ArgumentException("Tantou Editor là bắt buộc khi tạo tài khoản Mangaka.");
+
+            if (request.AssignedFromUserId.HasValue)
             {
-                if (!request.TantouEditorId.HasValue)
-                    throw new ArgumentException("Tantou Editor là bắt buộc khi tạo tài khoản Mangaka.");
-
-                var tantouEditor = await _userRepository.GetAll()
+                var assignedFromUser = await _userRepository.GetAll()
                     .Include(x => x.Role)
-                    .FirstOrDefaultAsync(x => x.UserId == request.TantouEditorId.Value);
+                    .FirstOrDefaultAsync(x => x.UserId == request.AssignedFromUserId.Value);
 
-                if (tantouEditor == null)
-                    throw new KeyNotFoundException("Tantou Editor không tồn tại.");
+                if (assignedFromUser == null)
+                    throw new KeyNotFoundException("Người dùng được gán không tồn tại.");
 
-                if (!string.Equals(tantouEditor.Role.RoleName, TantouEditorRoleName, StringComparison.OrdinalIgnoreCase))
+                if (isMangaka && !string.Equals(assignedFromUser.Role.RoleName, TantouEditorRoleName, StringComparison.OrdinalIgnoreCase))
                     throw new ArgumentException("Người dùng được chọn không phải Tantou Editor.");
 
-                if (!string.Equals(tantouEditor.Status, ActiveStatus, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Tantou Editor đang bị khóa hoặc không hoạt động.");
+                if (!string.Equals(assignedFromUser.Status, ActiveStatus, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Người dùng được gán đang bị khóa hoặc không hoạt động.");
 
                 userAssignment = new UserAssignment
                 {
-                    AssignmentId = Guid.NewGuid(),
-                    FromUserId = tantouEditor.UserId,
-                    ToUserId = user.UserId,
+                    FromUserId = assignedFromUser.UserId,
+                    ToUser = user,
                     Status = true,
                     AssignedAt = DateTime.UtcNow,
                     UnassignedAt = null

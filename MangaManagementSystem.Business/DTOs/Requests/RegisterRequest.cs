@@ -18,6 +18,6 @@ namespace MangaManagementSystem.Business.DTOs.Requests
 
         public Guid RoleId { get; set; }
 
-        public Guid? TantouEditorId { get; set; }
+        public Guid? AssignedFromUserId { get; set; }
     }
 }

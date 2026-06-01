@@ -8,6 +8,8 @@ namespace MangaManagement.DataAccess.DbContexts;
 
 public class MangaDbContext : DbContext
 {
+    private const string NewSequentialIdSql = "NEWSEQUENTIALID()";
+
     public MangaDbContext(DbContextOptions<MangaDbContext> options)
         : base(options)
     {
@@ -63,6 +65,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.UserId);
 
+            entity.Property(x => x.UserId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.UserName)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -106,6 +111,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.RoleId);
 
+            entity.Property(x => x.RoleId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.RoleName)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -122,6 +130,9 @@ public class MangaDbContext : DbContext
             entity.ToTable("UserAssignments");
 
             entity.HasKey(x => x.AssignmentId);
+
+            entity.Property(x => x.AssignmentId)
+                .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.Status)
                 .IsRequired()
@@ -178,6 +189,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.SeriesId);
 
+            entity.Property(x => x.SeriesId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.Title)
                 .HasMaxLength(255)
                 .IsRequired();
@@ -207,6 +221,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.ChapterId);
 
+            entity.Property(x => x.ChapterId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.Title)
                 .HasMaxLength(255)
                 .IsRequired();
@@ -235,6 +252,9 @@ public class MangaDbContext : DbContext
             entity.ToTable("FileAssets");
 
             entity.HasKey(x => x.FileAssetId);
+
+            entity.Property(x => x.FileAssetId)
+                .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.BucketName)
                 .HasMaxLength(100)
@@ -281,6 +301,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.ManuscriptId);
 
+            entity.Property(x => x.ManuscriptId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.Status)
                 .HasMaxLength(50)
                 .IsRequired();
@@ -316,6 +339,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.ChapterPageId);
 
+            entity.Property(x => x.ChapterPageId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.CreatedAt)
                 .IsRequired();
 
@@ -346,6 +372,9 @@ public class MangaDbContext : DbContext
             entity.ToTable("PageTasks");
 
             entity.HasKey(x => x.PageTaskId);
+
+            entity.Property(x => x.PageTaskId)
+                .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.TaskType)
                 .HasMaxLength(50)
@@ -386,6 +415,9 @@ public class MangaDbContext : DbContext
 
             entity.HasKey(x => x.SubmissionId);
 
+            entity.Property(x => x.SubmissionId)
+                .HasDefaultValueSql(NewSequentialIdSql);
+
             entity.Property(x => x.Status)
                 .HasMaxLength(50)
                 .IsRequired();
@@ -418,6 +450,9 @@ public class MangaDbContext : DbContext
             entity.ToTable("Annotations");
 
             entity.HasKey(x => x.AnnotationId);
+
+            entity.Property(x => x.AnnotationId)
+                .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.PositionX)
                 .HasPrecision(18, 4);
