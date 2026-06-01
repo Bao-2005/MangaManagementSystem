@@ -44,13 +44,13 @@ namespace MangaManagementSystem.Business.Services.Implements
                 .AnyAsync(x => x.Email.ToLower() == email || x.UserName == userName);
 
             if (existed)
-                throw new Exception("Email hoặc username đã tồn tại.");
+                throw new InvalidOperationException("Email hoặc username đã tồn tại.");
 
             var roleExists = await _roleRepository.GetAll()
                 .AnyAsync(x => x.RoleId == request.RoleId);
 
             if (!roleExists)
-                throw new Exception("Role không tồn tại.");
+                throw new KeyNotFoundException("Role không tồn tại.");
 
             var user = new User
             {
@@ -86,10 +86,10 @@ namespace MangaManagementSystem.Business.Services.Implements
 
 
             if (user == null)
-                throw new Exception("Tài khoản hoặc mật khẩu không đúng.");
+                throw new UnauthorizedAccessException("Tài khoản hoặc mật khẩu không đúng.");
 
             if (user.Status != "Active")
-                throw new Exception("Tài khoản đang bị khóa hoặc không hoạt động.");
+                throw new UnauthorizedAccessException("Tài khoản đang bị khóa hoặc không hoạt động.");
 
             var verifyResult = _passwordHasher.VerifyHashedPassword(
                 user,
@@ -98,7 +98,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             );
 
             if (verifyResult == PasswordVerificationResult.Failed)
-                throw new Exception("Tài khoản hoặc mật khẩu không đúng.");
+                throw new UnauthorizedAccessException("Tài khoản hoặc mật khẩu không đúng.");
 
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
             var refreshToken = _jwtTokenService.GenerateRefreshToken();
@@ -125,10 +125,10 @@ namespace MangaManagementSystem.Business.Services.Implements
                     x.RefreshTokenExpiresAt > DateTime.UtcNow);
 
             if (user == null)
-                throw new Exception("Refresh token không hợp lệ hoặc đã hết hạn.");
+                throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
 
             if (user.Status != "Active")
-                throw new Exception("Tài khoản không hoạt động.");
+                throw new UnauthorizedAccessException("Tài khoản không hoạt động.");
 
             var newAccessToken = _jwtTokenService.GenerateAccessToken(user);
             var newRefreshToken = _jwtTokenService.GenerateRefreshToken();
@@ -163,7 +163,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
             if (user == null)
-                throw new Exception("User không tồn tại.");
+                throw new KeyNotFoundException("User không tồn tại.");
 
             return _mapper.Map<AuthResponse>(user);
         }
@@ -173,10 +173,10 @@ namespace MangaManagementSystem.Business.Services.Implements
             var user = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == userId);
 
             if (user == null)
-                throw new Exception("User không tồn tại.");
+                throw new KeyNotFoundException("User không tồn tại.");
 
             if (user.Status != "Active")
-                throw new Exception("Tài khoản không hoạt động.");
+                throw new UnauthorizedAccessException("Tài khoản không hoạt động.");
 
             var verifyResult = _passwordHasher.VerifyHashedPassword(
                 user,
@@ -185,7 +185,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             );
 
             if (verifyResult == PasswordVerificationResult.Failed)
-                throw new Exception("Mật khẩu hiện tại không đúng.");
+                throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng.");
 
             user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
 

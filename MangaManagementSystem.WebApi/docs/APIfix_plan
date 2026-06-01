@@ -62,3 +62,42 @@ The goal is to:
   - AutoMapper configuration is valid.
   - `User.Role.RoleName` maps to `AuthResponse.RoleName`.
   - `AuthService` still returns the same response fields for register, login, and current-user flows.
+
+## Exception Type Refactor Plan
+
+### Goal
+- Replace generic `throw new Exception(...)` in service code with the most appropriate built-in .NET exception type.
+- Add custom application exceptions only when built-in .NET exceptions do not express the case clearly enough.
+- Update API exception handling so these exception types produce the intended HTTP status codes.
+
+### 1. AuthService Exception Mapping
+
+#### [MODIFY] [AuthService.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.Business/Services/Implements/AuthService.cs)
+- Replace duplicate email/username failure with `InvalidOperationException`.
+- Replace missing role failure with `KeyNotFoundException`.
+- Replace invalid login credentials with `UnauthorizedAccessException`.
+- Replace inactive/locked account failures with `UnauthorizedAccessException`.
+- Replace invalid/expired refresh token failure with `UnauthorizedAccessException`.
+- Replace missing user failures with `KeyNotFoundException`.
+- Replace wrong current password failure with `UnauthorizedAccessException`.
+- Keep exception messages unchanged.
+- Do not change repository usage, AutoMapper mapping, password hashing, token generation, refresh token rotation, or response DTOs.
+
+### 2. Exception Middleware Mapping
+
+#### [MODIFY] [ExceptionMiddleware.cs](file:///d:/Class/SU26/PRN232/CODE/MangaManagementSystem/MangaManagementSystem.WebApi/Middleware/ExceptionMiddleware.cs)
+- Keep `ArgumentException` mapped to HTTP 400 Bad Request.
+- Keep `KeyNotFoundException` mapped to HTTP 404 Not Found.
+- Add `UnauthorizedAccessException` mapped to HTTP 401 Unauthorized.
+- Add `InvalidOperationException` mapped to HTTP 409 Conflict.
+- Keep all unknown exceptions mapped to HTTP 500 Internal Server Error.
+
+### 3. Custom Exception Rule
+- Do not add custom exceptions for the current auth service because built-in .NET exception types are expressive enough.
+- If future cases need custom exceptions, place them under `MangaManagementSystem.Business/Exceptions`.
+- Middleware must map any new custom exception type explicitly.
+
+### 4. Verification
+- Search for `throw new Exception` and confirm none remain in the solution.
+- Run `dotnet build MangaManagementSystem.sln`.
+- Confirm auth/business failures now resolve to specific exception types that middleware can map to expected HTTP status codes.

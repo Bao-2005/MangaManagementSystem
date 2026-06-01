@@ -27,7 +27,9 @@ namespace MangaManagementSystem.API.Middleware
                 int statusCode = ex switch
                 {
                     ArgumentException => (int)HttpStatusCode.BadRequest, // 400
+                    UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized, // 401
                     KeyNotFoundException => (int)HttpStatusCode.NotFound, // 404
+                    InvalidOperationException => (int)HttpStatusCode.Conflict, // 409
                     _ => (int)HttpStatusCode.InternalServerError // 500
 
                 };
