@@ -4,6 +4,7 @@ using MangaManagement.DataAccess.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MangaManagementSystem.DataAccess.Migrations
 {
     [DbContext(typeof(MangaDbContext))]
-    partial class MangaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260531063238_AddManuscriptSubmitterFields")]
+    partial class AddManuscriptSubmitterFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -26,8 +29,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("AnnotationId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uniqueidentifier");
@@ -93,8 +95,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("ChapterId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("ChapterNo")
                         .HasColumnType("int");
@@ -136,8 +137,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("ChapterPageId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("ChapterId")
                         .HasColumnType("uniqueidentifier");
@@ -170,8 +170,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("FileAssetId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BucketName")
                         .IsRequired()
@@ -226,8 +225,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("ManuscriptId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("datetime2");
@@ -291,8 +289,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("PageTaskId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("datetime2");
@@ -350,8 +347,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("SubmissionId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Note")
                         .HasMaxLength(1000)
@@ -395,8 +391,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("RoleId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("RoleName")
                         .IsRequired()
@@ -415,8 +410,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("SeriesId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -456,8 +450,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
                 {
                     b.Property<Guid>("UserId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -472,22 +465,10 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("RefreshTokenExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RefreshTokenHash")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -504,47 +485,25 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("RoleId");
-
                     b.HasIndex("UserName")
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.UserAssignment", b =>
+            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.UserRole", b =>
                 {
-                    b.Property<Guid>("AssignmentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("FromUserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<Guid>("ToUserId")
+                    b.Property<Guid>("RoleId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("UnassignedAt")
-                        .HasColumnType("datetime2");
+                    b.HasKey("UserId", "RoleId");
 
-                    b.HasKey("AssignmentId");
+                    b.HasIndex("RoleId");
 
-                    b.HasIndex("FromUserId");
-
-                    b.HasIndex("ToUserId")
-                        .IsUnique()
-                        .HasFilter("[Status] = 1");
-
-                    b.ToTable("UserAssignments", (string)null);
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Annotation", b =>
@@ -708,34 +667,23 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Navigation("SubmittedFileAsset");
                 });
 
-            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.User", b =>
+            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.UserRole", b =>
                 {
                     b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.Role", "Role")
-                        .WithMany("Users")
+                        .WithMany("UserRoles")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Role");
-                });
 
-            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.UserAssignment", b =>
-                {
-                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.User", "FromUser")
-                        .WithMany("AssignmentsFromUser")
-                        .HasForeignKey("FromUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.User", "ToUser")
-                        .WithMany("AssignmentsToUser")
-                        .HasForeignKey("ToUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("FromUser");
-
-                    b.Navigation("ToUser");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Chapter", b =>
@@ -768,7 +716,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Role", b =>
                 {
-                    b.Navigation("Users");
+                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Series", b =>
@@ -787,11 +735,8 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Navigation("SubmittedManuscripts");
 
                     b.Navigation("UploadedFiles");
-                    b.Navigation("AssignmentsFromUser");
 
-                    b.Navigation("AssignmentsToUser");
-
-                    b.Navigation("UploadedFiles");
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }
