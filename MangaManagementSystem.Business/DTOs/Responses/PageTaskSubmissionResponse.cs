@@ -4,11 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using MangaManagementSystem.DataAccess.Entities.Enums;
-
-namespace MangaManagementSystem.DataAccess.Entities.Models
+namespace MangaManagementSystem.Business.DTOs.Responses
 {
-    public class PageTaskSubmission
+    public class PageTaskSubmissionResponse
     {
         public Guid SubmissionId { get; set; }
 
@@ -18,7 +16,9 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Guid SubmittedFileAssetId { get; set; }
 
-        public PageTaskSubmissionStatus Status { get; set; } = PageTaskSubmissionStatus.Submitted;
+        public string SubmittedFileName { get; set; } = null!;
+
+        public string Status { get; set; } = null!;
 
         public string? Note { get; set; }
 
@@ -27,9 +27,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? SubmittedAt { get; set; }
 
         public DateTime? ReviewedAt { get; set; }
-
-        public PageTask PageTask { get; set; } = null!;
-
-        public FileAsset SubmittedFileAsset { get; set; } = null!;
     }
 }
+
