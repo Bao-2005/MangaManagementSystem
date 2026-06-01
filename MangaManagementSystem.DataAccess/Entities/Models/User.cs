@@ -23,7 +23,16 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+        public Guid RoleId { get; set; }
+
+        public Role Role { get; set; } = null!;
+
+        // Auth refresh token
+        public string? RefreshTokenHash { get; set; }
+
+        public DateTime? RefreshTokenExpiresAt { get; set; }
+
+        public DateTime? LastLoginAt { get; set; }
 
         public ICollection<FileAsset> UploadedFiles { get; set; } = new List<FileAsset>();
 
@@ -36,5 +45,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         /// <summary>Các bản thảo mà user này đã review (với tư cách Tantou Editor).</summary>
         public ICollection<Manuscript> ReviewedManuscripts { get; set; } = new List<Manuscript>();
+        public ICollection<UserAssignment> AssignmentsFromUser { get; set; } = new List<UserAssignment>();
+
+        public ICollection<UserAssignment> AssignmentsToUser { get; set; } = new List<UserAssignment>();
     }
 }

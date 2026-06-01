@@ -4,6 +4,7 @@ using MangaManagement.DataAccess.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MangaManagementSystem.DataAccess.Migrations
 {
     [DbContext(typeof(MangaDbContext))]
-    partial class MangaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601083129_AddDatabaseGeneratedGuidDefaults")]
+    partial class AddDatabaseGeneratedGuidDefaults
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,21 +35,15 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ChapterPageId")
+                    b.Property<Guid>("ChapterPageId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<Guid>("ManuscriptId")
                         .HasColumnType("uniqueidentifier");
@@ -55,38 +52,22 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("PositionX")
-                        .HasColumnType("decimal(5,2)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("PositionY")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("VersionNo")
-                        .HasColumnType("int");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.HasKey("AnnotationId");
 
-                    b.HasIndex("AuthorId")
-                        .HasDatabaseName("IX_Annotations_AuthorId");
+                    b.HasIndex("AuthorId");
 
                     b.HasIndex("ChapterPageId");
 
-                    b.HasIndex("ManuscriptId", "VersionNo")
-                        .HasDatabaseName("IX_Annotations_ManuscriptId_VersionNo");
+                    b.HasIndex("ManuscriptId");
 
-                    b.HasIndex("ManuscriptId", "VersionNo", "PageNo")
-                        .HasDatabaseName("IX_Annotations_ManuscriptId_VersionNo_PageNo");
-
-                    b.ToTable("Annotations", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Annotation_PageNo", "[PageNo] >= 1");
-
-                            t.HasCheckConstraint("CK_Annotation_PositionX", "[PositionX] >= 0 AND [PositionX] <= 100");
-
-                            t.HasCheckConstraint("CK_Annotation_PositionY", "[PositionY] >= 0 AND [PositionY] <= 100");
-                        });
+                    b.ToTable("Annotations", (string)null);
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Chapter", b =>
@@ -245,14 +226,6 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("ReviewedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("RevisionCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
                     b.Property<Guid?>("SourceFileAssetId")
                         .HasColumnType("uniqueidentifier");
 
@@ -264,9 +237,6 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Property<DateTime?>("SubmittedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("SubmittedBy")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("VersionNo")
                         .HasColumnType("int");
 
@@ -274,12 +244,7 @@ namespace MangaManagementSystem.DataAccess.Migrations
 
                     b.HasIndex("PreviewFileAssetId");
 
-                    b.HasIndex("ReviewedBy");
-
                     b.HasIndex("SourceFileAssetId");
-
-                    b.HasIndex("SubmittedBy")
-                        .HasDatabaseName("IX_Manuscripts_SubmittedBy");
 
                     b.HasIndex("ChapterId", "VersionNo")
                         .IsUnique();
@@ -558,7 +523,8 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.ChapterPage", "ChapterPage")
                         .WithMany("Annotations")
                         .HasForeignKey("ChapterPageId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.Manuscript", "Manuscript")
                         .WithMany("Annotations")
@@ -635,31 +601,16 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .HasForeignKey("PreviewFileAssetId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.User", "Reviewer")
-                        .WithMany("ReviewedManuscripts")
-                        .HasForeignKey("ReviewedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.FileAsset", "SourceFileAsset")
                         .WithMany()
                         .HasForeignKey("SourceFileAssetId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.User", "Submitter")
-                        .WithMany("SubmittedManuscripts")
-                        .HasForeignKey("SubmittedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Chapter");
 
                     b.Navigation("PreviewFileAsset");
 
-                    b.Navigation("Reviewer");
-
                     b.Navigation("SourceFileAsset");
-
-                    b.Navigation("Submitter");
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.PageTask", b =>
@@ -782,11 +733,6 @@ namespace MangaManagementSystem.DataAccess.Migrations
 
                     b.Navigation("AssignedPageTasks");
 
-                    b.Navigation("ReviewedManuscripts");
-
-                    b.Navigation("SubmittedManuscripts");
-
-                    b.Navigation("UploadedFiles");
                     b.Navigation("AssignmentsFromUser");
 
                     b.Navigation("AssignmentsToUser");

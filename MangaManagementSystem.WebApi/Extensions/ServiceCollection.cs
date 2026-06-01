@@ -4,6 +4,9 @@ using MangaManagementSystem.Business.Auth.Interfaces;
 using MangaManagementSystem.Business.Manuscripts.Interfaces;
 using MangaManagementSystem.Business.Manuscripts.Services;
 using MangaManagementSystem.Business.Mappers;
+using MangaManagementSystem.Business.Mappers;
+using MangaManagementSystem.Business.Services.Implements;
+using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.DataAccess.Repositories.Implements;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using MangaManagementSystem.WebApi.Services;
@@ -29,6 +32,8 @@ namespace MangaManagementSystem.API.Extensions
             // TODO (teammate): đổi thành JwtCurrentUserService sau khi implement JWT
             services.AddScoped<ICurrentUserService, DevCurrentUserService>();
 
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.RegisterInfrastructure();
         }
     }
