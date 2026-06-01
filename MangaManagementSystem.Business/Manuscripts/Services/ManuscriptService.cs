@@ -116,6 +116,8 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
 
             // 7. Tính VersionNo tiếp theo (BR-73)
             var nextVersionNo = await _manuscriptRepository.GetNextVersionNoAsync(chapterId, ct);
+            var latestManuscript = await _manuscriptRepository.GetLatestByChapterIdAsync(chapterId, ct);
+            var nextRevisionCount = latestManuscript?.RevisionCount ?? 0;
 
             // 8. Tạo Manuscript mới
             var manuscript = new Manuscript
@@ -129,8 +131,8 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
                 ReviewedBy = null,
                 ReviewedAt = null,
                 ApprovedAt = null,
-                // RevisionCount: version 1 = round 0, version 2 = đã qua 1 revision, v.v.
-                RevisionCount = nextVersionNo - 1,
+                // RevisionCount: tăng khi editor yêu cầu revision, không tăng theo version.
+                RevisionCount = nextRevisionCount,
                 Feedback = null,
                 PreviewFileAssetId = request.PreviewFileAssetId,
                 SourceFileAssetId = request.SourceFileAssetId
@@ -433,13 +435,14 @@ namespace MangaManagementSystem.Business.Manuscripts.Services
 
             _manuscriptRepository.Update(manuscript);
 
-            // 10. Cập nhật Chapter.Status = "Revision Required" (chapter level)
+            // 9. Cập nhật status và tăng RevisionCount
             chapter.Status = ChapterStatusRevisionRequired;
 
+            manuscript.RevisionCount += 1;
             await _manuscriptRepository.SaveChangeAsync(ct);
 
             // TODO: Ghi audit log (BR-128)
-            // AuditLogService.Log(ActorId=currentUserId, Action="UPDATE", EntityType="Manuscript",
+            // 10. Cập nhật Chapter.Status = "Revision Required" (chapter level)
             //     EntityId=manuscriptId, OldValue="Under Review", NewValue="Revision Required");
 
             // TODO: Gửi notification tới Mangaka
