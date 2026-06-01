@@ -17,5 +17,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests
         public string Password { get; set; } = null!;
 
         public Guid RoleId { get; set; }
+
+        public Guid? TantouEditorId { get; set; }
     }
 }

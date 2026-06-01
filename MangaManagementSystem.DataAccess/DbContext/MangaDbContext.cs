@@ -17,6 +17,8 @@ public class MangaDbContext : DbContext
 
     public DbSet<Role> Roles => Set<Role>();
 
+    public DbSet<UserAssignment> UserAssignments => Set<UserAssignment>();
+
     //public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     public DbSet<Series> Series => Set<Series>();
@@ -41,6 +43,7 @@ public class MangaDbContext : DbContext
 
         ConfigureUsers(modelBuilder);
         ConfigureRoles(modelBuilder);
+        ConfigureUserAssignments(modelBuilder);
         //ConfigureUserRoles(modelBuilder);
         ConfigureSeries(modelBuilder);
         ConfigureChapters(modelBuilder);
@@ -109,6 +112,41 @@ public class MangaDbContext : DbContext
 
             entity.HasIndex(x => x.RoleName)
                 .IsUnique();
+        });
+    }
+
+    private static void ConfigureUserAssignments(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserAssignment>(entity =>
+        {
+            entity.ToTable("UserAssignments");
+
+            entity.HasKey(x => x.AssignmentId);
+
+            entity.Property(x => x.Status)
+                .IsRequired()
+                .HasDefaultValue(true);
+
+            entity.Property(x => x.AssignedAt)
+                .IsRequired();
+
+            entity.Property(x => x.UnassignedAt);
+
+            entity.HasOne(x => x.FromUser)
+                .WithMany(x => x.AssignmentsFromUser)
+                .HasForeignKey(x => x.FromUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ToUser)
+                .WithMany(x => x.AssignmentsToUser)
+                .HasForeignKey(x => x.ToUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.FromUserId);
+
+            entity.HasIndex(x => x.ToUserId)
+                .IsUnique()
+                .HasFilter("[Status] = 1");
         });
     }
 

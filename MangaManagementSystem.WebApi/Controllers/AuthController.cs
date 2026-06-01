@@ -23,10 +23,10 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpPost("register")]
-        [AllowAnonymous]
+        [Authorize(Policy = "AdminOnly")]
         [SwaggerOperation(
-            Summary = "Register",
-            Description = "Create a new user account. Provide username, email, display name, password, and the target role ID.")]
+            Summary = "Create user account",
+            Description = "Admin-only endpoint for creating user accounts. Provide username, email, display name, password, and target role ID. Mangaka accounts require a Tantou Editor ID.")]
         [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)

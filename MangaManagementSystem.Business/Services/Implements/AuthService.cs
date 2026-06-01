@@ -15,20 +15,27 @@ namespace MangaManagementSystem.Business.Services.Implements
     {
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Role> _roleRepository;
+        private readonly IRepository<UserAssignment> _userAssignmentRepository;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly PasswordHasher<User> _passwordHasher;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
 
+        private const string ActiveStatus = "Active";
+        private const string MangakaRoleName = "Mangaka";
+        private const string TantouEditorRoleName = "Tantou Editor";
+
         public AuthService(
             IRepository<User> userRepository,
             IRepository<Role> roleRepository,
+            IRepository<UserAssignment> userAssignmentRepository,
             IJwtTokenService jwtTokenService,
             IConfiguration configuration,
             IMapper mapper)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
+            _userAssignmentRepository = userAssignmentRepository;
             _jwtTokenService = jwtTokenService;
             _configuration = configuration;
             _mapper = mapper;
@@ -46,11 +53,16 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (existed)
                 throw new InvalidOperationException("Email hoặc username đã tồn tại.");
 
-            var roleExists = await _roleRepository.GetAll()
-                .AnyAsync(x => x.RoleId == request.RoleId);
+            var role = await _roleRepository.GetAll()
+                .FirstOrDefaultAsync(x => x.RoleId == request.RoleId);
 
-            if (!roleExists)
+            if (role == null)
                 throw new KeyNotFoundException("Role không tồn tại.");
+
+            var isMangaka = string.Equals(role.RoleName, MangakaRoleName, StringComparison.OrdinalIgnoreCase);
+
+            if (!isMangaka && request.TantouEditorId.HasValue)
+                throw new ArgumentException("Tantou Editor chỉ được gán khi tạo tài khoản Mangaka.");
 
             var user = new User
             {
@@ -58,14 +70,49 @@ namespace MangaManagementSystem.Business.Services.Implements
                 UserName = userName,
                 Email = email,
                 DisplayName = request.DisplayName.Trim(),
-                RoleId = request.RoleId,
-                Status = "Active",
+                RoleId = role.RoleId,
+                Status = ActiveStatus,
                 CreatedAt = DateTime.UtcNow
             };
 
             user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 
+            UserAssignment? userAssignment = null;
+
+            if (isMangaka)
+            {
+                if (!request.TantouEditorId.HasValue)
+                    throw new ArgumentException("Tantou Editor là bắt buộc khi tạo tài khoản Mangaka.");
+
+                var tantouEditor = await _userRepository.GetAll()
+                    .Include(x => x.Role)
+                    .FirstOrDefaultAsync(x => x.UserId == request.TantouEditorId.Value);
+
+                if (tantouEditor == null)
+                    throw new KeyNotFoundException("Tantou Editor không tồn tại.");
+
+                if (!string.Equals(tantouEditor.Role.RoleName, TantouEditorRoleName, StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("Người dùng được chọn không phải Tantou Editor.");
+
+                if (!string.Equals(tantouEditor.Status, ActiveStatus, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Tantou Editor đang bị khóa hoặc không hoạt động.");
+
+                userAssignment = new UserAssignment
+                {
+                    AssignmentId = Guid.NewGuid(),
+                    FromUserId = tantouEditor.UserId,
+                    ToUserId = user.UserId,
+                    Status = true,
+                    AssignedAt = DateTime.UtcNow,
+                    UnassignedAt = null
+                };
+            }
+
             await _userRepository.AddAsync(user);
+
+            if (userAssignment != null)
+                await _userAssignmentRepository.AddAsync(userAssignment);
+
             await _userRepository.SaveChangeAsync();
 
             var createdUser = await _userRepository.GetAll()

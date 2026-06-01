@@ -39,5 +39,9 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public ICollection<PageTask> AssignedPageTasks { get; set; } = new List<PageTask>();
 
         public ICollection<Annotation> Annotations { get; set; } = new List<Annotation>();
+
+        public ICollection<UserAssignment> AssignmentsFromUser { get; set; } = new List<UserAssignment>();
+
+        public ICollection<UserAssignment> AssignmentsToUser { get; set; } = new List<UserAssignment>();
     }
 }
