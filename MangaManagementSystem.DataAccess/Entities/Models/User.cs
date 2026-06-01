@@ -23,7 +23,16 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+        public Guid RoleId { get; set; }
+
+        public Role Role { get; set; } = null!;
+
+        // Auth refresh token
+        public string? RefreshTokenHash { get; set; }
+
+        public DateTime? RefreshTokenExpiresAt { get; set; }
+
+        public DateTime? LastLoginAt { get; set; }
 
         public ICollection<FileAsset> UploadedFiles { get; set; } = new List<FileAsset>();
 

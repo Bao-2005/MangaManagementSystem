@@ -17,7 +17,7 @@ public class MangaDbContext : DbContext
 
     public DbSet<Role> Roles => Set<Role>();
 
-    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    //public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     public DbSet<Series> Series => Set<Series>();
 
@@ -41,7 +41,7 @@ public class MangaDbContext : DbContext
 
         ConfigureUsers(modelBuilder);
         ConfigureRoles(modelBuilder);
-        ConfigureUserRoles(modelBuilder);
+        //ConfigureUserRoles(modelBuilder);
         ConfigureSeries(modelBuilder);
         ConfigureChapters(modelBuilder);
         ConfigureFileAssets(modelBuilder);
@@ -61,33 +61,37 @@ public class MangaDbContext : DbContext
             entity.HasKey(x => x.UserId);
 
             entity.Property(x => x.UserName)
-                .HasMaxLength(100)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(100);
 
             entity.Property(x => x.Email)
-                .HasMaxLength(255)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(255);
 
             entity.Property(x => x.DisplayName)
-                .HasMaxLength(150)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(150);
 
             entity.Property(x => x.PasswordHash)
-                .HasMaxLength(500)
                 .IsRequired();
 
             entity.Property(x => x.Status)
-                .HasMaxLength(50)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(50);
 
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
+            entity.Property(x => x.RefreshTokenHash)
+                .HasMaxLength(500);
+
+            entity.HasIndex(x => x.Email)
+                .IsUnique();
 
             entity.HasIndex(x => x.UserName)
                 .IsUnique();
 
-            entity.HasIndex(x => x.Email)
-                .IsUnique();
+            entity.HasOne(x => x.Role)
+                .WithMany(x => x.Users)
+                .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -100,33 +104,33 @@ public class MangaDbContext : DbContext
             entity.HasKey(x => x.RoleId);
 
             entity.Property(x => x.RoleName)
-                .HasMaxLength(100)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(100);
 
             entity.HasIndex(x => x.RoleName)
                 .IsUnique();
         });
     }
 
-    private static void ConfigureUserRoles(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<UserRole>(entity =>
-        {
-            entity.ToTable("UserRoles");
+    //private static void ConfigureUserRoles(ModelBuilder modelBuilder)
+    //{
+    //    modelBuilder.Entity<UserRole>(entity =>
+    //    {
+    //        entity.ToTable("UserRoles");
 
-            entity.HasKey(x => new { x.UserId, x.RoleId });
+    //        entity.HasKey(x => new { x.UserId, x.RoleId });
 
-            entity.HasOne(x => x.User)
-                .WithMany(x => x.UserRoles)
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+    //        entity.HasOne(x => x.User)
+    //            .WithMany(x => x.UserRoles)
+    //            .HasForeignKey(x => x.UserId)
+    //            .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(x => x.Role)
-                .WithMany(x => x.UserRoles)
-                .HasForeignKey(x => x.RoleId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-    }
+    //        entity.HasOne(x => x.Role)
+    //            .WithMany(x => x.UserRoles)
+    //            .HasForeignKey(x => x.RoleId)
+    //            .OnDelete(DeleteBehavior.Restrict);
+    //    });
+    //}
 
     private static void ConfigureSeries(ModelBuilder modelBuilder)
     {
