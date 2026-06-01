@@ -1,0 +1,149 @@
+using MangaManagement.DataAccess.DbContexts;
+using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace MangaManagementSystem.DataAccess.Repositories.Implements
+{
+    public class ManuscriptRepository : Repository<Manuscript>, IManuscriptRepository
+    {
+        private readonly MangaDbContext _context;
+
+        public ManuscriptRepository(MangaDbContext context) : base(context)
+        {
+            _context = context;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Manuscript>> GetByChapterIdAsync(
+            Guid chapterId,
+            CancellationToken ct = default)
+        {
+            return await _context.Manuscripts
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
+                .Where(m => m.ChapterId == chapterId)
+                .OrderBy(m => m.VersionNo)
+                .ToListAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Manuscript>> GetAllWithDetailsAsync(
+            CancellationToken ct = default)
+        {
+            return await _context.Manuscripts
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
+                .OrderByDescending(m => m.SubmittedAt)
+                .ToListAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetChapterProgressAsync(
+            Guid chapterId,
+            CancellationToken ct = default)
+        {
+            var total = await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId)
+                .CountAsync(ct);
+
+            if (total == 0) return 0;
+
+            var approved = await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId && t.Status == "Approved")
+                .CountAsync(ct);
+
+            return (int)Math.Round((double)approved / total * 100);
+        }
+
+        /// <inheritdoc />
+        public async Task<Manuscript?> GetLatestByChapterIdAsync(
+            Guid chapterId,
+            CancellationToken ct = default)
+        {
+            return await _context.Manuscripts
+                .Where(m => m.ChapterId == chapterId)
+                .OrderByDescending(m => m.VersionNo)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<Manuscript?> GetByIdWithDetailsAsync(
+            Guid manuscriptId,
+            CancellationToken ct = default)
+        {
+            return await _context.Manuscripts
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
+                .FirstOrDefaultAsync(m => m.ManuscriptId == manuscriptId, ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetNextVersionNoAsync(
+            Guid chapterId,
+            CancellationToken ct = default)
+        {
+            var maxVersion = await _context.Manuscripts
+                .Where(m => m.ChapterId == chapterId)
+                .MaxAsync(m => (int?)m.VersionNo, ct);
+
+            return (maxVersion ?? 0) + 1;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> HasApprovedManuscriptAsync(
+            Guid chapterId,
+            CancellationToken ct = default)
+        {
+            return await _context.Manuscripts
+                .AnyAsync(m => m.ChapterId == chapterId
+                            && m.Status == "APPROVED", ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<Chapter?> GetChapterWithSeriesAsync(Guid chapterId, CancellationToken ct = default)
+        {
+            return await _context.Chapters
+                .Include(c => c.Series)
+                .FirstOrDefaultAsync(c => c.ChapterId == chapterId, ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetTotalPageTasksCountAsync(Guid chapterId, CancellationToken ct = default)
+        {
+            return await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId)
+                .CountAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetUnapprovedPageTasksCountAsync(Guid chapterId, string approvedStatus, CancellationToken ct = default)
+        {
+            return await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId && t.Status != approvedStatus)
+                .CountAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> GetApprovedPageTasksCountAsync(Guid chapterId, string approvedStatus, CancellationToken ct = default)
+        {
+            return await _context.PageTasks
+                .Where(t => t.ChapterId == chapterId && t.Status == approvedStatus)
+                .CountAsync(ct);
+        }
+
+        /// <inheritdoc />
+        public async Task<string?> GetUserRoleNameAsync(Guid userId, CancellationToken ct = default)
+        {
+            return await _context.Users
+                .Where(u => u.UserId == userId)
+                .Select(u => u.Role.RoleName)
+                .FirstOrDefaultAsync(ct);
+        }
+    }
+}
