@@ -22,8 +22,8 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly IMapper _mapper;
 
         private const string ActiveStatus = "Active";
-        private const string MangakaRoleName = "Mangaka";
-        private const string TantouEditorRoleName = "Tantou Editor";
+        private const string MangakaRoleName = MangaManagementSystem.Business.Constants.RoleConstants.Mangaka;
+        private const string TantouEditorRoleName = MangaManagementSystem.Business.Constants.RoleConstants.TantouEditor;
 
         public AuthService(
             IRepository<User> userRepository,
@@ -133,11 +133,19 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user.Status != "Active")
                 throw new UnauthorizedAccessException("Tài khoản đang bị khóa hoặc không hoạt động.");
 
-            var verifyResult = _passwordHasher.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                request.Password
-            );
+            PasswordVerificationResult verifyResult;
+            try
+            {
+                verifyResult = _passwordHasher.VerifyHashedPassword(
+                    user,
+                    user.PasswordHash,
+                    request.Password
+                );
+            }
+            catch (FormatException)
+            {
+                throw new UnauthorizedAccessException("Tài khoản hoặc mật khẩu không đúng.");
+            }
 
             if (verifyResult == PasswordVerificationResult.Failed)
                 throw new UnauthorizedAccessException("Tài khoản hoặc mật khẩu không đúng.");

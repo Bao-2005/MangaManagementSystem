@@ -59,7 +59,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole("Mangaka"));
 
     options.AddPolicy("EditorOnly", policy =>
-        policy.RequireRole("Editor"));
+        policy.RequireRole("TANTOU_EDITOR"));
 
     options.AddPolicy("AssistantOnly", policy =>
         policy.RequireRole("Assistant"));

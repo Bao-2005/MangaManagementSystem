@@ -3,7 +3,9 @@ using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.DataAccess;
+using MangaManagementSystem.Business.Constants;
 using MangaManagementSystem.DataAccess.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
@@ -44,6 +46,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// - Mangaka: chỉ thấy manuscripts của series mình phụ trách.
         /// </summary>
         [HttpGet("manuscripts")]
+        [Authorize]
         [SwaggerOperation(
             Summary = "Get all manuscripts",
             Description = "Lấy danh sách tất cả bản thảo trong hệ thống. Tantou Editor / Admin có thể xem tất cả. Mangaka chỉ xem được bản thảo thuộc series phụ trách.")]
@@ -76,6 +79,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Trả về 201 Created với manuscript vừa tạo.
         /// </summary>
         [HttpPost("chapters/{chapterId:guid}/manuscripts")]
+        [Authorize(Roles = RoleConstants.Mangaka)]
         [SwaggerOperation(
             Summary = "Submit manuscript",
             Description = "Mangaka nộp bản thảo mới hoặc nộp lại (resubmit) bản thảo để tạo version mới. Áp dụng các luật: tất cả PageTask phải Approved, chỉ Mangaka sở hữu series mới được nộp, và không nộp nếu đã Approved.")]
@@ -124,6 +128,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Trả về list sắp xếp theo VersionNo tăng dần.
         /// </summary>
         [HttpGet("chapters/{chapterId:guid}/manuscripts")]
+        [Authorize]
         [SwaggerOperation(
             Summary = "Get manuscripts by chapter",
             Description = "Lấy danh sách tất cả các phiên bản bản thảo của một chapter (lịch sử nộp). Chỉ Mangaka sở hữu, Tantou Editor được chỉ định hoặc Admin mới có quyền xem.")]
@@ -159,6 +164,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Mangaka owner, Tantou Editor assigned, hoặc Admin mới được xem.
         /// </summary>
         [HttpGet("manuscripts/{manuscriptId:guid}")]
+        [Authorize]
         [SwaggerOperation(
             Summary = "Get manuscript by ID",
             Description = "Lấy thông tin chi tiết của một bản thảo theo ID. Quyền truy cập dành cho Mangaka sở hữu, Tantou Editor được chỉ định hoặc Admin.")]
@@ -194,6 +200,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Enforce BR-74 (assigned editor), BR-75 (latest version), BR-76 (đúng flow).
         /// </summary>
         [HttpPost("manuscripts/{manuscriptId:guid}/start-review")]
+        [Authorize(Roles = RoleConstants.TantouEditor)]
         [SwaggerOperation(
             Summary = "Start reviewing manuscript",
             Description = "Tantou Editor bắt đầu đánh giá bản thảo — chuyển trạng thái từ Submitted sang Under Review. Ràng buộc: Editor được chỉ định, phiên bản mới nhất, đúng luồng trạng thái.")]
@@ -234,6 +241,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Enforce BR-74, BR-75, BR-80 (lock), BR-84 (completion 100%).
         /// </summary>
         [HttpPost("manuscripts/{manuscriptId:guid}/approve")]
+        [Authorize(Roles = RoleConstants.TantouEditor)]
         [SwaggerOperation(
             Summary = "Approve manuscript",
             Description = "Tantou Editor duyệt bản thảo — chuyển trạng thái từ Under Review sang Approved và xuất bản chapter (Published). Ràng buộc: Editor được chỉ định, phiên bản mới nhất, hoàn thành 100%.")]
@@ -273,6 +281,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Enforce BR-74, BR-75, BR-77 (cần annotation + feedback), BR-83 (max 3 rounds).
         /// </summary>
         [HttpPost("manuscripts/{manuscriptId:guid}/request-revision")]
+        [Authorize(Roles = RoleConstants.TantouEditor)]
         [SwaggerOperation(
             Summary = "Request manuscript revision",
             Description = "Tantou Editor yêu cầu sửa đổi bản thảo — chuyển trạng thái sang Revision Required. Yêu cầu phải có ít nhất 1 annotation và feedback, tối đa 3 vòng sửa đổi.")]
@@ -318,6 +327,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Chapter, Manuscript ban đầu, và PageTask (Approved) để thỏa mãn toàn bộ Business Rules.
         /// </summary>
         [HttpPost("dev/seed-data")]
+        [AllowAnonymous]
         [SwaggerOperation(
             Summary = "Seed development data",
             Description = "API tiện ích tự động chèn dữ liệu mẫu (Roles, Users, Series, Chapter, PageTask, Manuscript) vào Database phục vụ cho việc kiểm thử.")]
@@ -418,6 +428,9 @@ namespace MangaManagementSystem.WebApi.Controllers
                 var editorId = new Guid("22222222-2222-2222-2222-222222222222");
                 var assistantId = new Guid("33333333-3333-3333-3333-333333333333");
 
+                var passwordHasher = new Microsoft.AspNetCore.Identity.PasswordHasher<User>();
+                var dummyUser = new User();
+
                 var userMangaka = await context.Users.FirstOrDefaultAsync(u => u.UserId == mangakaId, cancellationToken);
                 if (userMangaka == null)
                 {
@@ -427,7 +440,7 @@ namespace MangaManagementSystem.WebApi.Controllers
                         UserName = "dev_mangaka",
                         Email = "mangaka@manga.com",
                         DisplayName = "Họa sĩ Mangaka mẫu (Dev User)",
-                        PasswordHash = "pbkdf2_hash_placeholder",
+                        PasswordHash = passwordHasher.HashPassword(dummyUser, "Test@1234"),
                         Status = "Active",
                         RoleId = mangakaRoleId,
                         CreatedAt = DateTime.UtcNow
@@ -444,7 +457,7 @@ namespace MangaManagementSystem.WebApi.Controllers
                         UserName = "dev_editor",
                         Email = "editor@manga.com",
                         DisplayName = "Tantou Editor Biên tập viên",
-                        PasswordHash = "pbkdf2_hash_placeholder",
+                        PasswordHash = passwordHasher.HashPassword(dummyUser, "Test@1234"),
                         Status = "Active",
                         RoleId = editorRoleId,
                         CreatedAt = DateTime.UtcNow
@@ -461,7 +474,7 @@ namespace MangaManagementSystem.WebApi.Controllers
                         UserName = "dev_assistant",
                         Email = "assistant@manga.com",
                         DisplayName = "Trợ lý thiết kế (Assistant)",
-                        PasswordHash = "pbkdf2_hash_placeholder",
+                        PasswordHash = passwordHasher.HashPassword(dummyUser, "Test@1234"),
                         Status = "Active",
                         RoleId = assistantRoleId,
                         CreatedAt = DateTime.UtcNow

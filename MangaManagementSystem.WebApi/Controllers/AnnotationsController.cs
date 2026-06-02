@@ -2,6 +2,8 @@ using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.Business.Auth.Interfaces;
+using MangaManagementSystem.Business.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System;
@@ -39,6 +41,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Chỉ Tantou Editor được assign cho series mới được tạo.
         /// </summary>
         [HttpPost]
+        [Authorize(Roles = RoleConstants.TantouEditor)]
         [SwaggerOperation(
             Summary = "Create annotation",
             Description = "Tạo một ghi chú ghim (Pin Annotation) mới trên trang của bản thảo. Chỉ Tantou Editor được phân công phụ trách series mới có quyền thực hiện.")]
@@ -88,6 +91,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Tantou Editor hoặc Mangaka owner của series mới được xem.
         /// </summary>
         [HttpGet]
+        [Authorize]
         [SwaggerOperation(
             Summary = "Get annotations",
             Description = "Lấy danh sách ghi chú theo bản thảo. Hỗ trợ lọc theo số phiên bản (versionNo) và số trang (pageNo). Tantou Editor hoặc Mangaka sở hữu series mới có quyền xem.")]
@@ -126,6 +130,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// (Revision Required phải có ít nhất 1 annotation).
         /// </summary>
         [HttpGet("count")]
+        [Authorize]
         [SwaggerOperation(
             Summary = "Count annotations",
             Description = "Đếm số lượng ghi chú theo phiên bản bản thảo. Phục vụ việc kiểm tra điều kiện chuyển trạng thái yêu cầu sửa đổi.")]
@@ -164,6 +169,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Annotation phải thuộc latest version.
         /// </summary>
         [HttpPatch("{annotationId:guid}")]
+        [Authorize(Roles = RoleConstants.TantouEditor)]
         [SwaggerOperation(
             Summary = "Update annotation",
             Description = "Cập nhật vị trí và/hoặc nội dung của ghi chú. Chỉ tác giả của ghi chú mới được sửa. Bản thảo phải chưa được duyệt và ghi chú phải thuộc phiên bản mới nhất.")]
@@ -212,6 +218,7 @@ namespace MangaManagementSystem.WebApi.Controllers
         /// Annotation phải thuộc latest version.
         /// </summary>
         [HttpDelete("{annotationId:guid}")]
+        [Authorize(Roles = RoleConstants.TantouEditor)]
         [SwaggerOperation(
             Summary = "Delete annotation",
             Description = "Xóa mềm (soft delete) ghi chú. Chỉ người tạo ghi chú mới có quyền xóa. Bản thảo phải chưa được duyệt và ghi chú phải thuộc phiên bản mới nhất.")]

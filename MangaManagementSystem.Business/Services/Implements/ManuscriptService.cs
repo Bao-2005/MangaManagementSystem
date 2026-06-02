@@ -62,12 +62,9 @@ namespace MangaManagementSystem.Business.Services.Implements
             CancellationToken ct = default)
         {
             // 1. Kiểm tra role: phải là Mangaka (BR-72)
-            if (!_currentUserService.BypassAuthorization)
-            {
-                var userRoles = await GetUserRolesAsync(currentUserId, ct);
-                if (!userRoles.Contains(RoleMangaka))
-                    throw new UnauthorizedAccessException("Chỉ Mangaka mới được submit manuscript.");
-            }
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+            if (!userRoles.Contains(RoleMangaka))
+                throw new UnauthorizedAccessException("Chỉ Mangaka mới được submit manuscript.");
 
             // 2. Load Chapter + Series — 404 nếu không tìm thấy
             var chapter = await _manuscriptRepository.GetChapterWithSeriesAsync(chapterId, ct);
@@ -78,7 +75,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var series = chapter.Series;
 
             // 3. Check object-level: user phải là Mangaka owner của series (BR-72)
-            if (!_currentUserService.BypassAuthorization && series.MangakaId != currentUserId)
+            if (series.MangakaId != currentUserId)
                 throw new UnauthorizedAccessException("Bạn không phải Mangaka phụ trách series này.");
 
             // 4. Check series status == "Active" — chỉ Active series mới được submit
@@ -159,18 +156,15 @@ namespace MangaManagementSystem.Business.Services.Implements
             var series = chapter.Series;
 
             // 2. Check quyền: phải là Mangaka owner, Tantou Editor assigned, hoặc Admin (BR-74)
-            if (!_currentUserService.BypassAuthorization)
-            {
-                var userRoles = await GetUserRolesAsync(currentUserId, ct);
-                var canView =
-                    (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
-                    (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
-                    userRoles.Contains(RoleAdmin);
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+            var canView =
+                (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
+                (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
+                userRoles.Contains(RoleAdmin);
 
-                if (!canView)
-                    throw new UnauthorizedAccessException(
-                        "Bạn không có quyền xem manuscript của series này.");
-            }
+            if (!canView)
+                throw new UnauthorizedAccessException(
+                    "Bạn không có quyền xem manuscript của series này.");
 
             // 3. Lấy danh sách manuscripts, sort theo VersionNo
             var manuscripts = await _manuscriptRepository.GetByChapterIdAsync(chapterId, ct);
@@ -195,18 +189,15 @@ namespace MangaManagementSystem.Business.Services.Implements
             var series = manuscript.Chapter.Series;
 
             // 2. Check quyền (BR-74)
-            if (!_currentUserService.BypassAuthorization)
-            {
-                var userRoles = await GetUserRolesAsync(currentUserId, ct);
-                var canView =
-                    (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
-                    (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
-                    userRoles.Contains(RoleAdmin);
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+            var canView =
+                (userRoles.Contains(RoleMangaka) && series.MangakaId == currentUserId) ||
+                (userRoles.Contains(RoleTantouEditor) && series.TantouEditorId == currentUserId) ||
+                userRoles.Contains(RoleAdmin);
 
-                if (!canView)
-                    throw new UnauthorizedAccessException(
-                        "Bạn không có quyền xem manuscript này.");
-            }
+            if (!canView)
+                throw new UnauthorizedAccessException(
+                    "Bạn không có quyền xem manuscript này.");
 
             // 3. Tính progress của chapter
             var progress = await _manuscriptRepository.GetChapterProgressAsync(manuscript.ChapterId, ct);
@@ -221,12 +212,9 @@ namespace MangaManagementSystem.Business.Services.Implements
             CancellationToken ct = default)
         {
             // 1. Kiểm tra role: phải là Tantou Editor (BR-74)
-            if (!_currentUserService.BypassAuthorization)
-            {
-                var userRoles = await GetUserRolesAsync(currentUserId, ct);
-                if (!userRoles.Contains(RoleTantouEditor))
-                    throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được bắt đầu review.");
-            }
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+            if (!userRoles.Contains(RoleTantouEditor))
+                throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được bắt đầu review.");
 
             // 2. Load Manuscript với Chapter + Series
             var manuscript = await _manuscriptRepository.GetByIdWithDetailsAsync(manuscriptId, ct);
@@ -236,7 +224,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var series = manuscript.Chapter.Series;
 
             // 3. Check object-level: editor phải phụ trách series này (BR-74)
-            if (!_currentUserService.BypassAuthorization && series.TantouEditorId != currentUserId)
+            if (series.TantouEditorId != currentUserId)
                 throw new UnauthorizedAccessException("Bạn không phụ trách series này.");
 
             // 4. Check manuscript phải là latest version (BR-75)
@@ -276,12 +264,9 @@ namespace MangaManagementSystem.Business.Services.Implements
             CancellationToken ct = default)
         {
             // 1. Kiểm tra role: phải là Tantou Editor (BR-74)
-            if (!_currentUserService.BypassAuthorization)
-            {
-                var userRoles = await GetUserRolesAsync(currentUserId, ct);
-                if (!userRoles.Contains(RoleTantouEditor))
-                    throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được Approve manuscript.");
-            }
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+            if (!userRoles.Contains(RoleTantouEditor))
+                throw new UnauthorizedAccessException("Chỉ Tantou Editor mới được Approve manuscript.");
 
             // 2. Load Manuscript với Chapter + Series
             var manuscript = await _manuscriptRepository.GetByIdWithDetailsAsync(manuscriptId, ct);
@@ -292,7 +277,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var series = chapter.Series;
 
             // 3. Check object-level (BR-74)
-            if (!_currentUserService.BypassAuthorization && series.TantouEditorId != currentUserId)
+            if (series.TantouEditorId != currentUserId)
                 throw new UnauthorizedAccessException("Bạn không phụ trách series này.");
 
             // 4. Check manuscript phải là latest version (BR-75)
@@ -361,13 +346,10 @@ namespace MangaManagementSystem.Business.Services.Implements
             CancellationToken ct = default)
         {
             // 1. Kiểm tra role: phải là Tantou Editor (BR-74)
-            if (!_currentUserService.BypassAuthorization)
-            {
-                var userRoles = await GetUserRolesAsync(currentUserId, ct);
-                if (!userRoles.Contains(RoleTantouEditor))
-                    throw new UnauthorizedAccessException(
-                        "Chỉ Tantou Editor mới được Request Revision.");
-            }
+            var userRoles = await GetUserRolesAsync(currentUserId, ct);
+            if (!userRoles.Contains(RoleTantouEditor))
+                throw new UnauthorizedAccessException(
+                    "Chỉ Tantou Editor mới được Request Revision.");
 
             // 2. Load Manuscript với Chapter + Series
             var manuscript = await _manuscriptRepository.GetByIdWithDetailsAsync(manuscriptId, ct);
@@ -378,7 +360,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var series = chapter.Series;
 
             // 3. Check object-level (BR-74)
-            if (!_currentUserService.BypassAuthorization && series.TantouEditorId != currentUserId)
+            if (series.TantouEditorId != currentUserId)
                 throw new UnauthorizedAccessException("Bạn không phụ trách series này.");
 
             // 4. Check manuscript phải là latest version (BR-75)

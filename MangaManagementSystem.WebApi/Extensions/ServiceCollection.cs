@@ -23,9 +23,8 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IManuscriptService, ManuscriptService>();
 
             // Auth / Current user
-            // DEV MODE: bỏ qua toàn bộ authorize khi test
-            // TODO (teammate): đổi thành JwtCurrentUserService sau khi implement JWT
-            services.AddScoped<ICurrentUserService, DevCurrentUserService>();
+            services.AddHttpContextAccessor();
+            services.AddScoped<ICurrentUserService, JwtCurrentUserService>();
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
