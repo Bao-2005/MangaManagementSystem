@@ -1,28 +1,31 @@
-# MangaHub — API Specification
+# MangaHub — API Contract
 
 > **Version:** 1.0  
-> **Base URL:** `https://api.mangahub.vn/api/v1` (Hoặc `http://localhost:3000/api/v1` cho môi trường Local)  
+> **Base URL:** `http://localhost:3000/api` (hoặc cấu hình qua `NEXT_PUBLIC_API_URL`)  
 > **Auth:** Bearer token — header `Authorization: Bearer <token>`  
-> Tất cả endpoints (trừ `/auth/login`) đều yêu cầu Authentication.
+> Tất cả endpoints (trừ `/auth/login` và `/auth/logout`) đều yêu cầu Authentication.
 
 ---
 
 ## Mục lục
 
-1. [Enum Values](#1-enum-values)
+1. [Enum & Type Values](#1-enum--type-values)
 2. [Data Models](#2-data-models)
-3. [Authentication Endpoints](#3-authentication-endpoints)
-4. [Series & Proposals Endpoints](#4-series--proposals-endpoints)
-5. [Chapters Endpoints](#5-chapters-endpoints)
-6. [Page Tasks Endpoints](#6-page-tasks-endpoints)
-7. [Manuscripts Endpoints](#7-manuscripts-endpoints)
-8. [Reader Votes & Rankings Endpoints](#8-reader-votes--rankings-endpoints)
-9. [Dashboard & Audit Endpoints](#9-dashboard--audit-endpoints)
-10. [Error & Response Format](#10-error--response-format)
+3. [Authentication](#3-authentication)
+4. [Series & Proposals](#4-series--proposals)
+5. [Chapters](#5-chapters)
+6. [Manuscripts](#6-manuscripts)
+7. [Page Tasks](#7-page-tasks)
+8. [Reviews](#8-reviews)
+9. [Rankings & Voting](#9-rankings--voting)
+10. [Notifications](#10-notifications)
+11. [Error Format](#11-error-format)
+12. [Tóm tắt Endpoints](#12-tóm-tắt-endpoints)
+13. [Ghi chú & Quy tắc nghiệp vụ](#13-ghi-chú--quy-tắc-nghiệp-vụ)
 
 ---
 
-## 1. Enum Values
+## 1. Enum & Type Values
 
 ### `UserRole`
 
@@ -31,13 +34,8 @@
 | `Mangaka` | Tác giả | Tạo đề xuất series, giao việc cho Assistant, duyệt trang vẽ. |
 | `Assistant` | Trợ lý | Nhận task vẽ trang, vẽ và nộp lại cho Mangaka duyệt. |
 | `Tantou Editor` | BTV phụ trách | Xem và duyệt bản thảo (Manuscript), viết feedback/annotation. |
-| `Editorial Board` | Ban biên tập | Bỏ phiếu đề xuất mới, nhập vote độc giả, duyệt quyết định hủy/đổi lịch. |
-
-### `Genre` (Thể loại)
-`Action` | `Drama` | `Romance` | `Fantasy` | `Sci-Fi` | `Comedy` | `Thriller` | `Horror` | `Slice of Life` | `Mystery`
-
-### `PublicationType` (Chu kỳ xuất bản)
-`Weekly` (Hàng tuần) | `Monthly` (Hàng tháng) | `One-shot` (Một tập duy nhất)
+| `Editorial Board` | Ban biên tập | Bỏ phiếu đề xuất mới|
+| `Editor-in-Chief` | Tổng biên tập | Vai trò quản trị cao nhất, đưa ra quyết định cuối cùng. |
 
 ### `SeriesStatus`
 
@@ -46,541 +44,815 @@
 | `Proposed` | Mới đề xuất, đang chờ Editorial Board bỏ phiếu |
 | `Active` | Đang trong tiến trình sáng tác và xuất bản đều đặn |
 | `Rejected` | Đề xuất bị Editorial Board bác bỏ |
-| `Deferred` | Đề xuất bị hoãn bỏ phiếu (khi chưa đủ quorum 3 phiếu) |
 | `Cancelled` | Series đã bị hủy xuất bản (sau khi rơi vào bottom 20% và được Board quyết định) |
 
-### `TaskStatus` (Trạng thái của PageTask)
-`Unassigned` (Chưa giao) | `Pending` (Đang chờ nhận) | `In-Progress` (Đang vẽ) | `Submitted` (Đã nộp trang, chờ Mangaka duyệt) | `Approved` (Trang vẽ đã được Mangaka thông qua) | `Rejected` (Trang vẽ bị lỗi, bắt buộc vẽ lại) | `Suspended` (Đã tạm dừng)
+### `ChapterStatus`
 
-### `ManuscriptStatus` (Trạng thái của Bản thảo chương)
-`Pending` (Chờ Tantou Editor duyệt) | `Approved` (Đã duyệt xuất bản) | `Revision Required` (Yêu cầu chỉnh sửa lại)
+| Value | Ý nghĩa |
+|---|---|
+| `Draft` | Chương nháp, đang chuẩn bị cốt truyện/storyboard |
+| `In Progress` | Đang trong quá trình vẽ phác thảo/giao việc cho trợ lý |
+| `Ready for Editor` | Hoàn thành vẽ thô, đã nộp cho Tantou Editor phê duyệt |
+| `Published` | Biên tập viên đã thông qua bản thảo và tiến hành xuất bản |
+
+### `TaskStatus`
+
+| Value | Ý nghĩa |
+|---|---|
+| `Unassigned` | Trang vẽ chưa phân công cho trợ lý nào |
+| `Pending` | Đang chờ trợ lý đồng ý nhận task vẽ |
+| `In-Progress` | Trợ lý đang thực hiện vẽ trang |
+| `Submitted` | Đã hoàn thành vẽ, nộp lại cho Mangaka review |
+| `Approved` | Mangaka đồng ý và duyệt bản vẽ trang này |
+| `Rejected` | Bản vẽ bị lỗi, Mangaka từ chối và bắt buộc sửa đổi |
+| `Suspended` | Task vẽ bị tạm ngưng |
+
+### `ManuscriptStatus`
+
+| Value | Ý nghĩa |
+|---|---|
+| `SUBMITTED` | Bản thảo chương đã được Mangaka nộp, chờ BTV xem xét |
+| `APPROVED` | Bản thảo được duyệt hoàn thành để xuất bản |
+| `REVISION REQUIRED` | BTV yêu cầu chỉnh sửa/vẽ lại các chi tiết |
 
 ---
 
 ## 2. Data Models
 
-### `User`
 ```typescript
 interface User {
   id: string
-  email: string
   name: string
-  role: "Mangaka" | "Assistant" | "Tantou Editor" | "Editorial Board"
+  email: string
+  role: 'Mangaka' | 'Assistant' | 'Tantou Editor' | 'Editorial Board' | 'Editor-in-Chief'
+  avatarUrl: string
 }
-```
 
-### `Series`
-```typescript
-interface Series {
+interface SeriesProposal {
   id: string
   title: string
-  genre: string
-  publicationType: "Weekly" | "Monthly" | "One-shot"
+  author: string
+  genre: string[]
+  type: 'Weekly' | 'Monthly' | 'One-shot'
+  status: 'Active' | 'Proposed' | 'Deferred' | 'Rejected'
   description: string
-  coverImageUrl?: string
-  status: "Proposed" | "Active" | "Rejected" | "Deferred" | "Cancelled"
-  createdBy: string // ID của Mangaka tạo
-  assignedEditorId?: string // ID của BTV phụ trách
-  votes?: Record<string, "Approved" | "Rejected"> // Danh sách phiếu của ban biên tập
+  coverColor: string
+  rating: number
 }
-```
 
-### `Chapter`
-```typescript
 interface Chapter {
   id: string
   seriesId: string
+  number: number
   title: string
-  chapterNo: number
-  publicationDate: string // ISO date string
-  deadline: string // ISO date string (PubDate - 14 ngày)
-  overdue: boolean // Tự động tính toán nếu quá deadline mà chưa có bản thảo Approved
-  progress: number // Tỷ lệ phần trăm số trang Approved trong chương (0-100%)
+  status: 'Draft' | 'In Progress' | 'Ready for Editor' | 'Published'
+  totalPages: number
+  publicationDate: string // YYYY-MM-DD
+  deadline: string        // YYYY-MM-DD (Tính tự động: publicationDate - 14 ngày)
+  createdAt: string       // ISO 8601
+  synopsis?: string
+  notes?: string
+  storyboardFiles?: any[]
+  manuscriptFiles?: any[]
 }
-```
 
-### `PageTask`
-```typescript
-interface PageTask {
-  id: string
-  chapterId: string
-  pageRange: string // Ví dụ: "1-5", "6-10" hoặc "Page 3"
-  pageNumber: number // Trang cụ thể bắt đầu
-  status: "Unassigned" | "Pending" | "In-Progress" | "Submitted" | "Approved" | "Rejected" | "Suspended"
-  assignedToId?: string // ID của Assistant
-  rejectionReason?: string // Lý do reject của Mangaka
-}
-```
-
-### `ManuscriptVersion`
-```typescript
-interface ManuscriptVersion {
+interface ManuscriptItem {
   id: string
   seriesId: string
-  chapterId: string
-  versionLabel: string // Tự động tăng v1, v2, v3...
-  fileUrl: string // Đường dẫn tải bản thảo (PDF, ZIP, v.v.)
-  submittedAt: string // ISO datetime
-  status: "Pending" | "Approved" | "Revision Required"
-  revisionNotes?: string // Feedback chú thích từ Tantou Editor
+  seriesTitle: string
+  chapterNumber: number
+  chapterTitle: string
+  latestVersion: string  // v1, v2, v3...
+  status: 'SUBMITTED' | 'APPROVED' | 'REVISION REQUIRED'
+  progress: number       // 0 - 100%
 }
-```
 
-### `VoteRecord`
-```typescript
+interface TaskItem {
+  id: string
+  chapterId: string
+  type: string           // e.g. "Line Art", "Coloring", "Background Art", "Screentoning"
+  pages: string          // e.g. "1-3", "4-8"
+  description: string
+  assistantId: string    // "Unassigned" nếu chưa giao
+  assistantName: string
+  status: 'Unassigned' | 'Pending' | 'In-Progress' | 'Submitted' | 'Approved' | 'Rejected'
+  submittedWorkUrl?: string
+  feedback?: string      // Nhận xét từ Mangaka khi phê duyệt/từ chối
+  assignedAt?: string
+  updatedAt?: string
+  dueDate?: string
+  pageStart?: number
+  pageEnd?: number
+  attachments?: { name: string; size: string; type: string }[]
+  submittedFiles?: { name: string; size: string; type: string }[]
+  submitDescription?: string
+}
+
+interface ProposalReview {
+  id: string
+  seriesTitle: string
+  mangakaName: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  submittedAt: string     // ISO 8601
+}
+
+interface RankingItem {
+  id: string
+  seriesTitle: string
+  genre: string
+  votes: number
+  readers: number
+  score: number           // Tỷ lệ bình chọn (votes / readers) * 100
+  status: string          // Ví dụ: "TOP 3", ""
+  rank: number
+}
+
+interface Notification {
+  id: string
+  title: string
+  message: string
+  read: boolean
+  createdAt: string       // ISO 8601
+}
+
 interface VoteRecord {
   id: string
   seriesId: string
-  chapterId: string
-  readerCount: number // Số lượng độc giả đọc chương
-  voteCount: number // Số lượng bình chọn
-  confirmed: boolean // Trạng thái xác nhận từ Editorial Board
-  calculatedScore?: number // Điểm vote: (voteCount / readerCount) * 100%
-  enteredAt: string // ISO datetime
+  votedAt: string         // ISO 8601
 }
 ```
 
 ---
 
-## 3. Authentication Endpoints
+## 3. Authentication
 
 ### `POST /auth/login`
-Đăng nhập hệ thống.
 
-**Request Body:**
+Đăng nhập vào hệ thống.
+
+**Request body**
+
 ```json
 {
-  "email": "mangaka@mangahub.vn",
+  "email": "obata@mangaflow.com",
   "password": "password123"
 }
 ```
 
-**Response `200`:**
+**Response `200`**
+
 ```json
 {
   "success": true,
-  "data": {
-    "token": "jwt_token_here",
-    "user": {
-      "id": "u-001",
-      "email": "mangaka@mangahub.vn",
-      "name": "Tác giả A",
-      "role": "Mangaka"
-    }
+  "token": "mock_token_jwt_xyz123",
+  "user": {
+    "id": "U01",
+    "name": "Takeshi Obata",
+    "email": "obata@mangaflow.com",
+    "role": "Tantou Editor",
+    "avatarUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100"
   }
+}
+```
+
+---
+
+### `POST /auth/logout`
+
+Đăng xuất và hủy token hiện tại.
+
+**Response `200`**
+
+```json
+{
+  "success": true
 }
 ```
 
 ---
 
 ### `GET /auth/me`
-Lấy thông tin user hiện tại dựa trên Bearer token.
 
-**Response `200`:**
+Lấy thông tin người dùng đang đăng nhập dựa trên token.
+
+**Response `200`**
+
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "u-001",
-    "email": "mangaka@mangahub.vn",
-    "name": "Tác giả A",
-    "role": "Mangaka"
-  }
+  "id": "U01",
+  "name": "Takeshi Obata",
+  "email": "obata@mangaflow.com",
+  "role": "Tantou Editor",
+  "avatarUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100"
 }
 ```
 
 ---
 
-## 4. Series & Proposals Endpoints
+## 4. Series & Proposals
 
 ### `GET /series`
-Lấy danh sách các tác phẩm/đề xuất.
 
-**Query Params:**
-* `search` (string): Tìm theo tiêu đề hoặc mô tả.
-* `genre` (string): Lọc theo thể loại.
-* `status` (SeriesStatus): Lọc theo trạng thái đề xuất/xuất bản.
-* `page` (number, default: 1): Trang hiện tại.
-* `limit` (number, default: 10): Số lượng dòng mỗi trang.
+Lấy danh sách các series và các bản đề xuất.
 
-**Response `200`:**
+**Response `200`**
+
 ```json
-{
-  "success": true,
-  "data": {
-    "content": [
-      {
-        "id": "ser-001",
-        "title": "Hành trình Đại Việt",
-        "genre": "Action",
-        "publicationType": "Weekly",
-        "description": "Câu chuyện phiêu lưu dã sử...",
-        "coverImageUrl": "https://api.mangahub.vn/covers/dai-viet.jpg",
-        "status": "Active",
-        "createdBy": "u-001",
-        "assignedEditorId": "u-editor-01"
-      }
-    ],
-    "totalElements": 1,
-    "totalPages": 1,
-    "currentPage": 1,
-    "pageSize": 10
+[
+  {
+    "id": "S01",
+    "title": "Demon Slayer: Chronicles",
+    "author": "Koyoharu Gotouge",
+    "genre": ["Action", "Fantasy"],
+    "type": "Weekly",
+    "status": "Active",
+    "description": "A young man sets out to become a demon slayer...",
+    "coverColor": "from-red-500 to-rose-700",
+    "rating": 4.9
   }
-}
+]
 ```
 
 ---
 
 ### `GET /series/:id`
-Lấy chi tiết một tác phẩm kèm danh sách phiếu bầu nếu người dùng có quyền (Editorial Board).
 
-**Response `200`:**
+Lấy thông tin chi tiết một series theo `id`.
+
+**Response `200`**
+
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "ser-001",
-    "title": "Hành trình Đại Việt",
-    "genre": "Action",
-    "publicationType": "Weekly",
-    "description": "Câu chuyện phiêu lưu dã sử...",
-    "coverImageUrl": "https://api.mangahub.vn/covers/dai-viet.jpg",
-    "status": "Proposed",
-    "createdBy": "u-001",
-    "votes": {
-      "board-member-1": "Approved",
-      "board-member-2": "Approved"
-    }
-  }
+  "id": "S01",
+  "title": "Demon Slayer: Chronicles",
+  "author": "Koyoharu Gotouge",
+  "genre": ["Action", "Fantasy"],
+  "type": "Weekly",
+  "status": "Active",
+  "description": "A young man sets out to become a demon slayer...",
+  "coverColor": "from-red-500 to-rose-700",
+  "rating": 4.9
 }
 ```
 
 ---
 
-### `POST /series/proposals`
-Mangaka nộp đề xuất bộ truyện mới.
+### `POST /series/proposal`
 
-**Request Body:**
+Gửi bản đề xuất series truyện mới lên Ban biên tập (chỉ dùng cho Mangaka).
+
+**Request body**
+
 ```json
 {
-  "title": "Hành trình Đại Việt",
-  "genre": "Action",
+  "title": "Sakura Knights",
+  "genre": "Action, Romance",
   "publicationType": "Weekly",
-  "description": "Mô tả cốt truyện chi tiết cho bộ truyện...",
-  "coverImageUrl": "https://api.mangahub.vn/covers/dai-viet.jpg"
+  "synopsis": "In feudal Japan reimagined with magitech armor, five orphaned warriors...",
+  "samplePages": 8,
+  "mangakaId": "U01",
+  "coverImageUrl": "https://api.mangahub.vn/covers/sakura-knights.jpg"
 }
 ```
 
-**Response `201`:** Trả về đối tượng `Series` vừa tạo kèm `status: "Proposed"`.
+> **Ràng buộc kiểm tra đề xuất (BR-15 & BR-19):**
+> - `synopsis` phải từ 200 đến 2000 ký tự.
+> - Số trang vẽ thử mẫu `samplePages` phải $\ge 5$.
+> - Mangaka không được phép gửi đề xuất mới nếu đang có đề xuất khác ở trạng thái `Pending Review` hoặc `Under Review`.
 
----
+**Response `201`**
 
-### `POST /series/:id/vote`
-Thành viên Ban biên tập bỏ phiếu đồng ý/không đồng ý phê duyệt xuất bản bộ truyện đề xuất.
-> **Quy tắc (BR-01):** BTV phụ trách trực tiếp (`assignedEditorId`) **KHÔNG** được bỏ phiếu cho series do mình quản lý.
-
-**Request Body:**
-```json
-{
-  "vote": "Approved" // Hoặc "Rejected"
-}
-```
-
-**Response `200`:**
 ```json
 {
   "success": true,
-  "message": "Bỏ phiếu thành công",
-  "data": {
-    "seriesId": "ser-001",
-    "approvalsCount": 3,
-    "rejectionsCount": 0,
-    "status": "Active" // Tự động cập nhật thành "Active" khi đủ quorum >= 3 votes đồng ý, hoặc "Rejected" / "Deferred".
+  "proposal": {
+    "id": "PR02",
+    "title": "Sakura Knights",
+    "author": "Tanaka Yuki",
+    "genre": ["Action", "Romance"],
+    "type": "Weekly",
+    "status": "Proposed",
+    "description": "In feudal Japan reimagined with magitech armor...",
+    "coverColor": "from-pink-500 to-purple-600",
+    "rating": 0
   }
 }
 ```
 
 ---
 
-## 5. Chapters Endpoints
+### `POST /series/:seriesId/vote`
 
-### `GET /series/:seriesId/chapters`
-Lấy danh sách các chương của một series.
+Editorial Board bỏ phiếu phê duyệt đề xuất.
 
-**Response `200`:**
+**Request body**
+
+```json
+{
+  "vote": "Approved"
+}
+```
+
+> **Quy tắc bỏ phiếu (BR-01 & BR-05):**
+> - Tantou Editor trực tiếp quản lý series **KHÔNG ĐƯỢC PHÉP** bỏ phiếu cho series đó.
+> - Đề xuất cần tối thiểu **3 phiếu bầu (quorum)** để thông qua trạng thái `Active`. Nếu dưới 3 phiếu, trạng thái sẽ là `Deferred`.
+
+**Response `200`**
+
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "ch-101",
-      "seriesId": "ser-001",
-      "title": "Chương 1: Khởi đầu mới",
-      "chapterNo": 1,
-      "publicationDate": "2026-06-15",
-      "deadline": "2026-06-01",
-      "overdue": false,
-      "progress": 80
-    }
+  "votes": 120
+}
+```
+
+---
+
+## 5. Chapters
+
+### `GET /chapters`
+
+Lấy danh sách tất cả các chương truyện trong toàn hệ thống.
+
+**Response `200`**
+
+```json
+[
+  {
+    "id": "CH01",
+    "seriesId": "S01",
+    "number": 1,
+    "title": "The Resonance of Blades",
+    "status": "Published",
+    "totalPages": 19,
+    "publicationDate": "2026-05-15",
+    "deadline": "2026-05-01",
+    "createdAt": "2026-04-20T10:00:00Z"
+  }
+]
+```
+
+---
+
+### `GET /chapters/series/:seriesId`
+
+Lấy danh sách các chương thuộc một series cụ thể.
+
+**Response `200`**
+
+```json
+[
+  {
+    "id": "CH01",
+    "seriesId": "S01",
+    "number": 1,
+    "title": "The Resonance of Blades",
+    "status": "Published",
+    "totalPages": 19,
+    "publicationDate": "2026-05-15",
+    "deadline": "2026-05-01",
+    "createdAt": "2026-04-20T10:00:00Z"
+  }
+]
+```
+
+---
+
+### `POST /chapters`
+
+Tạo một chương truyện mới (chỉ dùng cho Mangaka).
+
+**Request body**
+
+```json
+{
+  "seriesId": "S01",
+  "number": 2,
+  "title": "Cherry Blossom Magitech",
+  "status": "Draft",
+  "totalPages": 18,
+  "publicationDate": "2026-06-15",
+  "synopsis": "Tóm tắt cốt truyện chương 2...",
+  "notes": "Ghi chú gửi biên tập viên...",
+  "storyboardFiles": [],
+  "manuscriptFiles": [
+    { "name": "Ch02_Draft_p1-18.zip", "size": "15 MB", "type": "zip" }
   ]
 }
 ```
 
----
+> **Cách tính hạn chót (BR-03 & BR-42):**
+> - Ngày hạn chót `deadline` nộp bản thảo tự động tính bằng: `publicationDate` trừ đi **14 ngày**.
+> - Để đảm bảo thời gian vẽ tối thiểu 3 ngày cho studio, ngày `publicationDate` chọn phải cách ngày hiện tại ít nhất **17 ngày** (14 ngày deadline + 3 ngày sản xuất tối thiểu).
 
-### `POST /series/:seriesId/chapters`
-Mangaka tạo chương mới cho series.
-> **Quy tắc (BR-03):** Deadline của chương sẽ tự động được tính là **ngày xuất bản trừ đi 14 ngày**.
+**Response `201`**
 
-**Request Body:**
-```json
-{
-  "title": "Chương 1: Khởi đầu mới",
-  "chapterNo": 1,
-  "publicationDate": "2026-06-15"
-}
-```
-
-**Response `201`:** Trả về thông tin chương mới tạo kèm `deadline` đã tự động tính.
-
----
-
-## 6. Page Tasks Endpoints
-
-### `GET /chapters/:chapterId/tasks`
-Lấy danh sách các trang vẽ đã được phân công/chưa phân công trong chương.
-
-**Response `200`:**
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "task-501",
-      "chapterId": "ch-101",
-      "pageRange": "Trang 1-5",
-      "pageNumber": 1,
-      "status": "In-Progress",
-      "assignedToId": "u-assistant-01"
-    }
-  ]
+  "data": {
+    "id": "CH02",
+    "seriesId": "S01",
+    "number": 2,
+    "title": "Cherry Blossom Magitech",
+    "status": "Draft",
+    "totalPages": 18,
+    "publicationDate": "2026-06-15",
+    "deadline": "2026-06-01",
+    "createdAt": "2026-05-15T09:00:00Z"
+  }
 }
 ```
 
 ---
 
-### `POST /tasks`
-Mangaka phân công đầu việc vẽ trang cho Assistant.
+### `PUT /chapters/:id`
 
-**Request Body:**
+Cập nhật thông tin hoặc trạng thái một chương cụ thể.
+
+**Request body**
+
 ```json
 {
-  "chapterId": "ch-101",
-  "pageStart": 1,
-  "pageEnd": 5,
-  "assignedToId": "u-assistant-01",
-  "deadline": "2026-05-30T17:00:00Z"
+  "status": "In Progress"
 }
 ```
 
-**Response `201`:** Trả về thông tin PageTask đã tạo.
+**Response `200`**
 
----
-
-### `PUT /tasks/:id/status`
-Cập nhật trạng thái trang vẽ (Assistant nộp trang hoặc Mangaka Duyệt/Từ chối).
-
-**Request Body:**
-```json
-{
-  "status": "Submitted", // Hoặc "Approved" / "Rejected"
-  "rejectionReason": "Đường line nét vẽ quá mờ, cần tô đậm hơn" // Gửi khi reject
-}
-```
-
-**Response `200`:** Trả về đối tượng `PageTask` sau khi thay đổi trạng thái.
-
----
-
-## 7. Manuscripts Endpoints
-
-### `GET /chapters/:chapterId/manuscripts`
-Lấy danh sách lịch sử các phiên bản bản thảo của chương.
-
-**Response `200`:**
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "ms-001",
-      "seriesId": "ser-001",
-      "chapterId": "ch-101",
-      "versionLabel": "v1",
-      "fileUrl": "https://api.mangahub.vn/manuscripts/ch101_v1.zip",
-      "submittedAt": "2026-05-27T08:00:00Z",
-      "status": "Revision Required",
-      "revisionNotes": "Cần sửa lại khung thoại ở trang số 3."
-    }
-  ]
+  "data": {
+    "id": "CH02",
+    "status": "In Progress"
+  }
+}
+```
+
+---
+
+## 6. Manuscripts
+
+### `GET /manuscripts`
+
+Lấy danh sách tất cả các bản thảo.
+
+**Response `200`**
+
+```json
+[
+  {
+    "id": "M01",
+    "seriesId": "S01",
+    "seriesTitle": "Demon Slayer: Chronicles",
+    "chapterNumber": 15,
+    "chapterTitle": "Iron Will",
+    "latestVersion": "v1",
+    "status": "APPROVED",
+    "progress": 100
+  }
+]
+```
+
+---
+
+### `GET /manuscripts/:id`
+
+Lấy thông tin chi tiết một bản thảo theo `id`.
+
+**Response `200`**
+
+```json
+{
+  "id": "M01",
+  "seriesId": "S01",
+  "seriesTitle": "Demon Slayer: Chronicles",
+  "chapterNumber": 15,
+  "chapterTitle": "Iron Will",
+  "latestVersion": "v1",
+  "status": "APPROVED",
+  "progress": 100
 }
 ```
 
 ---
 
 ### `POST /manuscripts`
-Mangaka nộp bản thảo chương lên hệ thống cho Biên tập viên xem xét.
-> **Quy tắc (BR-04 / BR-05):** Chỉ được phép nộp bản thảo khi **100% các PageTasks trong chương đó đạt trạng thái "Approved"**. Hệ thống sẽ tự động sinh version mới (v1, v2, v3...).
 
-**Request Body:**
+Mangaka nộp bản thảo thô hoàn thiện của chương để BTV xem xét duyệt xuất bản.
+
+**Request body**
+
 ```json
 {
-  "seriesId": "ser-001",
-  "chapterId": "ch-101",
-  "fileUrl": "https://api.mangahub.vn/manuscripts/ch101_v2.zip",
-  "notes": "Đã chỉnh sửa nét vẽ theo yêu cầu."
+  "seriesId": "S01",
+  "chapterId": "CH02",
+  "fileUrl": "https://api.mangahub.vn/manuscripts/ch02_v1.zip",
+  "notes": "Đã hoàn thành nét vẽ và screentoning."
 }
 ```
 
-**Response `201`:** Trả về thông tin bản thảo `ManuscriptVersion` vừa nộp với trạng thái `Pending`.
+> **Điều kiện nộp bản thảo (BR-04):**
+> - Chỉ được nộp bản thảo chương lên hệ thống khi **100% các page task của chương đó đã được Mangaka duyệt (Approved)**. 
 
----
+**Response `201`**
 
-### `PUT /manuscripts/:id/review`
-Tantou Editor duyệt bản thảo chương hoặc phản hồi yêu cầu sửa đổi.
-
-**Request Body:**
-```json
-{
-  "status": "Approved", // Hoặc "Revision Required"
-  "revisionNotes": "Tranh vẽ xuất sắc, duyệt xuất bản!" // Bắt buộc nhập nếu status là Revision Required
-}
-```
-
-**Response `200`:** Trả về bản thảo đã được cập nhật trạng thái review.
-
----
-
-## 8. Reader Votes & Rankings Endpoints
-
-### `POST /votes`
-Ban biên tập nhập số lượng bình chọn của độc giả cho một chương truyện đã phát hành.
-
-**Request Body:**
-```json
-{
-  "seriesId": "ser-001",
-  "chapterId": "ch-101",
-  "readerCount": 5000,
-  "voteCount": 3500
-}
-```
-
-**Response `201`:**
 ```json
 {
   "success": true,
   "data": {
-    "id": "vote-901",
-    "seriesId": "ser-001",
-    "chapterId": "ch-101",
-    "readerCount": 5000,
-    "voteCount": 3500,
-    "calculatedScore": 70, // Tự động tính: (3500 / 5000) * 100
-    "confirmed": true,
-    "enteredAt": "2026-05-28T09:40:00Z"
+    "id": "M04",
+    "seriesId": "S01",
+    "chapterId": "CH02",
+    "version": "v1",
+    "status": "SUBMITTED",
+    "submittedAt": "2026-06-01T08:30:00Z"
   }
 }
 ```
 
 ---
 
-### `GET /rankings`
-Lấy danh sách bảng xếp hạng tự động của các tác phẩm dựa trên chỉ số vote.
-> **Quy tắc (BR-02):** Điểm đánh giá = `(voteCount / readerCount) * 100%`.
-> Nhóm **Bottom 20%** có điểm thấp nhất sẽ tự động nhận flag cảnh báo hủy xuất bản (`belowThreshold: true`).
+## 7. Page Tasks
 
-**Response `200`:**
+### `GET /tasks`
+
+Lấy danh sách các trang vẽ được phân công trong chương.
+
+**Response `200`**
+
 ```json
-{
-  "success": true,
-  "data": [
-    {
-      "seriesId": "ser-001",
-      "title": "Hành trình Đại Việt",
-      "score": 70.0,
-      "rank": 1,
-      "belowThreshold": false
-    },
-    {
-      "seriesId": "ser-002",
-      "title": "Ký ức thời gian",
-      "score": 12.5,
-      "rank": 5,
-      "belowThreshold": true // Nằm trong nhóm bottom 20%
-    }
-  ]
-}
+[
+  {
+    "id": "T01",
+    "chapterId": "CH02",
+    "type": "Line Art",
+    "pages": "1-3",
+    "description": "Sketch and ink the opening battle",
+    "assistantName": "Sato Takashi",
+    "status": "Approved"
+  }
+]
 ```
 
 ---
 
-## 9. Dashboard & Audit Endpoints
+### `POST /tasks/assign`
 
-### `GET /dashboard/summary`
-Lấy thông tin tổng hợp hiển thị màn hình chính tùy theo vai trò của user (tự trích xuất từ token JWT).
+Phân công task vẽ trang cụ thể cho một trợ lý (chỉ dùng cho Mangaka).
 
-**Response `200`:**
+**Request body**
+
+```json
+{
+  "chapterId": "CH02",
+  "pageStart": 4,
+  "pageEnd": 8,
+  "assignedToId": "A02",
+  "deadline": "2026-05-30T17:00:00Z",
+  "type": "Coloring",
+  "description": "Apply sunset glow colors"
+}
+```
+
+**Response `201`**
+
 ```json
 {
   "success": true,
   "data": {
-    "role": "Mangaka",
-    "summary": {
-      "totalSeries": 2,
-      "pendingReviews": 1,
-      "overdueChapters": 0,
-      "earningsEstimate": 450.0 // Ước tính thu nhập của studio/trợ lý (nếu có)
-    }
+    "id": "T03",
+    "chapterId": "CH02",
+    "type": "Coloring",
+    "pages": "4-8",
+    "description": "Apply sunset glow colors",
+    "assistantId": "A02",
+    "assistantName": "Suzuki Mei",
+    "status": "Pending"
   }
 }
 ```
 
 ---
 
-### `GET /audit-logs`
-Danh sách lưu vết thao tác hệ thống (dành cho Admin / Editorial Board).
+## 8. Reviews
 
-**Response `200`:**
+### `GET /reviews`
+
+Lấy danh sách đề cử series đang chờ phê duyệt.
+
+**Response `200`**
+
+```json
+[
+  {
+    "id": "R01",
+    "seriesTitle": "Jujutsu Kaisen: Culling Game",
+    "mangakaName": "Gege Akutami",
+    "status": "PENDING",
+    "submittedAt": "2026-05-28T09:00:00Z"
+  }
+]
+```
+
+---
+
+### `PUT /reviews/:id/decision`
+
+Biên tập viên/Hội đồng đưa ra quyết định phê duyệt đề xuất.
+
+**Request body**
+
+```json
+{
+  "decision": "APPROVED",
+  "feedback": "Cốt truyện hấp dẫn, nét vẽ cá tính phù hợp với thị hiếu độc giả hiện nay."
+}
+```
+
+**Response `200`**
+
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "log-7001",
-      "actorId": "u-001",
-      "action": "SUBMIT_PROPOSAL",
-      "targetType": "Series",
-      "targetId": "ser-001",
-      "details": "Mangaka nộp đề xuất truyện mới: Hành trình Đại Việt",
-      "createdAt": "2026-05-28T02:00:00Z"
-    }
-  ]
+  "id": "R01",
+  "decision": "APPROVED",
+  "feedback": "Cốt truyện hấp dẫn..."
 }
 ```
 
 ---
 
-## 10. Error & Response Format
+## 9. Rankings & Voting
 
-### Định dạng phản hồi chuẩn
-Tất cả các API kết quả trả về luôn bọc trong 1 wrapper JSON:
-* **Thành công:** `{ "success": true, "data": ... }`
-* **Lỗi:** `{ "success": false, "error": "Mô tả chi tiết nguyên nhân lỗi" }`
+### `GET /ranking`
 
-### Http Status Codes thông dụng
-* `400 Bad Request`: Thông tin gửi lên không đúng định dạng hoặc vi phạm ràng buộc dữ liệu (ví dụ: `voteCount > readerCount`).
-* `401 Unauthorized`: Chưa truyền header Bearer token hoặc token đã hết hạn.
-* `403 Forbidden`: Người dùng không có quyền truy cập chức năng này (ví dụ: Assistant cố ý vote duyệt đề xuất truyện).
-* `404 Not Found`: Không tìm thấy tài nguyên tương ứng (Chương, Nhân vật, Tác phẩm).
-* `500 Internal Server Error`: Lỗi phát sinh từ server.
+Lấy danh sách xếp hạng các tác phẩm trong chu kỳ hiện tại.
+
+**Response `200`**
+
+```json
+[
+  {
+    "id": "S01",
+    "seriesTitle": "Demon Slayer: Chronicles",
+    "genre": "Action, Fantasy",
+    "votes": 12000,
+    "readers": 15000,
+    "score": 80.0,
+    "status": "TOP 3",
+    "rank": 1
+  }
+]
+```
+
+> **Công thức tính điểm xếp hạng (BR-02):**
+> - $\text{Score} = \left(\frac{\text{votes}}{\text{readers}}\right) \times 100\%$.
+> - Nhóm **20% có điểm thấp nhất** trong danh sách sẽ bị gắn cờ cảnh báo xem xét hủy xuất bản.
+
+---
+
+### `POST /ranking/confirm`
+
+Xác nhận danh sách xếp hạng của quý hiện tại (chỉ Editorial Board).
+
+**Request body**
+
+```json
+{
+  "quarter": "2026-Q2"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "quarter": "2026-Q2"
+}
+```
+
+---
+
+### `POST /votes/submit`
+
+Độc giả thực hiện bình chọn cho tác phẩm.
+
+**Request body**
+
+```json
+{
+  "seriesId": "S01"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "seriesId": "S01"
+}
+```
+
+---
+
+## 10. Notifications
+
+### `GET /notifications`
+
+Lấy toàn bộ thông báo của người dùng hiện tại.
+
+**Response `200`**
+
+```json
+[
+  {
+    "id": "N01",
+    "title": "New Manuscript Submitted",
+    "message": "Chainsaw Man Chapter 9 has been submitted for review.",
+    "read": false,
+    "createdAt": "2026-06-01T08:00:00Z"
+  }
+]
+```
+
+---
+
+### `PUT /notifications/:id/read`
+
+Đánh dấu thông báo đã được xem.
+
+**Response `200`**
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+## 11. Error Format
+
+Tất cả các lỗi trả về từ API đều tuân thủ cấu trúc lỗi tiêu chuẩn:
+
+```json
+{
+  "code": "RESOURCE_NOT_FOUND",
+  "message": "The requested entity was not found.",
+  "statusCode": 404
+}
+```
+
+| HTTP Status Code | Code | Mô tả |
+|---|---|---|
+| `400` | `BAD_REQUEST` | Dữ liệu không hợp lệ hoặc vi phạm quy tắc validation (như `voteCount > readerCount`). |
+| `401` | `UNAUTHORIZED` | Token bị thiếu hoặc không chính xác. |
+| `403` | `FORBIDDEN` | Tài khoản hiện tại không có vai trò phù hợp để truy cập tài nguyên. |
+| `404` | `RESOURCE_NOT_FOUND` | Không tìm thấy thực thể yêu cầu. |
+| `500` | `INTERNAL_ERROR` | Lỗi phát sinh ngoài ý muốn trên hệ thống server. |
+
+---
+
+## 12. Tóm tắt Endpoints
+
+| Endpoint | Method | Role | Mô tả | Priority |
+|---|---|---|---|---|
+| `/auth/login` | POST | All | Đăng nhập hệ thống | 🔴 High |
+| `/auth/logout` | POST | All | Đăng xuất hệ thống | 🔴 High |
+| `/auth/me` | GET | All | Lấy thông tin user hiện tại | 🔴 High |
+| `/series` | GET | All | Lấy danh sách series & đề cử | 🔴 High |
+| `/series/:id` | GET | All | Lấy chi tiết tác phẩm | 🔴 High |
+| `/series/proposal` | POST | Mangaka | Tạo đề xuất tác phẩm mới | 🔴 High |
+| `/series/:seriesId/vote` | POST | Board/BTV | Bỏ phiếu đề xuất | 🟡 Medium |
+| `/chapters` | GET | All | Lấy toàn bộ danh sách chương | 🔴 High |
+| `/chapters/series/:seriesId` | GET | All | Lấy danh sách chương của series | 🔴 High |
+| `/chapters` | POST | Mangaka | Tạo chương mới | 🔴 High |
+| `/chapters/:id` | PUT | Mangaka | Cập nhật thông tin/trạng thái chương | 🟡 Medium |
+| `/manuscripts` | GET | All | Lấy danh sách bản thảo | 🔴 High |
+| `/manuscripts/:id` | GET | All | Xem chi tiết một bản thảo | 🟡 Medium |
+| `/manuscripts` | POST | Mangaka | Nộp bản thảo chương lên BTV | 🔴 High |
+| `/tasks` | GET | All | Xem danh sách task phân vẽ trang | 🔴 High |
+| `/tasks/assign` | POST | Mangaka | Giao task vẽ trang cho Assistant | 🔴 High |
+| `/reviews` | GET | Board/BTV | Xem danh sách đề cử cần quyết định | 🟡 Medium |
+| `/reviews/:id/decision` | PUT | Board/BTV | Phê duyệt/từ chối đề xuất | 🟡 Medium |
+| `/ranking` | GET | All | Lấy bảng xếp hạng series truyện | 🔴 High |
+| `/ranking/confirm` | POST | Board | Xác nhận danh sách xếp hạng quý | 🟢 Low |
+| `/votes/submit` | POST | Reader | Gửi phiếu bình chọn cho series | 🔴 High |
+| `/notifications` | GET | All | Lấy danh sách thông báo cá nhân | 🔴 High |
+| `/notifications/:id/read` | PUT | All | Đánh dấu thông báo đã đọc | 🟡 Medium |
+
+---
+
+## 13. Ghi chú & Quy tắc nghiệp vụ
+
+### Đã thống nhất giữa FE và BE
+* **Định dạng Datetime:** Chuẩn ISO 8601 UTC. Ví dụ: `"2026-06-01T08:30:00Z"`.
+* **Ràng buộc nộp đề xuất (BR-15):** Phải kiểm tra tính hợp lệ của `synopsis` (từ 200 đến 2000 ký tự) và số lượng `samplePages` vẽ nháp (tối thiểu 5 trang).
+* **Ràng buộc trễ hạn chương (BR-03):** Hạn chót nộp bản thảo (`deadline`) được hệ thống tính tự động lùi **14 ngày** so với ngày dự kiến xuất bản (`publicationDate`). Trễ deadline sẽ tự động kích hoạt notification cảnh báo cho tác giả và BTV phụ trách.
+* **Tiến trình hoàn thành chương (BR-04):** Để có thể bấm nút nộp bản thảo chương (`POST /manuscripts`), 100% các page task của chương đó bắt buộc phải có trạng thái là `Approved` từ Mangaka.
+* **Hạn chế xung đột lợi ích (BR-01):** BTV phụ trách chính của một series không được tham gia bỏ phiếu duyệt đề cử của series đó.
+* **Cơ chế biểu quyết quorum (BR-05):** Yêu cầu tối thiểu 3 phiếu từ Editorial Board để đưa ra quyết định duyệt đề cử hoặc chấm dứt hợp đồng xuất bản series.
