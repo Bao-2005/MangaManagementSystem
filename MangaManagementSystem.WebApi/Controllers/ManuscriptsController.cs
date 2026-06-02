@@ -405,10 +405,10 @@ namespace MangaManagementSystem.WebApi.Controllers
                 }
                 else mangakaRoleId = roleMangaka.RoleId;
 
-                var roleEditor = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "TANTOU_EDITOR", cancellationToken);
+                var roleEditor = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == RoleConstants.TantouEditor, cancellationToken);
                 if (roleEditor == null)
                 {
-                    roleEditor = new Role { RoleId = editorRoleId, RoleName = "TANTOU_EDITOR" };
+                    roleEditor = new Role { RoleId = editorRoleId, RoleName = RoleConstants.TantouEditor };
                     await context.Roles.AddAsync(roleEditor, cancellationToken);
                 }
                 else editorRoleId = roleEditor.RoleId;

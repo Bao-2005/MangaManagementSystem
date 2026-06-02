@@ -20,7 +20,7 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly ICurrentUserService _currentUserService;
 
         // Role name constants — khớp với giá trị trong bảng Roles
-        private const string RoleTantouEditor = "TANTOU_EDITOR";
+        private const string RoleTantouEditor = "Tantou Editor";
         private const string RoleMangaka = "MANGAKA";
         private const string RoleAdmin = "ADMIN";
 

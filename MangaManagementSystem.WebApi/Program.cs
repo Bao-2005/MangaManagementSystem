@@ -2,6 +2,7 @@ using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.API.Extensions;
 using MangaManagementSystem.API.Middleware;
 using MangaManagementSystem.Business.Mappers;
+using MangaManagementSystem.Business.Constants;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -59,7 +60,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole("Mangaka"));
 
     options.AddPolicy("EditorOnly", policy =>
-        policy.RequireRole("TANTOU_EDITOR"));
+        policy.RequireRole(RoleConstants.TantouEditor));
 
     options.AddPolicy("AssistantOnly", policy =>
         policy.RequireRole("Assistant"));
