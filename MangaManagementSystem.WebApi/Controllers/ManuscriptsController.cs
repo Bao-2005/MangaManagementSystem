@@ -586,7 +586,7 @@ namespace MangaManagementSystem.WebApi.Controllers
                         PageEnd = 20,
                         TaskType = "Drafting",
                         Description = "Hỗ trợ vẽ nét phác thảo",
-                        Status = "Approved", // Phải Approved để pass BR-67
+                        Status = MangaManagementSystem.DataAccess.Entities.Enums.PageTaskStatus.Approved, // Phải Approved để pass BR-67
                         ApprovedAt = DateTime.UtcNow.AddMinutes(-30),
                         CreatedAt = DateTime.UtcNow.AddHours(-1)
                     };

@@ -494,7 +494,7 @@ Cập nhật thông tin hoặc trạng thái một chương cụ thể.
 
 ## 6. Manuscripts
 
-### `GET /manuscripts`
+### `GET /api/manuscripts`
 
 Lấy danh sách tất cả các bản thảo.
 
@@ -517,7 +517,7 @@ Lấy danh sách tất cả các bản thảo.
 
 ---
 
-### `GET /manuscripts/:id`
+### `GET /api/manuscripts/{manuscriptId}`
 
 Lấy thông tin chi tiết một bản thảo theo `id`.
 
@@ -538,23 +538,44 @@ Lấy thông tin chi tiết một bản thảo theo `id`.
 
 ---
 
-### `POST /manuscripts`
+### `GET /api/chapters/{chapterId}/manuscripts`
 
-Mangaka nộp bản thảo thô hoàn thiện của chương để BTV xem xét duyệt xuất bản.
+Lấy danh sách lịch sử tất cả các phiên bản bản thảo của một chương.
+
+**Response `200`**
+
+```json
+{
+  "manuscripts": [
+    {
+      "id": "M04",
+      "latestVersion": "v1",
+      "status": "SUBMITTED",
+      "submittedAt": "2026-06-01T08:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### `POST /api/chapters/{chapterId}/manuscripts`
+
+Mangaka nộp bản thảo thô hoàn thiện của chương để BTV xem xét duyệt xuất bản, hoặc nộp lại (resubmit) tạo version mới.
 
 **Request body**
 
 ```json
 {
-  "seriesId": "S01",
-  "chapterId": "CH02",
-  "fileUrl": "https://api.mangahub.vn/manuscripts/ch02_v1.zip",
+  "previewFileAssetId": "88888888-8888-8888-8888-888888888888",
+  "sourceFileAssetId": "99999999-9999-9999-9999-999999999999",
   "notes": "Đã hoàn thành nét vẽ và screentoning."
 }
 ```
 
-> **Điều kiện nộp bản thảo (BR-04):**
-> - Chỉ được nộp bản thảo chương lên hệ thống khi **100% các page task của chương đó đã được Mangaka duyệt (Approved)**. 
+> **Điều kiện nộp bản thảo (BR-04, BR-67, BR-72, BR-80):**
+> - Chỉ được nộp bản thảo chương lên hệ thống khi **100% các page task của chương đó đã được Mangaka duyệt (Approved)**.
+> - Chỉ Mangaka sở hữu series mới được nộp.
 
 **Response `201`**
 
@@ -565,10 +586,63 @@ Mangaka nộp bản thảo thô hoàn thiện của chương để BTV xem xét 
     "id": "M04",
     "seriesId": "S01",
     "chapterId": "CH02",
-    "version": "v1",
+    "latestVersion": "v1",
     "status": "SUBMITTED",
     "submittedAt": "2026-06-01T08:30:00Z"
   }
+}
+```
+
+---
+
+### `POST /api/manuscripts/{manuscriptId}/start-review`
+
+Tantou Editor bắt đầu đánh giá bản thảo. Chuyển trạng thái sang UNDER_REVIEW.
+
+**Response `200`**
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+### `POST /api/manuscripts/{manuscriptId}/approve`
+
+Tantou Editor duyệt bản thảo. Chuyển trạng thái sang APPROVED và tự động xuất bản chapter.
+
+**Response `200`**
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+### `POST /api/manuscripts/{manuscriptId}/request-revision`
+
+Tantou Editor yêu cầu sửa đổi bản thảo (REVISION_REQUIRED).
+
+**Request body**
+
+```json
+{
+  "feedback": "Cần sửa lại nét vẽ ở một số khung tranh chi tiết theo annotation."
+}
+```
+
+> **Ràng buộc (BR-77):**
+> - Yêu cầu phải có ít nhất 1 annotation trên bản thảo và feedback chi tiết.
+
+**Response `200`**
+
+```json
+{
+  "success": true
 }
 ```
 
@@ -795,29 +869,154 @@ Lấy toàn bộ thông báo của người dùng hiện tại.
 
 ---
 
-## 11. Error Format
+## 11. Annotations
 
-Tất cả các lỗi trả về từ API đều tuân thủ cấu trúc lỗi tiêu chuẩn:
+### `GET /api/manuscripts/{manuscriptId}/annotations`
+
+Lấy danh sách ghi chú theo bản thảo. Hỗ trợ lọc theo số phiên bản và số trang.
+
+**Query Parameters**
+- `versionNo`: (Optional) Số phiên bản. Không truyền = latest version.
+- `pageNo`: (Optional) Số trang.
+
+**Response `200`**
 
 ```json
 {
-  "code": "RESOURCE_NOT_FOUND",
-  "message": "The requested entity was not found.",
-  "statusCode": 404
+  "annotations": [
+    {
+      "annotationId": "annotation-uuid",
+      "manuscriptId": "manuscript-uuid",
+      "versionNo": 2,
+      "pageNo": 3,
+      "positionX": 46.00,
+      "positionY": 70.25,
+      "content": "Sửa lại nét vẽ ở góc này cho rõ hơn",
+      "authorId": "editor-user-id",
+      "createdAt": "2026-05-30T10:30:00Z"
+    }
+  ]
 }
 ```
 
-| HTTP Status Code | Code | Mô tả |
+---
+
+### `GET /api/manuscripts/{manuscriptId}/annotations/count`
+
+Đếm số lượng ghi chú theo phiên bản bản thảo (dùng để check điều kiện BR-77).
+
+**Query Parameters**
+- `versionNo`: (Optional) Số phiên bản.
+
+**Response `200`**
+
+```json
+{
+  "count": 5
+}
+```
+
+---
+
+### `POST /api/manuscripts/{manuscriptId}/annotations`
+
+Tạo một ghi chú ghim (Pin Annotation) mới trên trang của bản thảo.
+
+**Request body**
+
+```json
+{
+  "pageNo": 3,
+  "positionX": 46.00,
+  "positionY": 70.25,
+  "content": "Sửa lại nét vẽ ở góc này cho rõ hơn"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "annotationId": "annotation-uuid",
+  "manuscriptId": "manuscript-uuid",
+  "versionNo": 2,
+  "pageNo": 3,
+  "positionX": 46.00,
+  "positionY": 70.25,
+  "content": "Sửa lại nét vẽ ở góc này cho rõ hơn",
+  "authorId": "editor-user-id",
+  "createdAt": "2026-05-30T10:30:00Z"
+}
+```
+
+---
+
+### `PATCH /api/manuscripts/{manuscriptId}/annotations/{annotationId}`
+
+Cập nhật vị trí và/hoặc nội dung của ghi chú.
+
+**Request body**
+
+```json
+{
+  "positionX": 46.00,
+  "positionY": 70.25,
+  "content": "Sửa lại nét vẽ ở góc này cho rõ hơn (đã cập nhật)"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "annotationId": "annotation-uuid",
+  "content": "Sửa lại nét vẽ ở góc này cho rõ hơn (đã cập nhật)"
+}
+```
+
+---
+
+### `DELETE /api/manuscripts/{manuscriptId}/annotations/{annotationId}`
+
+Xóa mềm (soft delete) ghi chú. Ghi chú được đánh dấu IsDeleted = true.
+
+**Response `204` (No Content)**
+
+---
+
+## 12. Error Format
+
+Tất cả các lỗi trả về từ API đều tuân thủ cấu trúc lỗi tiêu chuẩn (hoặc dạng đơn giản `{"message": "..."}` từ Middleware/Controller):
+
+**Cấu trúc ProblemDetails (từ ExceptionMiddleware):**
+```json
+{
+  "status": 400,
+  "title": "Lỗi hệ thống",
+  "detail": "Chi tiết thông điệp lỗi ở đây",
+  "instance": "/api/manuscripts"
+}
+```
+
+**Hoặc lỗi dạng đơn giản (Controller xử lý nhanh):**
+```json
+{
+  "message": "Chưa xác thực. Vui lòng đăng nhập."
+}
+```
+
+| HTTP Status Code | Code / Status | Mô tả |
 |---|---|---|
-| `400` | `BAD_REQUEST` | Dữ liệu không hợp lệ hoặc vi phạm quy tắc validation (như `voteCount > readerCount`). |
+| `400` | `BAD_REQUEST` | Dữ liệu không hợp lệ hoặc vi phạm quy tắc validation. |
 | `401` | `UNAUTHORIZED` | Token bị thiếu hoặc không chính xác. |
-| `403` | `FORBIDDEN` | Tài khoản hiện tại không có vai trò phù hợp để truy cập tài nguyên. |
+| `403` | `FORBIDDEN` | Tài khoản hiện tại không có vai trò phù hợp hoặc không phụ trách series. |
 | `404` | `RESOURCE_NOT_FOUND` | Không tìm thấy thực thể yêu cầu. |
+| `409` | `CONFLICT` | Trạng thái thực thể không hợp lệ cho thao tác này. |
 | `500` | `INTERNAL_ERROR` | Lỗi phát sinh ngoài ý muốn trên hệ thống server. |
 
 ---
 
-## 12. Tóm tắt Endpoints
+## 13. Tóm tắt Endpoints
 
 | Endpoint | Method | Role | Mô tả | Priority |
 |---|---|---|---|---|
@@ -832,9 +1031,18 @@ Tất cả các lỗi trả về từ API đều tuân thủ cấu trúc lỗi t
 | `/chapters/series/:seriesId` | GET | All | Lấy danh sách chương của series | 🔴 High |
 | `/chapters` | POST | Mangaka | Tạo chương mới | 🔴 High |
 | `/chapters/:id` | PUT | Mangaka | Cập nhật thông tin/trạng thái chương | 🟡 Medium |
-| `/manuscripts` | GET | All | Lấy danh sách bản thảo | 🔴 High |
-| `/manuscripts/:id` | GET | All | Xem chi tiết một bản thảo | 🟡 Medium |
-| `/manuscripts` | POST | Mangaka | Nộp bản thảo chương lên BTV | 🔴 High |
+| `/api/manuscripts` | GET | All | Lấy danh sách tất cả bản thảo | 🔴 High |
+| `/api/manuscripts/{manuscriptId}` | GET | All | Xem chi tiết một bản thảo | 🟡 Medium |
+| `/api/chapters/{chapterId}/manuscripts` | POST | Mangaka | Nộp bản thảo chương lên BTV | 🔴 High |
+| `/api/chapters/{chapterId}/manuscripts` | GET | All | Lấy lịch sử bản thảo của chapter | 🟡 Medium |
+| `/api/manuscripts/{manuscriptId}/start-review` | POST | Editor | Bắt đầu review bản thảo | 🟡 Medium |
+| `/api/manuscripts/{manuscriptId}/approve` | POST | Editor | Phê duyệt/Thông qua bản thảo | 🔴 High |
+| `/api/manuscripts/{manuscriptId}/request-revision` | POST | Editor | Yêu cầu sửa đổi bản thảo | 🔴 High |
+| `/api/manuscripts/{manuscriptId}/annotations` | POST | Editor | Tạo ghi chú ghim (Pin Annotation) | 🔴 High |
+| `/api/manuscripts/{manuscriptId}/annotations` | GET | Editor/Mangaka | Lấy danh sách annotations | 🔴 High |
+| `/api/manuscripts/{manuscriptId}/annotations/count` | GET | Editor/Mangaka | Đếm số lượng annotations | 🟡 Medium |
+| `/api/manuscripts/{manuscriptId}/annotations/{annotationId}`| PATCH | Editor | Cập nhật ghi chú | 🟡 Medium |
+| `/api/manuscripts/{manuscriptId}/annotations/{annotationId}`| DELETE| Editor | Xóa mềm ghi chú | 🟡 Medium |
 | `/tasks` | GET | All | Xem danh sách task phân vẽ trang | 🔴 High |
 | `/tasks/assign` | POST | Mangaka | Giao task vẽ trang cho Assistant | 🔴 High |
 | `/reviews` | GET | Board/BTV | Xem danh sách đề cử cần quyết định | 🟡 Medium |
@@ -847,12 +1055,16 @@ Tất cả các lỗi trả về từ API đều tuân thủ cấu trúc lỗi t
 
 ---
 
-## 13. Ghi chú & Quy tắc nghiệp vụ
+## 14. Ghi chú & Quy tắc nghiệp vụ
 
 ### Đã thống nhất giữa FE và BE
 * **Định dạng Datetime:** Chuẩn ISO 8601 UTC. Ví dụ: `"2026-06-01T08:30:00Z"`.
 * **Ràng buộc nộp đề xuất (BR-15):** Phải kiểm tra tính hợp lệ của `synopsis` (từ 200 đến 2000 ký tự) và số lượng `samplePages` vẽ nháp (tối thiểu 5 trang).
 * **Ràng buộc trễ hạn chương (BR-03):** Hạn chót nộp bản thảo (`deadline`) được hệ thống tính tự động lùi **14 ngày** so với ngày dự kiến xuất bản (`publicationDate`). Trễ deadline sẽ tự động kích hoạt notification cảnh báo cho tác giả và BTV phụ trách.
-* **Tiến trình hoàn thành chương (BR-04):** Để có thể bấm nút nộp bản thảo chương (`POST /manuscripts`), 100% các page task của chương đó bắt buộc phải có trạng thái là `Approved` từ Mangaka.
+* **Tiến trình hoàn thành chương (BR-04):** Để có thể bấm nút nộp bản thảo chương (`POST /api/chapters/{chapterId}/manuscripts`), 100% các page task của chương đó bắt buộc phải có trạng thái là `Approved` từ Mangaka.
 * **Hạn chế xung đột lợi ích (BR-01):** BTV phụ trách chính của một series không được tham gia bỏ phiếu duyệt đề cử của series đó.
 * **Cơ chế biểu quyết quorum (BR-05):** Yêu cầu tối thiểu 3 phiếu từ Editorial Board để đưa ra quyết định duyệt đề cử hoặc chấm dứt hợp đồng xuất bản series.
+* **Ràng buộc với Pin Annotation (BR-74 & BR-75):** Chỉ Tantou Editor phụ trách series mới được tạo/sửa/xóa annotation, và chỉ được thao tác trên phiên bản bản thảo mới nhất chưa được Approved.
+* **Ràng buộc Revision Required (BR-77):** Muốn yêu cầu sửa đổi bản thảo, Editor bắt buộc phải nhập feedback và có ít nhất **1 annotation** trên trang bản thảo để chỉ ra lỗi cụ thể.
+* **Vòng đời Annotation (BR-78 & BR-83):** Annotation gắn chặt với Version, Page, và Position. Quá trình sửa đổi tối đa là 3 vòng (revision rounds), nếu vượt quá sẽ chuyển trạng thái escalate.
+* **Audit History (BR-08):** Không thực hiện xóa cứng (hard delete) Annotation trong DB để đảm bảo lưu giữ lịch sử kiểm tra. Sử dụng soft delete (`IsDeleted = true`).

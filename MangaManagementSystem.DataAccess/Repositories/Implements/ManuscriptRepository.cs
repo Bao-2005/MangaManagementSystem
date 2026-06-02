@@ -1,5 +1,6 @@
 using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -55,7 +56,7 @@ namespace MangaManagementSystem.DataAccess.Repositories.Implements
             if (total == 0) return 0;
 
             var approved = await _context.PageTasks
-                .Where(t => t.ChapterId == chapterId && t.Status == "Approved")
+                .Where(t => t.ChapterId == chapterId && t.Status == PageTaskStatus.Approved)
                 .CountAsync(ct);
 
             return (int)Math.Round((double)approved / total * 100);
@@ -124,16 +125,18 @@ namespace MangaManagementSystem.DataAccess.Repositories.Implements
         /// <inheritdoc />
         public async Task<int> GetUnapprovedPageTasksCountAsync(Guid chapterId, string approvedStatus, CancellationToken ct = default)
         {
+            var statusEnum = Enum.Parse<PageTaskStatus>(approvedStatus, true);
             return await _context.PageTasks
-                .Where(t => t.ChapterId == chapterId && t.Status != approvedStatus)
+                .Where(t => t.ChapterId == chapterId && t.Status != statusEnum)
                 .CountAsync(ct);
         }
 
         /// <inheritdoc />
         public async Task<int> GetApprovedPageTasksCountAsync(Guid chapterId, string approvedStatus, CancellationToken ct = default)
         {
+            var statusEnum = Enum.Parse<PageTaskStatus>(approvedStatus, true);
             return await _context.PageTasks
-                .Where(t => t.ChapterId == chapterId && t.Status == approvedStatus)
+                .Where(t => t.ChapterId == chapterId && t.Status == statusEnum)
                 .CountAsync(ct);
         }
 

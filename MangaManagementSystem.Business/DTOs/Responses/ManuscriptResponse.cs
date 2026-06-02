@@ -19,7 +19,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses
         public int VersionNo { get; set; }
 
         /// <summary>Version theo format "v1", "v2", "v3", ... (dùng cho FE hiển thị).</summary>
-        [JsonPropertyName("versionLabel")]
+        [JsonPropertyName("latestVersion")]
         public string LatestVersion => $"v{VersionNo}";
 
         /// <summary>Trạng thái hiện tại của manuscript.</summary>
