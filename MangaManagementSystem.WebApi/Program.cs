@@ -2,7 +2,7 @@ using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.API.Extensions;
 using MangaManagementSystem.API.Middleware;
 using MangaManagementSystem.Business.Mappers;
-using MangaManagementSystem.Business.Constants;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -54,16 +54,16 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("Admin"));
+        policy.RequireRole(UserRole.Admin.ToStorageValue()));
 
     options.AddPolicy("MangakaOnly", policy =>
-        policy.RequireRole("Mangaka"));
+        policy.RequireRole(UserRole.Mangaka.ToStorageValue()));
 
     options.AddPolicy("EditorOnly", policy =>
-        policy.RequireRole(RoleConstants.TantouEditor));
+        policy.RequireRole(UserRole.TantouEditor.ToStorageValue()));
 
     options.AddPolicy("AssistantOnly", policy =>
-        policy.RequireRole("Assistant"));
+        policy.RequireRole(UserRole.Assistant.ToStorageValue()));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

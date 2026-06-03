@@ -1,7 +1,7 @@
+using AutoMapper;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
-using MangaManagementSystem.Business.Auth.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
@@ -17,11 +17,12 @@ namespace MangaManagementSystem.Business.Services.Implements
     {
         private readonly IAnnotationRepository _annotationRepository;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IMapper _mapper;
 
         // Role name constants — khớp với giá trị trong bảng Roles
-        private const string RoleTantouEditor = "Tantou Editor";
-        private const string RoleMangaka = "MANGAKA";
-        private const string RoleAdmin = "ADMIN";
+        private static readonly string RoleTantouEditor = UserRole.TantouEditor.ToStorageValue();
+        private static readonly string RoleMangaka = UserRole.Mangaka.ToStorageValue();
+        private static readonly string RoleAdmin = UserRole.Admin.ToStorageValue();
 
         // Manuscript status constants - lấy từ Enum
         private static readonly string ManuscriptStatusApproved = ManuscriptStatus.Approved.ToStorageValue();
@@ -29,10 +30,12 @@ namespace MangaManagementSystem.Business.Services.Implements
 
         public AnnotationService(
             IAnnotationRepository annotationRepository,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IMapper mapper)
         {
             _annotationRepository = annotationRepository;
             _currentUserService = currentUserService;
+            _mapper = mapper;
         }
 
         /// <inheritdoc />
@@ -123,7 +126,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             // AuditLogService.Log(ActorId=currentUserId, Action="CREATE", EntityType="Annotation",
             //     EntityId=annotation.AnnotationId, NewValue=SerializeAnnotation(annotation));
 
-            return MapToResponse(annotation);
+            return _mapper.Map<AnnotationResponse>(annotation);
         }
 
         /// <inheritdoc />
@@ -161,7 +164,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var annotations = await _annotationRepository.GetByManuscriptVersionAsync(
                 manuscriptId, targetVersionNo, pageNo, cancellationToken);
 
-            return annotations.Select(MapToResponse).ToList();
+            return annotations.Select(_mapper.Map<AnnotationResponse>).ToList();
         }
 
         /// <inheritdoc />
@@ -304,7 +307,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 //     NewValue={ Content=annotation.Content, PositionX=annotation.PositionX, PositionY=annotation.PositionY });
             }
 
-            return MapToResponse(annotation);
+            return _mapper.Map<AnnotationResponse>(annotation);
         }
 
         /// <inheritdoc />
@@ -409,24 +412,6 @@ namespace MangaManagementSystem.Business.Services.Implements
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Map Annotation entity sang AnnotationResponse DTO.
-        /// </summary>
-        private static AnnotationResponse MapToResponse(Annotation annotation)
-        {
-            return new AnnotationResponse
-            {
-                AnnotationId = annotation.AnnotationId,
-                ManuscriptId = annotation.ManuscriptId,
-                VersionNo = annotation.VersionNo,
-                PageNo = annotation.PageNo,
-                PositionX = annotation.PositionX,
-                PositionY = annotation.PositionY,
-                Content = annotation.Content,
-                AuthorId = annotation.AuthorId,
-                CreatedAt = annotation.CreatedAt,
-                UpdatedAt = annotation.UpdatedAt
-            };
-        }
+
     }
 }

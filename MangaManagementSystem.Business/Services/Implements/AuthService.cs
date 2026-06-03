@@ -4,6 +4,7 @@ using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,8 +23,8 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly IMapper _mapper;
 
         private const string ActiveStatus = "Active";
-        private const string MangakaRoleName = MangaManagementSystem.Business.Constants.RoleConstants.Mangaka;
-        private const string TantouEditorRoleName = MangaManagementSystem.Business.Constants.RoleConstants.TantouEditor;
+        private static readonly string MangakaRoleName = UserRole.Mangaka.ToStorageValue();
+        private static readonly string TantouEditorRoleName = UserRole.TantouEditor.ToStorageValue();
 
         public AuthService(
             IRepository<User> userRepository,

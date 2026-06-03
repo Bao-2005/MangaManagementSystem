@@ -1,7 +1,7 @@
+using AutoMapper;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
-using MangaManagementSystem.Business.Auth.Interfaces;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
@@ -18,11 +18,12 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly IManuscriptRepository _manuscriptRepository;
         private readonly IAnnotationRepository _annotationRepository;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IMapper _mapper;
 
         // Role name constants — khớp với giá trị trong bảng Roles
-        private const string RoleTantouEditor = "Tantou Editor";
-        private const string RoleMangaka = "MANGAKA";
-        private const string RoleAdmin = "ADMIN";
+        private static readonly string RoleTantouEditor = UserRole.TantouEditor.ToStorageValue();
+        private static readonly string RoleMangaka = UserRole.Mangaka.ToStorageValue();
+        private static readonly string RoleAdmin = UserRole.Admin.ToStorageValue();
 
         // Manuscript status constants (phụ lục roadmap) - lấy từ Enum
         private static readonly string StatusSubmitted = ManuscriptStatus.Submitted.ToStorageValue();
@@ -47,11 +48,13 @@ namespace MangaManagementSystem.Business.Services.Implements
         public ManuscriptService(
             IManuscriptRepository manuscriptRepository,
             IAnnotationRepository annotationRepository,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IMapper mapper)
         {
             _manuscriptRepository = manuscriptRepository;
             _annotationRepository = annotationRepository;
             _currentUserService = currentUserService;
+            _mapper = mapper;
         }
 
         /// <inheritdoc />
@@ -138,7 +141,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             // AuditLogService.Log(ActorId=currentUserId, Action="CREATE", EntityType="Manuscript",
             //     EntityId=manuscript.ManuscriptId, NewValue=SerializeManuscript(manuscript));
 
-            return MapToResponse(manuscript);
+            return _mapper.Map<ManuscriptResponse>(manuscript);
         }
 
         /// <inheritdoc />
@@ -172,7 +175,12 @@ namespace MangaManagementSystem.Business.Services.Implements
             // 4. Tính progress của chapter (dùng lại cho tất cả versions vì cùng chapter)
             var progress = await _manuscriptRepository.GetChapterProgressAsync(chapterId, ct);
 
-            return manuscripts.Select(m => MapToSummary(m, progress)).ToList();
+            return manuscripts.Select(m =>
+            {
+                var res = _mapper.Map<ManuscriptSummaryResponse>(m);
+                res.Progress = progress;
+                return res;
+            }).ToList();
         }
 
         /// <inheritdoc />
@@ -202,7 +210,9 @@ namespace MangaManagementSystem.Business.Services.Implements
             // 3. Tính progress của chapter
             var progress = await _manuscriptRepository.GetChapterProgressAsync(manuscript.ChapterId, ct);
 
-            return MapToResponse(manuscript, progress);
+            var response = _mapper.Map<ManuscriptResponse>(manuscript);
+            response.Progress = progress;
+            return response;
         }
 
         /// <inheritdoc />
@@ -254,7 +264,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             // AuditLogService.Log(ActorId=currentUserId, Action="UPDATE", EntityType="Manuscript",
             //     EntityId=manuscriptId, OldValue="Submitted", NewValue="Under Review");
 
-            return MapToResponse(manuscript);
+            return _mapper.Map<ManuscriptResponse>(manuscript);
         }
 
         /// <inheritdoc />
@@ -335,7 +345,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             // NotificationService.Send(toUserId=series.MangakaId, type="ManuscriptApproved",
             //     payload={ chapterId=chapter.ChapterId, manuscriptId=manuscriptId });
 
-            return MapToResponse(manuscript);
+            return _mapper.Map<ManuscriptResponse>(manuscript);
         }
 
         /// <inheritdoc />
@@ -423,7 +433,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             // NotificationService.Send(toUserId=series.MangakaId, type="RevisionRequested",
             //     payload={ manuscriptId=manuscriptId, feedback=trimmedFeedback });
 
-            return MapToResponse(manuscript);
+            return _mapper.Map<ManuscriptResponse>(manuscript);
         }
 
         /// <summary>
@@ -463,7 +473,12 @@ namespace MangaManagementSystem.Business.Services.Implements
                 progressMap[chapterId] = await _manuscriptRepository.GetChapterProgressAsync(chapterId, ct);
             }
 
-            return filtered.Select(m => MapToSummary(m, progressMap.GetValueOrDefault(m.ChapterId, 0))).ToList();
+            return filtered.Select(m =>
+            {
+                var res = _mapper.Map<ManuscriptSummaryResponse>(m);
+                res.Progress = progressMap.GetValueOrDefault(m.ChapterId, 0);
+                return res;
+            }).ToList();
         }
 
         // ─── Private helpers ────────────────────────────────────────────────────────
@@ -483,52 +498,6 @@ namespace MangaManagementSystem.Business.Services.Implements
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>Map Manuscript entity sang ManuscriptResponse DTO đầy đủ.</summary>
-        private static ManuscriptResponse MapToResponse(Manuscript manuscript, int progress = 0)
-        {
-            return new ManuscriptResponse
-            {
-                ManuscriptId = manuscript.ManuscriptId,
-                ChapterId = manuscript.ChapterId,
-                VersionNo = manuscript.VersionNo,
-                Status = manuscript.Status,
-                Feedback = manuscript.Feedback,
-                Notes = manuscript.Notes,
-                SubmittedBy = manuscript.SubmittedBy,
-                SubmittedAt = manuscript.SubmittedAt,
-                ReviewedBy = manuscript.ReviewedBy,
-                ReviewedAt = manuscript.ReviewedAt,
-                ApprovedAt = manuscript.ApprovedAt,
-                RevisionCount = manuscript.RevisionCount,
-                PreviewFileAssetId = manuscript.PreviewFileAssetId,
-                SourceFileAssetId = manuscript.SourceFileAssetId,
-                // Fields từ navigation properties
-                SeriesId = manuscript.Chapter?.Series?.SeriesId,
-                SeriesTitle = manuscript.Chapter?.Series?.Title,
-                ChapterNumber = manuscript.Chapter?.ChapterNo ?? 0,
-                ChapterTitle = manuscript.Chapter?.Title,
-                Progress = progress
-            };
-        }
 
-        /// <summary>Map Manuscript entity sang ManuscriptSummaryResponse DTO (nhẹ hơn, cho list).</summary>
-        private static ManuscriptSummaryResponse MapToSummary(Manuscript manuscript, int progress = 0)
-        {
-            return new ManuscriptSummaryResponse
-            {
-                ManuscriptId = manuscript.ManuscriptId,
-                VersionNo = manuscript.VersionNo,
-                Status = manuscript.Status,
-                SubmittedBy = manuscript.SubmittedBy,
-                SubmittedAt = manuscript.SubmittedAt,
-                RevisionCount = manuscript.RevisionCount,
-                // Fields từ navigation properties
-                SeriesId = manuscript.Chapter?.Series?.SeriesId,
-                SeriesTitle = manuscript.Chapter?.Series?.Title,
-                ChapterNumber = manuscript.Chapter?.ChapterNo ?? 0,
-                ChapterTitle = manuscript.Chapter?.Title,
-                Progress = progress
-            };
-        }
     }
 }

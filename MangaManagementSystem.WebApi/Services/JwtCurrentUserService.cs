@@ -1,4 +1,4 @@
-using MangaManagementSystem.Business.Auth.Interfaces;
+using MangaManagementSystem.Business.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Security.Claims;
@@ -22,10 +22,7 @@ namespace MangaManagementSystem.WebApi.Services
                 // Fallback to "sub" claim if NameIdentifier is not present (standard JWT)
                 userIdStr = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
             }
-            
             return Guid.TryParse(userIdStr, out var id) ? id : null;
         }
-
-        public bool BypassAuthorization => false;
     }
 }
