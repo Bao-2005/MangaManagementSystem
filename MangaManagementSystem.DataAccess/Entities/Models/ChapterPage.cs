@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,6 +20,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public Guid ImageFileAssetId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? DeletedAt { get; set; }
 
         public Chapter Chapter { get; set; } = null!;
 

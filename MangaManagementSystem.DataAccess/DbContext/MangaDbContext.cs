@@ -1,4 +1,5 @@
-﻿using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Entities.Enums;
+using MangaManagementSystem.DataAccess.Entities.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Data;
@@ -83,9 +84,9 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.PasswordHash)
                 .IsRequired();
 
-            entity.Property(x => x.Status)
+            entity.Property(x => x.IsActive)
                 .IsRequired()
-                .HasMaxLength(50);
+                .HasDefaultValue(true);
 
             entity.Property(x => x.RefreshTokenHash)
                 .HasMaxLength(500);
@@ -205,6 +206,7 @@ public class MangaDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 
@@ -229,6 +231,7 @@ public class MangaDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 
@@ -305,6 +308,7 @@ public class MangaDbContext : DbContext
                 .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 
@@ -384,6 +388,7 @@ public class MangaDbContext : DbContext
                 .HasMaxLength(1000);
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 
@@ -419,6 +424,7 @@ public class MangaDbContext : DbContext
                 .HasDefaultValueSql(NewSequentialIdSql);
 
             entity.Property(x => x.Status)
+                .HasConversion<string>()
                 .HasMaxLength(50)
                 .IsRequired();
 

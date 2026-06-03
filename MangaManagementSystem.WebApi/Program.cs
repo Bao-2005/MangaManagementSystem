@@ -2,6 +2,7 @@ using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.API.Extensions;
 using MangaManagementSystem.API.Middleware;
 using MangaManagementSystem.Business.Mappers;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -52,17 +53,12 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("Admin"));
-
-    options.AddPolicy("MangakaOnly", policy =>
-        policy.RequireRole("Mangaka"));
-
-    options.AddPolicy("EditorOnly", policy =>
-        policy.RequireRole("Editor"));
-
-    options.AddPolicy("AssistantOnly", policy =>
-        policy.RequireRole("Assistant"));
+    options.AddPolicy("AdminOnly",          policy => policy.RequireRole(UserRole.Admin.ToString()));
+    options.AddPolicy("MangakaOnly",        policy => policy.RequireRole(UserRole.Mangaka.ToString()));
+    options.AddPolicy("TantouEditorOnly",   policy => policy.RequireRole(UserRole.TantouEditor.ToString()));
+    options.AddPolicy("AssistantOnly",      policy => policy.RequireRole(UserRole.Assistant.ToString()));
+    options.AddPolicy("EditorialBoardOnly", policy => policy.RequireRole(UserRole.EditorialBoard.ToString()));
+    options.AddPolicy("EditorInChiefOnly",  policy => policy.RequireRole(UserRole.EditorInChief.ToString()));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

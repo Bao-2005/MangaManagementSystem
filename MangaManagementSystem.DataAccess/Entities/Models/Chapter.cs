@@ -1,4 +1,5 @@
-﻿using System;
+using MangaManagementSystem.DataAccess.Entities.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,9 +23,11 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public DateTime? SubmissionDeadline { get; set; }
 
-        public string Status { get; set; } = "Draft";
+        public ChapterStatus Status { get; set; } = ChapterStatus.Draft;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? DeletedAt { get; set; }
 
         public Series Series { get; set; } = null!;
 

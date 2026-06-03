@@ -1,4 +1,5 @@
-﻿using System;
+using MangaManagementSystem.DataAccess.Entities.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +17,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Guid SubmittedFileAssetId { get; set; }
 
-        public string Status { get; set; } = "Submitted";
+        public PageTaskSubmissionStatus Status { get; set; } = PageTaskSubmissionStatus.Submitted;
 
         public string? Note { get; set; }
 
@@ -25,6 +26,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? SubmittedAt { get; set; }
 
         public DateTime? ReviewedAt { get; set; }
+
+        public DateTime? DeletedAt { get; set; }
 
         public PageTask PageTask { get; set; } = null!;
 

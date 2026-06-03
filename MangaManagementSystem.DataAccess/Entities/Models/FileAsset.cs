@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,6 +27,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public Guid UploadedBy { get; set; }
 
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? DeletedAt { get; set; }
 
         public User Uploader { get; set; } = null!;
     }

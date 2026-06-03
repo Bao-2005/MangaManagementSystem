@@ -1,4 +1,5 @@
-﻿using System;
+using MangaManagementSystem.DataAccess.Entities.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,13 +27,15 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public DateTime? DueDate { get; set; }
 
-        public string Status { get; set; } = "Assigned";
+        public PageTaskStatus Status { get; set; } = PageTaskStatus.Assigned;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? ApprovedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        public DateTime? DeletedAt { get; set; }
 
         public Chapter Chapter { get; set; } = null!;
 

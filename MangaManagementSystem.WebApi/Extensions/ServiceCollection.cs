@@ -12,6 +12,7 @@ namespace MangaManagementSystem.API.Extensions
         {
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IUserService, UserService>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.RegisterInfrastructure();
         }

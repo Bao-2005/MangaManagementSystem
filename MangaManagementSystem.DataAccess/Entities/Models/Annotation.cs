@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,6 +25,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public string Content { get; set; } = null!;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? DeletedAt { get; set; }
 
         public Manuscript Manuscript { get; set; } = null!;
 

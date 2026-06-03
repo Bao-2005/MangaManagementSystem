@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Infrastructure;
+using MangaManagementSystem.DataAccess.Entities.Enums;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +20,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Guid? SourceFileAssetId { get; set; }
 
-        public string Status { get; set; } = "Submitted";
+        public ManuscriptStatus Status { get; set; } = ManuscriptStatus.Submitted;
 
         public string? Feedback { get; set; }
 
@@ -28,6 +29,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? ReviewedAt { get; set; }
 
         public DateTime? ApprovedAt { get; set; }
+
+        public DateTime? DeletedAt { get; set; }
 
         public Chapter Chapter { get; set; } = null!;
 

@@ -1,4 +1,3 @@
-﻿using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +18,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public string PasswordHash { get; set; } = null!;
 
-        public string Status { get; set; } = "Active";
+        public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -33,6 +32,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? RefreshTokenExpiresAt { get; set; }
 
         public DateTime? LastLoginAt { get; set; }
+
+        public DateTime? DeletedAt { get; set; }
 
         public ICollection<FileAsset> UploadedFiles { get; set; } = new List<FileAsset>();
 

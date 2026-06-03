@@ -2,6 +2,7 @@ using AutoMapper;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -20,10 +21,6 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly PasswordHasher<User> _passwordHasher;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
-
-        private const string ActiveStatus = "Active";
-        private const string MangakaRoleName = "Mangaka";
-        private const string TantouEditorRoleName = "Tantou Editor";
 
         public AuthService(
             IRepository<User> userRepository,
@@ -59,7 +56,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (role == null)
                 throw new KeyNotFoundException("Role không tồn tại.");
 
-            var isMangaka = string.Equals(role.RoleName, MangakaRoleName, StringComparison.OrdinalIgnoreCase);
+            var isMangaka = string.Equals(role.RoleName, UserRole.Mangaka.ToString(), StringComparison.OrdinalIgnoreCase);
 
             var user = new User
             {
@@ -67,7 +64,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 Email = email,
                 DisplayName = request.DisplayName.Trim(),
                 RoleId = role.RoleId,
-                Status = ActiveStatus,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -87,10 +84,10 @@ namespace MangaManagementSystem.Business.Services.Implements
                 if (assignedFromUser == null)
                     throw new KeyNotFoundException("Người dùng được gán không tồn tại.");
 
-                if (isMangaka && !string.Equals(assignedFromUser.Role.RoleName, TantouEditorRoleName, StringComparison.OrdinalIgnoreCase))
+                if (isMangaka && !string.Equals(assignedFromUser.Role.RoleName, UserRole.TantouEditor.ToString(), StringComparison.OrdinalIgnoreCase))
                     throw new ArgumentException("Người dùng được chọn không phải Tantou Editor.");
 
-                if (!string.Equals(assignedFromUser.Status, ActiveStatus, StringComparison.OrdinalIgnoreCase))
+                if (!assignedFromUser.IsActive)
                     throw new InvalidOperationException("Người dùng được gán đang bị khóa hoặc không hoạt động.");
 
                 userAssignment = new UserAssignment
@@ -130,7 +127,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user == null)
                 throw new UnauthorizedAccessException("Tài khoản hoặc mật khẩu không đúng.");
 
-            if (user.Status != "Active")
+            if (!user.IsActive)
                 throw new UnauthorizedAccessException("Tài khoản đang bị khóa hoặc không hoạt động.");
 
             var verifyResult = _passwordHasher.VerifyHashedPassword(
@@ -169,7 +166,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user == null)
                 throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
 
-            if (user.Status != "Active")
+            if (!user.IsActive)
                 throw new UnauthorizedAccessException("Tài khoản không hoạt động.");
 
             var newAccessToken = _jwtTokenService.GenerateAccessToken(user);
@@ -217,7 +214,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user == null)
                 throw new KeyNotFoundException("User không tồn tại.");
 
-            if (user.Status != "Active")
+            if (!user.IsActive)
                 throw new UnauthorizedAccessException("Tài khoản không hoạt động.");
 
             var verifyResult = _passwordHasher.VerifyHashedPassword(
