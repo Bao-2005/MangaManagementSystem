@@ -1,4 +1,4 @@
-using MangaManagement.DataAccess.DbContexts;
+﻿using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.API.Extensions;
 using MangaManagementSystem.API.Middleware;
 using MangaManagementSystem.Business.Mappers;
@@ -92,7 +92,19 @@ builder.Services.AddSwaggerGen(options =>
     });
 
 });
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.SetIsOriginAllowed(origin =>
+            origin == "http://localhost:3000" ||
+            origin == "https://manga-management-system.vercel.app" ||
+            origin.EndsWith(".vercel.app")) // Cho phép tất cả subdomain vercel.app
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 var app = builder.Build();
 
@@ -105,7 +117,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("AllowFrontend");
+
 app.UseMiddleware<ExceptionMiddleware>();
+
 app.UseAuthentication();
 
 app.UseAuthorization();
