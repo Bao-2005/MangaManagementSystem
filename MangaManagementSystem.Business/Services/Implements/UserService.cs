@@ -12,7 +12,6 @@ namespace MangaManagementSystem.Business.Services.Implements
         private readonly IRepository<UserAssignment> _userAssignmentRepository;
         private readonly IRepository<PageTask> _pageTaskRepository;
         private readonly IRepository<Annotation> _annotationRepository;
-        private readonly IRepository<FileAsset> _fileAssetRepository;
         private readonly IRepository<Series> _seriesRepository;
 
         public UserService(
@@ -20,14 +19,12 @@ namespace MangaManagementSystem.Business.Services.Implements
             IRepository<UserAssignment> userAssignmentRepository,
             IRepository<PageTask> pageTaskRepository,
             IRepository<Annotation> annotationRepository,
-            IRepository<FileAsset> fileAssetRepository,
             IRepository<Series> seriesRepository)
         {
             _userRepository = userRepository;
             _userAssignmentRepository = userAssignmentRepository;
             _pageTaskRepository = pageTaskRepository;
             _annotationRepository = annotationRepository;
-            _fileAssetRepository = fileAssetRepository;
             _seriesRepository = seriesRepository;
         }
 
@@ -43,9 +40,9 @@ namespace MangaManagementSystem.Business.Services.Implements
                     Email = x.Email,
                     DisplayName = x.DisplayName,
                     RoleName = x.Role.RoleName,
-                    IsActive = x.IsActive,
                     CreatedAt = x.CreatedAt,
-                    LastLoginAt = x.LastLoginAt
+                    LastLoginAt = x.LastLoginAt,
+                    DeletedAt = x.DeletedAt
                 })
                 .ToListAsync();
         }
@@ -82,12 +79,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             foreach (var a in annotations)
                 a.DeletedAt = now;
 
-            // Cascade: FileAssets uploaded by this user
-            var fileAssets = await _fileAssetRepository.GetAll()
-                .Where(x => x.UploadedBy == userId && x.DeletedAt == null)
-                .ToListAsync();
-            foreach (var f in fileAssets)
-                f.DeletedAt = now;
+            // Note: FileAssets have no direct user FK on the entity — no cascade needed here
 
             // Cascade: Series owned by this Mangaka
             var series = await _seriesRepository.GetAll()

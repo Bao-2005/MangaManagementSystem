@@ -64,7 +64,6 @@ namespace MangaManagementSystem.Business.Services.Implements
                 Email = email,
                 DisplayName = request.DisplayName.Trim(),
                 RoleId = role.RoleId,
-                IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -87,14 +86,13 @@ namespace MangaManagementSystem.Business.Services.Implements
                 if (isMangaka && !string.Equals(assignedFromUser.Role.RoleName, UserRole.TantouEditor.ToString(), StringComparison.OrdinalIgnoreCase))
                     throw new ArgumentException("Người dùng được chọn không phải Tantou Editor.");
 
-                if (!assignedFromUser.IsActive)
+                if (assignedFromUser.DeletedAt != null)
                     throw new InvalidOperationException("Người dùng được gán đang bị khóa hoặc không hoạt động.");
 
                 userAssignment = new UserAssignment
                 {
                     FromUserId = assignedFromUser.UserId,
                     ToUser = user,
-                    Status = true,
                     AssignedAt = DateTime.UtcNow,
                     UnassignedAt = null
                 };
@@ -127,7 +125,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user == null)
                 throw new UnauthorizedAccessException("Tài khoản hoặc mật khẩu không đúng.");
 
-            if (!user.IsActive)
+            if (user.DeletedAt != null)
                 throw new UnauthorizedAccessException("Tài khoản đang bị khóa hoặc không hoạt động.");
 
             var verifyResult = _passwordHasher.VerifyHashedPassword(
@@ -166,7 +164,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user == null)
                 throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
 
-            if (!user.IsActive)
+            if (user.DeletedAt != null)
                 throw new UnauthorizedAccessException("Tài khoản không hoạt động.");
 
             var newAccessToken = _jwtTokenService.GenerateAccessToken(user);
@@ -214,7 +212,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             if (user == null)
                 throw new KeyNotFoundException("User không tồn tại.");
 
-            if (!user.IsActive)
+            if (user.DeletedAt != null)
                 throw new UnauthorizedAccessException("Tài khoản không hoạt động.");
 
             var verifyResult = _passwordHasher.VerifyHashedPassword(

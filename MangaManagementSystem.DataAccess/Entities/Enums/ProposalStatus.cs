@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace MangaManagementSystem.DataAccess.Entities.Enums;
 
-namespace MangaManagementSystem.DataAccess.Entities.Enums
+public enum ProposalStatus
 {
-    internal class ProposalStatus
-    {
-    }
+    Draft,
+    UnderReview,
+    Approved,
+    Rejected
 }

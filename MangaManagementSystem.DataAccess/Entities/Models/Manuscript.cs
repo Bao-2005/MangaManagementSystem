@@ -11,37 +11,22 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
     public class Manuscript
     {
         public Guid ManuscriptId { get; set; }
-
         public Guid ChapterId { get; set; }
 
         public int VersionNo { get; set; }
-
-        public Guid? PreviewFileAssetId { get; set; }
-
-        public Guid? SourceFileAssetId { get; set; }
-
-        public ManuscriptStatus Status { get; set; } = ManuscriptStatus.Submitted;
-
+        public string FileUrl { get; set; } = null!;
+        public string Status { get; set; } = null!;
         public string? Feedback { get; set; }
-
-        public DateTime? SubmittedAt { get; set; }
-
+        public int RevisionCount { get; set; }
+        public DateTime SubmittedAt { get; set; }
+        public Guid? ReviewedBy { get; set; }
         public DateTime? ReviewedAt { get; set; }
-
         public DateTime? ApprovedAt { get; set; }
-
         public DateTime? DeletedAt { get; set; }
 
         public Chapter Chapter { get; set; } = null!;
-
-        public FileAsset? PreviewFileAsset { get; set; }
-
-        public FileAsset? SourceFileAsset { get; set; }
-
-        public ICollection<ChapterPage> ChapterPages { get; set; } = new List<ChapterPage>();
-
-        public ICollection<PageTask> PageTasks { get; set; } = new List<PageTask>();
-
+        public User? Reviewer { get; set; }
         public ICollection<Annotation> Annotations { get; set; } = new List<Annotation>();
+        public ICollection<PageTask> PageTasks { get; set; } = new List<PageTask>();
     }
 }

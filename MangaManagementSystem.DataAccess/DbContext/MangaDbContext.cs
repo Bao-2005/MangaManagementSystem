@@ -16,46 +16,66 @@ public class MangaDbContext : DbContext
     {
     }
 
-    public DbSet<User> Users => Set<User>();
-
     public DbSet<Role> Roles => Set<Role>();
-
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<UserAssignment> UserAssignments => Set<UserAssignment>();
-
-    //public DbSet<UserRole> UserRoles => Set<UserRole>();
-
-    public DbSet<Series> Series => Set<Series>();
-
-    public DbSet<Chapter> Chapters => Set<Chapter>();
-
-    public DbSet<Manuscript> Manuscripts => Set<Manuscript>();
-
     public DbSet<FileAsset> FileAssets => Set<FileAsset>();
-
-    public DbSet<ChapterPage> ChapterPages => Set<ChapterPage>();
-
+    public DbSet<Genre> Genres => Set<Genre>();
+    public DbSet<Series> Series => Set<Series>();
+    public DbSet<SeriesGenre> SeriesGenres => Set<SeriesGenre>();
+    public DbSet<ProposalPage> ProposalPages => Set<ProposalPage>();
+    public DbSet<BoardDecision> BoardDecisions => Set<BoardDecision>();
+    public DbSet<BoardVote> BoardVotes => Set<BoardVote>();
+    public DbSet<Chapter> Chapters => Set<Chapter>();
+    public DbSet<Manuscript> Manuscripts => Set<Manuscript>();
     public DbSet<PageTask> PageTasks => Set<PageTask>();
-
     public DbSet<PageTaskSubmission> PageTaskSubmissions => Set<PageTaskSubmission>();
-
     public DbSet<Annotation> Annotations => Set<Annotation>();
+    public DbSet<VoteRecord> VoteRecords => Set<VoteRecord>();
+    public DbSet<RankingSnapshot> RankingSnapshots => Set<RankingSnapshot>();
+    public DbSet<Escalation> Escalations => Set<Escalation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        ConfigureUsers(modelBuilder);
         ConfigureRoles(modelBuilder);
+        ConfigureUsers(modelBuilder);
+        ConfigureNotifications(modelBuilder);
+        ConfigureUserNotifications(modelBuilder);
         ConfigureUserAssignments(modelBuilder);
-        //ConfigureUserRoles(modelBuilder);
-        ConfigureSeries(modelBuilder);
-        ConfigureChapters(modelBuilder);
         ConfigureFileAssets(modelBuilder);
+        ConfigureGenres(modelBuilder);
+        ConfigureSeries(modelBuilder);
+        ConfigureSeriesGenres(modelBuilder);
+        ConfigureProposalPages(modelBuilder);
+        ConfigureBoardDecisions(modelBuilder);
+        ConfigureBoardVotes(modelBuilder);
+        ConfigureChapters(modelBuilder);
         ConfigureManuscripts(modelBuilder);
-        ConfigureChapterPages(modelBuilder);
         ConfigurePageTasks(modelBuilder);
         ConfigurePageTaskSubmissions(modelBuilder);
         ConfigureAnnotations(modelBuilder);
+        ConfigureVoteRecords(modelBuilder);
+        ConfigureRankingSnapshots(modelBuilder);
+        ConfigureEscalations(modelBuilder);
+    }
+
+    private static void ConfigureRoles(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("Roles");
+            entity.HasKey(x => x.RoleId);
+
+            entity.Property(x => x.RoleId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.RoleName).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasIndex(x => x.RoleName).IsUnique();
+        });
     }
 
     private static void ConfigureUsers(ModelBuilder modelBuilder)
@@ -63,39 +83,20 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("Users");
-
             entity.HasKey(x => x.UserId);
 
-            entity.Property(x => x.UserId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.UserId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.UserName).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.Email).IsRequired().HasMaxLength(255);
+            entity.Property(x => x.DisplayName).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.PasswordHash).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+            entity.Property(x => x.RefreshTokenHash).HasMaxLength(512);
+            entity.Property(x => x.RefreshTokenExpiresAt).HasColumnType("datetime2");
+            entity.Property(x => x.LastLoginAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.UserName)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            entity.Property(x => x.Email)
-                .IsRequired()
-                .HasMaxLength(255);
-
-            entity.Property(x => x.DisplayName)
-                .IsRequired()
-                .HasMaxLength(150);
-
-            entity.Property(x => x.PasswordHash)
-                .IsRequired();
-
-            entity.Property(x => x.IsActive)
-                .IsRequired()
-                .HasDefaultValue(true);
-
-            entity.Property(x => x.RefreshTokenHash)
-                .HasMaxLength(500);
-
-            entity.HasIndex(x => x.Email)
-                .IsUnique();
-
-            entity.HasIndex(x => x.UserName)
-                .IsUnique();
+            entity.HasIndex(x => x.Email).IsUnique();
 
             entity.HasOne(x => x.Role)
                 .WithMany(x => x.Users)
@@ -104,23 +105,47 @@ public class MangaDbContext : DbContext
         });
     }
 
-    private static void ConfigureRoles(ModelBuilder modelBuilder)
+    private static void ConfigureNotifications(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Role>(entity =>
+        modelBuilder.Entity<Notification>(entity =>
         {
-            entity.ToTable("Roles");
+            entity.ToTable("Notifications");
+            entity.HasKey(x => x.NotificationId);
 
-            entity.HasKey(x => x.RoleId);
+            entity.Property(x => x.NotificationId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.Message).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.Type).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Link).HasMaxLength(500);
+            entity.Property(x => x.Priority).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+        });
+    }
 
-            entity.Property(x => x.RoleId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+    private static void ConfigureUserNotifications(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.ToTable("UserNotifications");
+            entity.HasKey(x => x.UserNotificationId);
 
-            entity.Property(x => x.RoleName)
-                .IsRequired()
-                .HasMaxLength(100);
+            entity.Property(x => x.UserNotificationId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.IsRead).IsRequired().HasDefaultValue(false);
+            entity.Property(x => x.ReadAt).HasColumnType("datetime2");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.HasIndex(x => x.RoleName)
-                .IsUnique();
+            entity.HasIndex(x => new { x.UserId, x.NotificationId }).IsUnique();
+
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.UserNotifications)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Notification)
+                .WithMany(x => x.UserNotifications)
+                .HasForeignKey(x => x.NotificationId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -129,20 +154,22 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<UserAssignment>(entity =>
         {
             entity.ToTable("UserAssignments");
-
             entity.HasKey(x => x.AssignmentId);
 
-            entity.Property(x => x.AssignmentId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.AssignmentId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.AssignmentType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.AssignedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.UnassignedAt).HasColumnType("datetime2");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.Status)
-                .IsRequired()
-                .HasDefaultValue(true);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_UserAssignments_NotSelf", "[FromUserId] <> [ToUserId]");
+            });
 
-            entity.Property(x => x.AssignedAt)
-                .IsRequired();
-
-            entity.Property(x => x.UnassignedAt);
+            entity.HasIndex(x => new { x.FromUserId, x.AssignmentType })
+                .IsUnique()
+                .HasFilter("[AssignmentType] = 'TantouEditor' AND [UnassignedAt] IS NULL AND [DeletedAt] IS NULL");
 
             entity.HasOne(x => x.FromUser)
                 .WithMany(x => x.AssignmentsFromUser)
@@ -153,98 +180,6 @@ public class MangaDbContext : DbContext
                 .WithMany(x => x.AssignmentsToUser)
                 .HasForeignKey(x => x.ToUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(x => x.FromUserId);
-
-            entity.HasIndex(x => x.ToUserId)
-                .IsUnique()
-                .HasFilter("[Status] = 1");
-        });
-    }
-
-    //private static void ConfigureUserRoles(ModelBuilder modelBuilder)
-    //{
-    //    modelBuilder.Entity<UserRole>(entity =>
-    //    {
-    //        entity.ToTable("UserRoles");
-
-    //        entity.HasKey(x => new { x.UserId, x.RoleId });
-
-    //        entity.HasOne(x => x.User)
-    //            .WithMany(x => x.UserRoles)
-    //            .HasForeignKey(x => x.UserId)
-    //            .OnDelete(DeleteBehavior.Restrict);
-
-    //        entity.HasOne(x => x.Role)
-    //            .WithMany(x => x.UserRoles)
-    //            .HasForeignKey(x => x.RoleId)
-    //            .OnDelete(DeleteBehavior.Restrict);
-    //    });
-    //}
-
-    private static void ConfigureSeries(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<Series>(entity =>
-        {
-            entity.ToTable("Series");
-
-            entity.HasKey(x => x.SeriesId);
-
-            entity.Property(x => x.SeriesId)
-                .HasDefaultValueSql(NewSequentialIdSql);
-
-            entity.Property(x => x.Title)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(x => x.Genre)
-                .HasMaxLength(100)
-                .IsRequired();
-
-            entity.Property(x => x.PublicationType)
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
-        });
-    }
-
-    private static void ConfigureChapters(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<Chapter>(entity =>
-        {
-            entity.ToTable("Chapters");
-
-            entity.HasKey(x => x.ChapterId);
-
-            entity.Property(x => x.ChapterId)
-                .HasDefaultValueSql(NewSequentialIdSql);
-
-            entity.Property(x => x.Title)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
-
-            entity.HasOne(x => x.Series)
-                .WithMany(x => x.Chapters)
-                .HasForeignKey(x => x.SeriesId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(x => new { x.SeriesId, x.ChapterNo })
-                .IsUnique();
         });
     }
 
@@ -253,45 +188,188 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<FileAsset>(entity =>
         {
             entity.ToTable("FileAssets");
-
             entity.HasKey(x => x.FileAssetId);
 
-            entity.Property(x => x.FileAssetId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.FileAssetId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.StorageProvider).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.BucketName).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.ObjectPath).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.OriginalFileName).IsRequired().HasMaxLength(255);
+            entity.Property(x => x.StoredFileName).IsRequired().HasMaxLength(255);
+            entity.Property(x => x.Extension).IsRequired().HasMaxLength(20);
+            entity.Property(x => x.FileSizeBytes).IsRequired();
+            entity.Property(x => x.FileType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.MimeType).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+        });
+    }
 
-            entity.Property(x => x.BucketName)
-                .HasMaxLength(100)
-                .IsRequired();
+    private static void ConfigureGenres(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Genre>(entity =>
+        {
+            entity.ToTable("Genres");
+            entity.HasKey(x => x.GenreId);
 
-            entity.Property(x => x.ObjectPath)
-                .HasMaxLength(1000)
-                .IsRequired();
+            entity.Property(x => x.GenreId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.OriginalFileName)
-                .HasMaxLength(255)
-                .IsRequired();
+            entity.HasIndex(x => x.Title).IsUnique();
+        });
+    }
 
-            entity.Property(x => x.StoredFileName)
-                .HasMaxLength(255)
-                .IsRequired();
+    private static void ConfigureSeries(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Series>(entity =>
+        {
+            entity.ToTable("Series");
+            entity.HasKey(x => x.SeriesId);
 
-            entity.Property(x => x.MimeType)
-                .HasMaxLength(100)
-                .IsRequired();
+            entity.Property(x => x.SeriesId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.PublicationType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.RankingScore).IsRequired().HasPrecision(18, 2).HasDefaultValue(0);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Synopsis).IsRequired().HasMaxLength(2000);
+            entity.Property(x => x.RejectReason).HasMaxLength(1000);
+            entity.Property(x => x.SubmittedAt).HasColumnType("datetime2");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.FileCategory)
-                .HasMaxLength(100)
-                .IsRequired();
+            entity.HasIndex(x => x.SourceZipFileAssetId)
+                .IsUnique()
+                .HasFilter("[SourceZipFileAssetId] IS NOT NULL");
 
-            entity.Property(x => x.UploadedAt)
-                .IsRequired();
+            entity.HasOne(x => x.Mangaka)
+                .WithMany(x => x.Series)
+                .HasForeignKey(x => x.MangakaId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(x => x.ObjectPath)
-                .IsUnique();
+            entity.HasOne(x => x.SourceZipFileAsset)
+                .WithOne(x => x.SeriesSourceZip)
+                .HasForeignKey<Series>(x => x.SourceZipFileAssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
 
-            entity.HasOne(x => x.Uploader)
-                .WithMany(x => x.UploadedFiles)
-                .HasForeignKey(x => x.UploadedBy)
+    private static void ConfigureSeriesGenres(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SeriesGenre>(entity =>
+        {
+            entity.ToTable("SeriesGenres");
+            entity.HasKey(x => x.SeriesGenreId);
+
+            entity.Property(x => x.SeriesGenreId).HasDefaultValueSql(NewSequentialIdSql);
+
+            entity.HasIndex(x => new { x.SeriesId, x.GenreId }).IsUnique();
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.SeriesGenres)
+                .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Genre)
+                .WithMany(x => x.SeriesGenres)
+                .HasForeignKey(x => x.GenreId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureProposalPages(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProposalPage>(entity =>
+        {
+            entity.ToTable("ProposalPages");
+            entity.HasKey(x => x.ProposalPageId);
+
+            entity.Property(x => x.ProposalPageId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasIndex(x => x.PreviewFileAssetId).IsUnique();
+            entity.HasIndex(x => new { x.SeriesId, x.PageNo }).IsUnique();
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.ProposalPages)
+                .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.PreviewFileAsset)
+                .WithOne(x => x.ProposalPagePreview)
+                .HasForeignKey<ProposalPage>(x => x.PreviewFileAssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureBoardDecisions(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<BoardDecision>(entity =>
+        {
+            entity.ToTable("BoardDecisions");
+            entity.HasKey(x => x.BoardDecisionId);
+
+            entity.Property(x => x.BoardDecisionId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.DecisionType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Result).HasMaxLength(50);
+            entity.Property(x => x.VotingDeadline).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.BoardDecisions)
+                .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureBoardVotes(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<BoardVote>(entity =>
+        {
+            entity.ToTable("BoardVotes");
+            entity.HasKey(x => x.BoardVoteId);
+
+            entity.Property(x => x.BoardVoteId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.VoteValue).IsRequired();
+            entity.Property(x => x.VotedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.Comment).HasMaxLength(1000);
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasIndex(x => new { x.BoardDecisionId, x.VoterId }).IsUnique();
+
+            entity.HasOne(x => x.BoardDecision)
+                .WithMany(x => x.BoardVotes)
+                .HasForeignKey(x => x.BoardDecisionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Voter)
+                .WithMany(x => x.BoardVotes)
+                .HasForeignKey(x => x.VoterId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureChapters(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Chapter>(entity =>
+        {
+            entity.ToTable("Chapters");
+            entity.HasKey(x => x.ChapterId);
+
+            entity.Property(x => x.ChapterId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.TotalPages).IsRequired();
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasIndex(x => new { x.SeriesId, x.ChapterNo }).IsUnique();
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.Chapters)
+                .HasForeignKey(x => x.SeriesId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
@@ -301,71 +379,27 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<Manuscript>(entity =>
         {
             entity.ToTable("Manuscripts");
-
             entity.HasKey(x => x.ManuscriptId);
 
-            entity.Property(x => x.ManuscriptId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.ManuscriptId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.FileUrl).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Feedback).HasMaxLength(1000);
+            entity.Property(x => x.RevisionCount).IsRequired().HasDefaultValue(0);
+            entity.Property(x => x.SubmittedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.Feedback)
-                .HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ChapterId, x.VersionNo }).IsUnique();
 
             entity.HasOne(x => x.Chapter)
                 .WithMany(x => x.Manuscripts)
                 .HasForeignKey(x => x.ChapterId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(x => x.PreviewFileAsset)
-                .WithMany()
-                .HasForeignKey(x => x.PreviewFileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(x => x.SourceFileAsset)
-                .WithMany()
-                .HasForeignKey(x => x.SourceFileAssetId)
+            entity.HasOne(x => x.Reviewer)
+                .WithMany(x => x.ReviewedManuscripts)
+                .HasForeignKey(x => x.ReviewedBy)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(x => new { x.ChapterId, x.VersionNo })
-                .IsUnique();
-        });
-    }
-
-    private static void ConfigureChapterPages(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<ChapterPage>(entity =>
-        {
-            entity.ToTable("ChapterPages");
-
-            entity.HasKey(x => x.ChapterPageId);
-
-            entity.Property(x => x.ChapterPageId)
-                .HasDefaultValueSql(NewSequentialIdSql);
-
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
-
-            entity.HasOne(x => x.Chapter)
-                .WithMany(x => x.ChapterPages)
-                .HasForeignKey(x => x.ChapterId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(x => x.Manuscript)
-                .WithMany(x => x.ChapterPages)
-                .HasForeignKey(x => x.ManuscriptId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(x => x.ImageFileAsset)
-                .WithMany()
-                .HasForeignKey(x => x.ImageFileAssetId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(x => new { x.ManuscriptId, x.PageNo })
-                .IsUnique();
         });
     }
 
@@ -374,40 +408,33 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<PageTask>(entity =>
         {
             entity.ToTable("PageTasks");
-
             entity.HasKey(x => x.PageTaskId);
 
-            entity.Property(x => x.PageTaskId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.PageTaskId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.TaskType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.TaskType)
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.Description)
-                .HasMaxLength(1000);
-
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_PageTasks_PageRange", "[PageStart] <= [PageEnd]");
+            });
 
             entity.HasOne(x => x.Chapter)
                 .WithMany(x => x.PageTasks)
                 .HasForeignKey(x => x.ChapterId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(x => x.Assistant)
+                .WithMany(x => x.AssistantPageTasks)
+                .HasForeignKey(x => x.AssistantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(x => x.Manuscript)
                 .WithMany(x => x.PageTasks)
                 .HasForeignKey(x => x.ManuscriptId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(x => x.Assistant)
-                .WithMany(x => x.AssignedPageTasks)
-                .HasForeignKey(x => x.AssistantId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
@@ -417,35 +444,25 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<PageTaskSubmission>(entity =>
         {
             entity.ToTable("PageTaskSubmissions");
-
             entity.HasKey(x => x.SubmissionId);
 
-            entity.Property(x => x.SubmissionId)
-                .HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.SubmissionId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.RejectReason).HasMaxLength(1000);
+            entity.Property(x => x.Note).HasMaxLength(1000);
+            entity.Property(x => x.SubmittedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .HasMaxLength(50)
-                .IsRequired();
-
-            entity.Property(x => x.Note)
-                .HasMaxLength(1000);
-
-            entity.Property(x => x.RejectReason)
-                .HasMaxLength(1000);
+            entity.HasIndex(x => new { x.PageTaskId, x.VersionNo }).IsUnique();
 
             entity.HasOne(x => x.PageTask)
                 .WithMany(x => x.Submissions)
                 .HasForeignKey(x => x.PageTaskId)
-                .OnDelete(DeleteBehavior.Cascade);
-
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.SubmittedFileAsset)
-                .WithMany()
+                .WithMany(x => x.PageTaskSubmissions)
                 .HasForeignKey(x => x.SubmittedFileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(x => new { x.PageTaskId, x.VersionNo })
-                .IsUnique();
         });
     }
 
@@ -454,37 +471,107 @@ public class MangaDbContext : DbContext
         modelBuilder.Entity<Annotation>(entity =>
         {
             entity.ToTable("Annotations");
-
             entity.HasKey(x => x.AnnotationId);
 
-            entity.Property(x => x.AnnotationId)
-                .HasDefaultValueSql(NewSequentialIdSql);
-
-            entity.Property(x => x.PositionX)
-                .HasPrecision(18, 4);
-
-            entity.Property(x => x.PositionY)
-                .HasPrecision(18, 4);
-
-            entity.Property(x => x.Content)
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
+            entity.Property(x => x.AnnotationId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.PositionX).HasPrecision(18, 4);
+            entity.Property(x => x.PositionY).HasPrecision(18, 4);
+            entity.Property(x => x.Content).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
 
             entity.HasOne(x => x.Manuscript)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.ManuscriptId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(x => x.ChapterPage)
-                .WithMany(x => x.Annotations)
-                .HasForeignKey(x => x.ChapterPageId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             entity.HasOne(x => x.Author)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureVoteRecords(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<VoteRecord>(entity =>
+        {
+            entity.ToTable("VoteRecords");
+            entity.HasKey(x => x.VoteRecordId);
+
+            entity.Property(x => x.VoteRecordId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Period).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_VoteRecords_Count", "[VoteCount] <= [ReaderCount]");
+            });
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.VoteRecords)
+                .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Confirmer)
+                .WithMany(x => x.ConfirmedVoteRecords)
+                .HasForeignKey(x => x.ConfirmedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureRankingSnapshots(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<RankingSnapshot>(entity =>
+        {
+            entity.ToTable("RankingSnapshots");
+            entity.HasKey(x => x.RankingSnapshotId);
+
+            entity.Property(x => x.RankingSnapshotId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Period).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.IsBottom20Percent).IsRequired().HasDefaultValue(false);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.RankingSnapshots)
+                .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureEscalations(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Escalation>(entity =>
+        {
+            entity.ToTable("Escalations");
+            entity.HasKey(x => x.EscalationId);
+
+            entity.Property(x => x.EscalationId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.Type).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.EntityType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Priority).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Reason).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.Resolution).HasMaxLength(1000);
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasOne(x => x.Series)
+                .WithMany(x => x.Escalations)
+                .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Creator)
+                .WithMany(x => x.CreatedEscalations)
+                .HasForeignKey(x => x.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Resolver)
+                .WithMany(x => x.ResolvedEscalations)
+                .HasForeignKey(x => x.ResolvedBy)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
