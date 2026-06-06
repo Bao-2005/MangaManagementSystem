@@ -79,21 +79,19 @@ namespace MangaManagementSystem.Business.Services.Implements;
         if (assistant.Role.RoleName != UserRole.Assistant.ToString())
             throw new ArgumentException("Assigned user must have Assistant role.");
 
-        public async Task<PageTaskResponse> CreateAsync(CreatePageTaskRequest request)
+        var task = new PageTask
         {
-            var task = new PageTask
-            {
-                ChapterId = request.ChapterId,
+            ChapterId = request.ChapterId,
             ManuscriptId = manuscript.ManuscriptId,
-                AssistantId = request.AssistantId,
-                PageStart = request.PageStart,
-                PageEnd = request.PageEnd,
+            AssistantId = request.AssistantId,
+            PageStart = request.PageStart,
+            PageEnd = request.PageEnd,
             TaskType = request.TaskType.Trim(),
             Description = request.Description?.Trim(),
-                DueDate = request.DueDate,
-                Status = PageTaskStatus.Assigned,
-                CreatedAt = DateTime.UtcNow
-            };
+            DueDate = request.DueDate,
+            Status = PageTaskStatus.Assigned,
+            CreatedAt = DateTime.UtcNow
+        };
 
         await _pageTaskRepository.AddAsync(task);
         await _pageTaskRepository.SaveChangeAsync();

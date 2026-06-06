@@ -8,9 +8,6 @@ namespace MangaManagementSystem.Business.DTOs.Requests
         public Guid ChapterId { get; set; }
 
         [Required]
-        public Guid ManuscriptId { get; set; }
-
-        [Required]
         public Guid AssistantId { get; set; }
 
         [Range(1, int.MaxValue)]
