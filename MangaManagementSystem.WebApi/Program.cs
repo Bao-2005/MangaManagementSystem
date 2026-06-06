@@ -22,7 +22,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 }
 builder.Services.AddDbContext<MangaDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseNpgsql(connectionString));
 builder.Services.Register();
 var jwtKey = builder.Configuration["Jwt:Key"];
 

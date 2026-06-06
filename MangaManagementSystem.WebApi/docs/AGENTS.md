@@ -4,10 +4,10 @@ This file is the working guide for AI agents and contributors in this repository
 
 ## Quick Facts
 
-- Stack: .NET 8, ASP.NET Core Web API, Entity Framework Core 8, SQL Server, AutoMapper, Swagger / Swashbuckle.
+- Stack: .NET 8, ASP.NET Core Web API, Entity Framework Core 8, PostgreSQL (Supabase) via Npgsql, AutoMapper, Swagger / Swashbuckle.
 - Solution file: `MangaManagementSystem.sln`.
 - Runnable API project: `MangaManagementSystem.WebApi`.
-- Layer order: Controller -> Business service -> Repository / DataAccess -> SQL Server.
+- Layer order: Controller -> Business service -> Repository / DataAccess -> PostgreSQL (Supabase).
 - API launch profiles expose HTTP on `http://localhost:5151`, HTTPS on `https://localhost:7059`, and Swagger at `/swagger`.
 - Database connection string key: `ConnectionStrings:DefaultConnection` in `MangaManagementSystem.WebApi/appsettings.json`.
 
@@ -30,7 +30,7 @@ sequenceDiagram
   Client->>Controller: HTTP request
   Controller->>Service: DTO input
   Service->>Repository: Query or command
-  Repository->>DB: EF Core / SQL Server
+  Repository->>DB: EF Core / Npgsql (PostgreSQL)
   DB-->>Repository: Entity data
   Repository-->>Service: Entity result
   Service-->>Controller: Response DTO
