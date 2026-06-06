@@ -198,6 +198,40 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.ToTable("Chapters", (string)null);
                 });
 
+            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.ChapterPage", b =>
+                {
+                    b.Property<Guid>("ChapterPageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<Guid>("ChapterId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ImageFileAssetId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PageNo")
+                        .HasColumnType("int");
+
+                    b.HasKey("ChapterPageId");
+
+                    b.HasIndex("ImageFileAssetId");
+
+                    b.HasIndex("ChapterId", "PageNo")
+                        .IsUnique();
+
+                    b.ToTable("ChapterPages", (string)null);
+                });
+
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Escalation", b =>
                 {
                     b.Property<Guid>("EscalationId")
@@ -1006,6 +1040,25 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .IsRequired();
 
                     b.Navigation("Series");
+                });
+
+            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.ChapterPage", b =>
+                {
+                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.Chapter", "Chapter")
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.FileAsset", "ImageFileAsset")
+                        .WithMany()
+                        .HasForeignKey("ImageFileAssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Chapter");
+
+                    b.Navigation("ImageFileAsset");
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Escalation", b =>

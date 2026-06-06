@@ -1,0 +1,543 @@
+# CRUD Integration Plan — MangaManagementSystem (Revised)
+
+## Background
+
+The project is a 3-layer ASP.NET Core Web API (DataAccess → Business → WebApi). Auth (JWT) and User CRUD are already implemented.
+The pattern is:
+- **DataAccess**: Generic `IRepository<T>` / `Repository<T>` + EF Core `MangaDbContext`
+- **Business**: `IXxxService` / `XxxService` + AutoMapper `Profile` + DTOs (Request + Response)
+- **WebApi**: `[ApiController]` controllers, `BaseResponse` wrapper, Swagger annotations, role-based `[Authorize(Policy="...")]`
+
+This plan covers the remaining **16 entities** grouped into **10 feature domains** and adds **file-retrieval routes** nested under each owning resource.
+
+---
+
+## Design Decisions (Resolved)
+
+> [!NOTE]
+> **File retrieval skipped**: All `FileAsset`-backed download/URL-generation endpoints are **out of scope** for this iteration. The CRUD for `FileAsset` records themselves (metadata only) will be included where referenced, but no pre-signed URL or proxy-download routes will be created.
+
+> [!NOTE]
+> **ChapterPage belongs to Chapter only**: `ChapterPage` should have **no relationship with `Manuscript`**. The current entity and DbContext incorrectly include a `ManuscriptId` FK. This will be corrected as part of this plan (entity fix + EF migration).
+
+> [!NOTE]
+> **Annotation belongs to Manuscript**: `Annotation` links to a `Manuscript` via `ManuscriptId` + `PageNo`. This means an editor can annotate a specific page of a specific manuscript submission. The chapter context is derived via `Manuscript → Chapter`. No schema change needed here — the existing model is correct.
+
+> [!NOTE]
+> **Soft-delete only**: All DELETE operations set `DeletedAt = UtcNow`. No hard deletes anywhere in the system.
+
+---
+
+## Proposed Changes
+
+### Domain 1 — Genre
+
+Simple admin-managed lookup table.
+
+#### [NEW] `GenreRequest.cs` — `Business/DTOs/Requests/`
+```csharp
+public class GenreRequest { public string Title { get; set; } = null!; }
+```
+
+#### [NEW] `GenreResponse.cs` — `Business/DTOs/Responses/`
+```csharp
+public class GenreResponse { public Guid GenreId; public string Title; }
+```
+
+#### [NEW] `GenreProfile.cs` — `Business/Mappers/Profiles/`
+`Genre → GenreResponse`
+
+#### [NEW] `IGenreService.cs` — `Business/Services/Interfaces/`
+```
+GetAllAsync() → IEnumerable<GenreResponse>
+GetByIdAsync(id) → GenreResponse
+CreateAsync(req) → GenreResponse
+UpdateAsync(id, req) → GenreResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `GenreService.cs` — `Business/Services/Implements/`
+Uses `IRepository<Genre>`.
+
+#### [NEW] `GenreController.cs` — `WebApi/Controllers/`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/genres` | Any authenticated |
+| GET | `/api/genres/{id}` | Any authenticated |
+| POST | `/api/genres` | `AdminOnly` |
+| PUT | `/api/genres/{id}` | `AdminOnly` |
+| DELETE | `/api/genres/{id}/soft-delete` | `AdminOnly` |
+
+#### [MODIFY] `ServiceCollection.cs`
+Register `IGenreService → GenreService`.
+
+---
+
+### Domain 2 — Series & Proposals
+
+Includes file-retrieval for `SourceZipFileAsset` and nested `ProposalPages`.
+
+#### [NEW] DTOs
+- `CreateSeriesRequest` (Title, Synopsis, PublicationType, GenreIds[], SourceZipFileAssetId?)
+- `UpdateSeriesRequest` (Title?, Synopsis?, Status?, RejectReason?)
+- `SeriesResponse` (SeriesId, Title, MangakaId, MangakaName, Status, Synopsis, PublicationType, RankingScore, CreatedAt, Genres[], SubmittedAt)
+- `SeriesDetailResponse` extends SeriesResponse + ProposalPages[]
+
+#### [NEW] `SeriesProfile.cs`
+`Series → SeriesResponse`, `Series → SeriesDetailResponse`
+
+#### [NEW] `ISeriesService.cs`
+```
+GetAllAsync(status?) → IEnumerable<SeriesResponse>
+GetByIdAsync(id) → SeriesDetailResponse
+GetByMangakaAsync(mangakaId) → IEnumerable<SeriesResponse>
+CreateAsync(mangakaId, req) → SeriesResponse
+UpdateAsync(id, req) → SeriesResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `SeriesService.cs`
+Uses `IRepository<Series>`, `IRepository<SeriesGenre>`.
+- **Create**: validates Mangaka has no active `Proposed` series (BR-15/BR-19), sets `Status = Proposed`, `SubmittedAt = UtcNow`.
+- **SoftDelete**: cascades to `SeriesGenres`, `ProposalPages`, `Chapters`, `BoardDecisions`, `VoteRecords`, `RankingSnapshots`, `Escalations`.
+
+#### [NEW] `SeriesController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/series` | Any |
+| GET | `/api/series/{id}` | Any |
+| GET | `/api/series/mangaka/{mangakaId}` | `MangakaOnly` or `AdminOnly` |
+| POST | `/api/series` | `MangakaOnly` |
+| PUT | `/api/series/{id}` | `MangakaOnly` or `AdminOnly` |
+| DELETE | `/api/series/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Domain 2b — ProposalPage
+
+ProposalPages belong to a Series; each page has a preview `FileAsset`.
+
+#### [NEW] DTOs
+- `CreateProposalPageRequest` (SeriesId, PageNo, PreviewFileAssetId)
+- `ProposalPageResponse` (ProposalPageId, SeriesId, PageNo, PreviewFileAssetId, CreatedAt)
+
+#### [NEW] `IProposalPageService.cs`
+```
+GetBySeriesAsync(seriesId) → IEnumerable<ProposalPageResponse>
+GetByIdAsync(id) → ProposalPageResponse
+CreateAsync(req) → ProposalPageResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `ProposalPageController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/series/{seriesId}/proposal-pages` | Any authenticated |
+| GET | `/api/series/{seriesId}/proposal-pages/{id}` | Any authenticated |
+| POST | `/api/series/{seriesId}/proposal-pages` | `MangakaOnly` |
+| DELETE | `/api/series/{seriesId}/proposal-pages/{id}/soft-delete` | `MangakaOnly` |
+
+---
+
+### Domain 3 — Chapter
+
+Chapters belong to a Series.
+
+#### [NEW] DTOs
+- `CreateChapterRequest` (SeriesId, ChapterNo, Title, TotalPages, PublicationDate, SubmissionDeadline?)
+- `UpdateChapterRequest` (Title?, TotalPages?, PublicationDate?, SubmissionDeadline?, Status?)
+- `ChapterResponse` (ChapterId, SeriesId, ChapterNo, Title, TotalPages, PublicationDate, SubmissionDeadline, Status, CreatedAt)
+
+#### [NEW] `IChapterService.cs`
+```
+GetAllAsync() → IEnumerable<ChapterResponse>
+GetBySeriesAsync(seriesId) → IEnumerable<ChapterResponse>
+GetByIdAsync(id) → ChapterResponse
+CreateAsync(req) → ChapterResponse   // BR-03: deadline = publicationDate - 14 days
+UpdateAsync(id, req) → ChapterResponse
+SoftDeleteAsync(id)   // cascades: Manuscripts, PageTasks, ChapterPages
+```
+
+#### [NEW] `ChapterController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/chapters` | Any authenticated |
+| GET | `/api/series/{seriesId}/chapters` | Any authenticated |
+| GET | `/api/chapters/{id}` | Any authenticated |
+| POST | `/api/chapters` | `MangakaOnly` |
+| PUT | `/api/chapters/{id}` | `MangakaOnly` |
+| DELETE | `/api/chapters/{id}/soft-delete` | `MangakaOnly` or `AdminOnly` |
+
+---
+
+### Domain 4 — Manuscript
+
+Manuscripts belong to a Chapter; each has a `FileUrl` (plain URL string, not a FileAsset FK — but the plan will add a retrieval endpoint that returns the URL directly).
+
+#### [NEW] DTOs
+- `CreateManuscriptRequest` (ChapterId, FileUrl, Notes?)
+- `UpdateManuscriptRequest` (Status?, Feedback?)
+- `ManuscriptResponse` (ManuscriptId, ChapterId, VersionNo, FileUrl, Status, Feedback, RevisionCount, SubmittedAt, ReviewedBy?, ReviewedAt?, ApprovedAt?)
+
+#### [NEW] `IManuscriptService.cs`
+```
+GetByChapterAsync(chapterId) → IEnumerable<ManuscriptResponse>
+GetByIdAsync(id) → ManuscriptResponse
+CreateAsync(mangakaId, req) → ManuscriptResponse   // BR-04: all PageTasks must be Approved
+UpdateAsync(id, req, reviewerId) → ManuscriptResponse
+SoftDeleteAsync(id)   // cascades: Annotations
+```
+
+#### [NEW] `ManuscriptController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/chapters/{chapterId}/manuscripts` | Any authenticated |
+| GET | `/api/manuscripts/{id}` | Any authenticated |
+| POST | `/api/manuscripts` | `MangakaOnly` |
+| PUT | `/api/manuscripts/{id}` | `TantouEditorOnly` |
+| DELETE | `/api/manuscripts/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Domain 5 — ChapterPage
+
+> [!WARNING]
+> **Schema fix required**: The current `ChapterPage` entity has a `ManuscriptId` FK that should not exist. `ChapterPage` represents the final published page of a **Chapter** — it has no business relationship with a `Manuscript` (which is the draft submission). The fix involves: removing `ManuscriptId` + `Manuscript` nav-prop from the entity, removing the FK configuration from `MangaDbContext`, and creating a new EF Core migration.
+
+ChapterPages belong to a **Chapter only**. Each page references an `ImageFileAsset` (metadata stored; file serving is out of scope).
+
+#### [MODIFY] `ChapterPage.cs` — DataAccess/Entities/Models/
+Remove:
+- `public Guid ManuscriptId { get; set; }`
+- `public Manuscript Manuscript { get; set; } = null!;`
+
+Keep: `ChapterId`, `PageNo`, `ImageFileAssetId`, `Annotations` collection.
+
+#### [MODIFY] `MangaDbContext.cs` — DataAccess/DbContext/ (inside `ConfigureChapterPages`)
+> No `ConfigureChapterPages` method exists yet — will add it. Remove any `ManuscriptId`-related HasOne configuration.
+
+#### [NEW] EF Core migration
+`Add-Migration RemoveManuscriptIdFromChapterPage` then `Update-Database`
+
+#### [NEW] DTOs
+- `CreateChapterPageRequest` (ChapterId, PageNo, ImageFileAssetId)
+- `ChapterPageResponse` (ChapterPageId, ChapterId, PageNo, ImageFileAssetId, CreatedAt)
+
+#### [NEW] `IChapterPageService.cs`
+```
+GetByChapterAsync(chapterId) → IEnumerable<ChapterPageResponse>
+GetByIdAsync(id) → ChapterPageResponse
+CreateAsync(req) → ChapterPageResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `ChapterPageController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/chapters/{chapterId}/pages` | Any authenticated |
+| GET | `/api/chapters/{chapterId}/pages/{id}` | Any authenticated |
+| POST | `/api/chapters/{chapterId}/pages` | `MangakaOnly` |
+| DELETE | `/api/chapters/{chapterId}/pages/{id}/soft-delete` | `MangakaOnly` |
+
+---
+
+### Domain 6 — PageTask & PageTaskSubmission
+
+PageTasks belong to a Chapter + Manuscript. Submissions belong to a PageTask; each submission has a `SubmittedFileAsset`.
+
+#### [NEW] DTOs (PageTask)
+- `CreatePageTaskRequest` (ChapterId, ManuscriptId, AssistantId, PageStart, PageEnd, TaskType, Description?, DueDate?)
+- `UpdatePageTaskRequest` (Status?, Description?, DueDate?)
+- `PageTaskResponse` (PageTaskId, ChapterId, ManuscriptId, AssistantId, AssistantName, PageStart, PageEnd, TaskType, Description, DueDate, Status, CreatedAt, ApprovedAt?)
+
+#### [NEW] DTOs (PageTaskSubmission)
+- `CreateSubmissionRequest` (PageTaskId, VersionNo, SubmittedFileAssetId, Note?)
+- `UpdateSubmissionRequest` (Status, RejectReason?)
+- `SubmissionResponse` (SubmissionId, PageTaskId, VersionNo, SubmittedFileAssetId, Status, Note, RejectReason?, SubmittedAt, ReviewedAt?)
+
+#### [NEW] `IPageTaskService.cs`
+```
+GetByChapterAsync(chapterId) → IEnumerable<PageTaskResponse>
+GetByManuscriptAsync(manuscriptId) → IEnumerable<PageTaskResponse>
+GetByAssistantAsync(assistantId) → IEnumerable<PageTaskResponse>
+GetByIdAsync(id) → PageTaskResponse
+CreateAsync(req) → PageTaskResponse
+UpdateAsync(id, req) → PageTaskResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `IPageTaskSubmissionService.cs`
+```
+GetByTaskAsync(pageTaskId) → IEnumerable<SubmissionResponse>
+GetByIdAsync(id) → SubmissionResponse
+CreateAsync(assistantId, req) → SubmissionResponse
+UpdateAsync(id, req, reviewerId) → SubmissionResponse   // approve/reject
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `PageTaskController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/chapters/{chapterId}/tasks` | `MangakaOnly` or `TantouEditorOnly` |
+| GET | `/api/manuscripts/{manuscriptId}/tasks` | `MangakaOnly` |
+| GET | `/api/tasks/my` | `AssistantOnly` |
+| GET | `/api/tasks/{id}` | Any authenticated |
+| POST | `/api/tasks` | `MangakaOnly` |
+| PUT | `/api/tasks/{id}` | `MangakaOnly` |
+| DELETE | `/api/tasks/{id}/soft-delete` | `MangakaOnly` |
+
+#### [NEW] `PageTaskSubmissionController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/tasks/{pageTaskId}/submissions` | `MangakaOnly` or `AssistantOnly` |
+| GET | `/api/submissions/{id}` | Any authenticated |
+| POST | `/api/submissions` | `AssistantOnly` |
+| PUT | `/api/submissions/{id}` | `MangakaOnly` |
+| DELETE | `/api/submissions/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Domain 7 — Annotation
+
+Annotations belong to a **Manuscript** (linked via `ManuscriptId` + `PageNo`). The `PageNo` field indicates which specific page of that manuscript the annotation targets. Since `Manuscript → Chapter` is navigable, the chapter/series context can always be derived. Annotators are typically `TantouEditor` users.
+
+#### [NEW] DTOs
+- `CreateAnnotationRequest` (ManuscriptId, PageNo, PositionX, PositionY, Content)
+- `UpdateAnnotationRequest` (Content)
+- `AnnotationResponse` (AnnotationId, ManuscriptId, ChapterId *(derived)*, AuthorId, AuthorName, PageNo, PositionX, PositionY, Content, CreatedAt)
+
+#### [NEW] `IAnnotationService.cs`
+```
+GetByManuscriptAsync(manuscriptId) → IEnumerable<AnnotationResponse>
+GetByIdAsync(id) → AnnotationResponse
+CreateAsync(authorId, req) → AnnotationResponse
+UpdateAsync(id, authorId, req) → AnnotationResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `AnnotationController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/manuscripts/{manuscriptId}/annotations` | `TantouEditorOnly` or `MangakaOnly` |
+| GET | `/api/annotations/{id}` | Any authenticated |
+| POST | `/api/manuscripts/{manuscriptId}/annotations` | `TantouEditorOnly` |
+| PUT | `/api/annotations/{id}` | `TantouEditorOnly` |
+| DELETE | `/api/annotations/{id}/soft-delete` | `TantouEditorOnly` or `AdminOnly` |
+
+---
+
+### Domain 8 — BoardDecision & BoardVote
+
+BoardDecisions belong to a Series; BoardVotes belong to a BoardDecision.
+
+#### [NEW] DTOs
+- `CreateBoardDecisionRequest` (SeriesId, DecisionType, VotingDeadline)
+- `UpdateBoardDecisionRequest` (Status?, Result?, FinalizedAt?)
+- `BoardDecisionResponse` (BoardDecisionId, SeriesId, DecisionType, Status, Result?, VotingDeadline, FinalizedAt?, CreatedAt, VoteCount)
+- `CreateBoardVoteRequest` (BoardDecisionId, VoteValue, Comment?)
+- `BoardVoteResponse` (BoardVoteId, BoardDecisionId, VoterId, VoterName, VoteValue, VotedAt, Comment?)
+
+#### [NEW] `IBoardDecisionService.cs`
+```
+GetBySeriesAsync(seriesId) → IEnumerable<BoardDecisionResponse>
+GetByIdAsync(id) → BoardDecisionResponse
+CreateAsync(req) → BoardDecisionResponse
+UpdateAsync(id, req) → BoardDecisionResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `IBoardVoteService.cs`
+```
+GetByDecisionAsync(boardDecisionId) → IEnumerable<BoardVoteResponse>
+CastVoteAsync(voterId, req) → BoardVoteResponse   // BR-01: voter cannot be the series' Tantou Editor
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `BoardDecisionController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/series/{seriesId}/board-decisions` | `EditorialBoardOnly` or `EditorInChiefOnly` |
+| GET | `/api/board-decisions/{id}` | `EditorialBoardOnly` or `EditorInChiefOnly` |
+| POST | `/api/board-decisions` | `EditorInChiefOnly` |
+| PUT | `/api/board-decisions/{id}` | `EditorInChiefOnly` |
+| DELETE | `/api/board-decisions/{id}/soft-delete` | `AdminOnly` |
+| POST | `/api/board-decisions/{id}/votes` | `EditorialBoardOnly` |
+| GET | `/api/board-decisions/{id}/votes` | `EditorialBoardOnly` or `EditorInChiefOnly` |
+
+---
+
+### Domain 9 — VoteRecord & RankingSnapshot
+
+VoteRecords and RankingSnapshots both belong to a Series.
+
+#### [NEW] DTOs
+- `CreateVoteRecordRequest` (SeriesId, Period, ReaderCount, VoteCount)
+- `VoteRecordResponse` (VoteRecordId, SeriesId, Period, ReaderCount, VoteCount, Status, ConfirmedBy?, ConfirmedAt?, CreatedAt)
+- `RankingSnapshotResponse` (RankingSnapshotId, SeriesId, Period, RankNo, IsBottom20Percent, CreatedAt)
+
+#### [NEW] `IVoteRecordService.cs`
+```
+GetBySeriesAsync(seriesId) → IEnumerable<VoteRecordResponse>
+GetByPeriodAsync(period) → IEnumerable<VoteRecordResponse>
+CreateAsync(req) → VoteRecordResponse
+ConfirmAsync(id, confirmerId) → VoteRecordResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `IRankingSnapshotService.cs`
+```
+GetBySeriesAsync(seriesId) → IEnumerable<RankingSnapshotResponse>
+GetByPeriodAsync(period) → IEnumerable<RankingSnapshotResponse>
+CreateAsync(req) → RankingSnapshotResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `VoteRecordController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/series/{seriesId}/vote-records` | `EditorialBoardOnly` or `EditorInChiefOnly` |
+| POST | `/api/vote-records` | `EditorialBoardOnly` |
+| PUT | `/api/vote-records/{id}/confirm` | `EditorialBoardOnly` |
+| DELETE | `/api/vote-records/{id}/soft-delete` | `AdminOnly` |
+
+#### [NEW] `RankingSnapshotController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/rankings` | Any authenticated |
+| GET | `/api/series/{seriesId}/rankings` | Any authenticated |
+| POST | `/api/rankings` | `EditorialBoardOnly` |
+| DELETE | `/api/rankings/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Domain 10 — Notification & UserNotification
+
+#### [NEW] DTOs
+- `CreateNotificationRequest` (Title, Message, Type, Link?, Priority, TargetUserIds[])
+- `NotificationResponse` (NotificationId, Title, Message, Type, Link?, Priority, CreatedAt)
+- `UserNotificationResponse` (UserNotificationId, NotificationId, Title, Message, Type, IsRead, ReadAt?, CreatedAt)
+
+#### [NEW] `INotificationService.cs`
+```
+GetMyNotificationsAsync(userId) → IEnumerable<UserNotificationResponse>
+MarkAsReadAsync(userNotificationId, userId)
+BroadcastAsync(req) → NotificationResponse   // creates Notification + UserNotifications for all target users
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `NotificationController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/notifications/my` | Any authenticated |
+| PUT | `/api/notifications/{id}/read` | Any authenticated |
+| POST | `/api/notifications` | `AdminOnly` |
+| DELETE | `/api/notifications/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Domain 11 — UserAssignment
+
+UserAssignments link a `FromUser` (Mangaka) to a `ToUser` (Assistant).
+
+#### [NEW] DTOs
+- `CreateUserAssignmentRequest` (ToUserId, AssignmentType)
+- `UserAssignmentResponse` (AssignmentId, FromUserId, FromUserName, ToUserId, ToUserName, AssignmentType, Status, AssignedAt, UnassignedAt?)
+
+#### [NEW] `IUserAssignmentService.cs`
+```
+GetByMangakaAsync(fromUserId) → IEnumerable<UserAssignmentResponse>
+GetByAssistantAsync(toUserId) → IEnumerable<UserAssignmentResponse>
+CreateAsync(fromUserId, req) → UserAssignmentResponse
+UnassignAsync(id)   // sets UnassignedAt + Status = false
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `UserAssignmentController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/user-assignments/from-me` | `MangakaOnly` |
+| GET | `/api/user-assignments/to-me` | `AssistantOnly` |
+| POST | `/api/user-assignments` | `MangakaOnly` |
+| PUT | `/api/user-assignments/{id}/unassign` | `MangakaOnly` |
+| DELETE | `/api/user-assignments/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Domain 12 — Escalation
+
+Escalations belong to a Series and reference `CreatedBy` / `ResolvedBy` users.
+
+#### [NEW] DTOs
+- `CreateEscalationRequest` (Type, EntityType, EntityId, SeriesId, Priority, Reason)
+- `UpdateEscalationRequest` (Status?, Resolution?)
+- `EscalationResponse` (EscalationId, Type, EntityType, EntityId, SeriesId, Priority, Status, Reason, Resolution?, CreatedBy, ResolvedBy?, CreatedAt, ResolvedAt?)
+
+#### [NEW] `IEscalationService.cs`
+```
+GetBySeriesAsync(seriesId) → IEnumerable<EscalationResponse>
+GetByIdAsync(id) → EscalationResponse
+CreateAsync(createdByUserId, req) → EscalationResponse
+ResolveAsync(id, resolverUserId, req) → EscalationResponse
+SoftDeleteAsync(id)
+```
+
+#### [NEW] `EscalationController.cs`
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/series/{seriesId}/escalations` | `EditorInChiefOnly` or `AdminOnly` |
+| GET | `/api/escalations/{id}` | `EditorInChiefOnly` or `AdminOnly` |
+| POST | `/api/escalations` | Any authenticated |
+| PUT | `/api/escalations/{id}/resolve` | `EditorInChiefOnly` |
+| DELETE | `/api/escalations/{id}/soft-delete` | `AdminOnly` |
+
+---
+
+### Cross-cutting — AutoMapper & DI
+
+#### [MODIFY] `ServiceCollection.cs`
+Register all 14+ new `IXxxService → XxxService` pairs.
+
+#### [NEW] AutoMapper Profile files (one per domain or grouped)
+- `SeriesProfile.cs`, `ChapterProfile.cs`, `ManuscriptProfile.cs`, `ChapterPageProfile.cs`
+- `PageTaskProfile.cs`, `AnnotationProfile.cs`, `BoardProfile.cs`
+- `VoteProfile.cs`, `NotificationProfile.cs`, `UserAssignmentProfile.cs`, `EscalationProfile.cs`
+
+---
+
+## File Retrieval
+
+> [!NOTE]
+> File retrieval and download endpoints are **out of scope** for this iteration. `FileAsset` records will be created/referenced in the database (e.g. `SourceZipFileAssetId`, `PreviewFileAssetId`, `ImageFileAssetId`, `SubmittedFileAssetId`) but no URL-generation or proxy-download routes will be implemented now.
+
+---
+
+## Execution Order
+
+1. **Schema fix**: Remove `ManuscriptId` from `ChapterPage` entity + DbContext + generate EF migration
+2. Genre (simplest, no dependencies)
+3. Series + ProposalPage (depends on Genre)
+4. Chapter (depends on Series)
+5. Manuscript (depends on Chapter)
+6. ChapterPage (depends on Chapter only, after schema fix)
+7. PageTask + PageTaskSubmission (depends on Chapter, Manuscript)
+8. Annotation (depends on Manuscript)
+9. BoardDecision + BoardVote (depends on Series)
+10. VoteRecord + RankingSnapshot (depends on Series)
+11. Notification + UserNotification (depends on User)
+12. UserAssignment (depends on User)
+13. Escalation (depends on Series, User)
+14. Wire up all DI registrations + AutoMapper profiles
+15. Build & verify Swagger
+
+## Verification Plan
+
+### Automated Tests
+- `dotnet build` — zero errors/warnings
+- Swagger UI reachable at `/swagger`
+
+### Manual Verification
+- Confirm each controller appears in Swagger with correct tags, routes, and auth requirements
+- Test key business rules via Swagger or Postman:
+  - BR-04: submit Manuscript only when 100% PageTasks approved
+  - BR-01: BoardVote blocked for the series' Tantou Editor
+  - File retrieval endpoints return a valid URL/redirect
