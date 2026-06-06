@@ -162,9 +162,9 @@ public class PageTaskService : IPageTaskService
         return await GetTaskResponseForAssistantAsync(assistantId, task.PageTaskId);
     }
 
-    public async Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid pageTaskId, Guid submissionId)
+    public async Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid submissionId)
     {
-        var (task, submission) = await GetReviewTargetAsync(mangakaId, pageTaskId, submissionId);
+        var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Approved;
         submission.RejectReason = null;
@@ -181,12 +181,12 @@ public class PageTaskService : IPageTaskService
         return await GetTaskResponseForMangakaAsync(mangakaId, task.PageTaskId);
     }
 
-    public async Task<PageTaskResponse> RejectSubmissionAsync(Guid mangakaId, Guid pageTaskId, Guid submissionId, ReviewPageTaskSubmissionRequest request)
+    public async Task<PageTaskResponse> RejectSubmissionAsync(Guid mangakaId, Guid submissionId, ReviewPageTaskSubmissionRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.RejectReason))
             throw new ArgumentException("RejectReason is required when rejecting a submission.");
 
-        var (task, submission) = await GetReviewTargetAsync(mangakaId, pageTaskId, submissionId);
+        var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Rejected;
         submission.RejectReason = request.RejectReason.Trim();
@@ -202,24 +202,24 @@ public class PageTaskService : IPageTaskService
         return await GetTaskResponseForMangakaAsync(mangakaId, task.PageTaskId);
     }
 
-    private async Task<(PageTask Task, PageTaskSubmission Submission)> GetReviewTargetAsync(Guid mangakaId, Guid pageTaskId, Guid submissionId)
+    private async Task<(PageTask Task, PageTaskSubmission Submission)> GetReviewTargetAsync(Guid mangakaId, Guid submissionId)
     {
-        var task = await _pageTaskRepository.GetAll()
-            .Include(x => x.Chapter)
-                .ThenInclude(x => x.Series)
-            .Include(x => x.Submissions)
-            .FirstOrDefaultAsync(x => x.PageTaskId == pageTaskId && x.DeletedAt == null);
+        var submission = await _submissionRepository.GetAll()
+            .Include(x => x.PageTask)
+                .ThenInclude(x => x.Chapter)
+                    .ThenInclude(x => x.Series)
+            .FirstOrDefaultAsync(x => x.SubmissionId == submissionId && x.DeletedAt == null);
 
-        if (task == null)
+        if (submission == null)
+            throw new KeyNotFoundException("Submission not found.");
+
+        var task = submission.PageTask;
+
+        if (task.DeletedAt != null)
             throw new KeyNotFoundException("Page task not found.");
 
         if (task.Chapter.Series.MangakaId != mangakaId)
             throw new UnauthorizedAccessException("You can only review tasks for your own series.");
-
-        var submission = task.Submissions.FirstOrDefault(x => x.SubmissionId == submissionId && x.DeletedAt == null);
-
-        if (submission == null)
-            throw new KeyNotFoundException("Submission not found.");
 
         if (submission.Status != PageTaskSubmissionStatus.Submitted)
             throw new InvalidOperationException("Only submitted submissions can be reviewed.");

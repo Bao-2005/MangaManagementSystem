@@ -95,7 +95,7 @@ public class PageTaskController : ControllerBase
         return Ok(new BaseResponse { Data = task, Message = "Task submitted successfully." });
     }
 
-    [HttpPut("{pageTaskId:guid}/submissions/{submissionId:guid}/approve")]
+    [HttpPost("submissions/{submissionId:guid}/approve")]
     [Authorize(Policy = "MangakaOnly")]
     [SwaggerOperation(
         Summary = "Approve assistant submission",
@@ -105,16 +105,16 @@ public class PageTaskController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Approve(Guid pageTaskId, Guid submissionId)
+    public async Task<IActionResult> Approve(Guid submissionId)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
-        var task = await _pageTaskService.ApproveSubmissionAsync(userId.Value, pageTaskId, submissionId);
+        var task = await _pageTaskService.ApproveSubmissionAsync(userId.Value, submissionId);
         return Ok(new BaseResponse { Data = task, Message = "Submission approved successfully." });
     }
 
-    [HttpPut("{pageTaskId:guid}/submissions/{submissionId:guid}/reject")]
+    [HttpPost("submissions/{submissionId:guid}/reject")]
     [Authorize(Policy = "MangakaOnly")]
     [SwaggerOperation(
         Summary = "Reject assistant submission",
@@ -125,12 +125,12 @@ public class PageTaskController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Reject(Guid pageTaskId, Guid submissionId, [FromBody] ReviewPageTaskSubmissionRequest request)
+    public async Task<IActionResult> Reject(Guid submissionId, [FromBody] ReviewPageTaskSubmissionRequest request)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
-        var task = await _pageTaskService.RejectSubmissionAsync(userId.Value, pageTaskId, submissionId, request);
+        var task = await _pageTaskService.RejectSubmissionAsync(userId.Value, submissionId, request);
         return Ok(new BaseResponse { Data = task, Message = "Submission rejected successfully." });
     }
 

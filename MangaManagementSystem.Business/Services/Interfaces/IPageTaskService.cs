@@ -14,7 +14,7 @@ public interface IPageTaskService
     Task<IEnumerable<PageTaskResponse>> GetMangakaTasksAsync(Guid mangakaId);
     Task<IEnumerable<PageTaskResponse>> GetAssistantTasksAsync(Guid assistantId);
     Task<PageTaskResponse> SubmitAsync(Guid assistantId, Guid pageTaskId, SubmitPageTaskRequest request);
-    Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid pageTaskId, Guid submissionId);
-    Task<PageTaskResponse> RejectSubmissionAsync(Guid mangakaId, Guid pageTaskId, Guid submissionId, ReviewPageTaskSubmissionRequest request);
+    Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid submissionId);
+    Task<PageTaskResponse> RejectSubmissionAsync(Guid mangakaId, Guid submissionId, ReviewPageTaskSubmissionRequest request);
 }
 
