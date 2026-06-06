@@ -3,7 +3,6 @@ using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 using WarehouseService.Application.DTOs;
