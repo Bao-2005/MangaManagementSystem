@@ -1,4 +1,6 @@
+﻿using Microsoft.AspNetCore.Mvc;
 using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,71 +8,137 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 using WarehouseService.Application.DTOs;
 
-namespace MangaManagementSystem.API.Controllers
-{
+namespace MangaManagementSystem.API.Controllers;
+
     [ApiController]
+[Route("api/page-tasks")]
     [Produces("application/json")]
-    [Tags("PageTasks")]
+[Tags("Page Tasks")]
     public class PageTaskController : ControllerBase
     {
-        private readonly IPageTaskService _service;
-        public PageTaskController(IPageTaskService service) => _service = service;
+    private readonly IPageTaskService _pageTaskService;
 
-        [HttpGet("api/chapters/{chapterId:guid}/tasks")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Get page tasks by chapter")]
-        public async Task<IActionResult> GetByChapter(Guid chapterId)
-            => Ok(new BaseResponse { Data = await _service.GetByChapterAsync(chapterId), Message = "Success" });
+    public PageTaskController(IPageTaskService pageTaskService)
+    {
+        _pageTaskService = pageTaskService;
+    }
 
-        [HttpGet("api/manuscripts/{manuscriptId:guid}/tasks")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Get page tasks by manuscript")]
-        public async Task<IActionResult> GetByManuscript(Guid manuscriptId)
-            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId), Message = "Success" });
+    [HttpPost]
+    [Authorize(Policy = "MangakaOnly")]
+    [SwaggerOperation(
+        Summary = "Assign page task to assistant",
+        Description = "Mangaka-only. Creates a page task for an assistant on a chapter/manuscript that belongs to the authenticated mangaka.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create([FromBody] CreatePageTaskRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
-        [HttpGet("api/tasks/my")]
+        var task = await _pageTaskService.CreateAsync(userId.Value, request);
+        return Ok(new BaseResponse { Data = task, Message = "Task assigned successfully." });
+    }
+
+    [HttpGet("mangaka")]
+    [Authorize(Policy = "MangakaOnly")]
+    [SwaggerOperation(
+        Summary = "Get tasks assigned by current mangaka",
+        Description = "Mangaka-only. Returns page tasks for chapters in the authenticated mangaka's series.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetMangakaTasks()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+        var tasks = await _pageTaskService.GetMangakaTasksAsync(userId.Value);
+        return Ok(new BaseResponse { Data = tasks, Message = "Success" });
+    }
+
+    [HttpGet("assistant")]
         [Authorize(Policy = "AssistantOnly")]
-        [SwaggerOperation(Summary = "Get my assigned tasks (Assistant only)")]
-        public async Task<IActionResult> GetMy()
+    [SwaggerOperation(
+        Summary = "Get tasks assigned to current assistant",
+        Description = "Assistant-only. Returns page tasks assigned to the authenticated assistant.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAssistantTasks()
         {
-            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _service.GetByAssistantAsync(userId), Message = "Success" });
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+        var tasks = await _pageTaskService.GetAssistantTasksAsync(userId.Value);
+        return Ok(new BaseResponse { Data = tasks, Message = "Success" });
         }
 
-        [HttpGet("api/tasks/{id:guid}")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Get page task by ID")]
-        public async Task<IActionResult> GetById(Guid id)
-            => Ok(new BaseResponse { Data = await _service.GetByIdAsync(id), Message = "Success" });
+    [HttpPost("{pageTaskId:guid}/submissions")]
+    [Authorize(Policy = "AssistantOnly")]
+    [SwaggerOperation(
+        Summary = "Submit completed page task work",
+        Description = "Assistant-only. Submits a file asset for the authenticated assistant's assigned page task.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Submit(Guid pageTaskId, [FromBody] SubmitPageTaskRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
-        [HttpPost("api/tasks")]
+        var task = await _pageTaskService.SubmitAsync(userId.Value, pageTaskId, request);
+        return Ok(new BaseResponse { Data = task, Message = "Task submitted successfully." });
+    }
+
+    [HttpPost("submissions/{submissionId:guid}/approve")]
         [Authorize(Policy = "MangakaOnly")]
-        [SwaggerOperation(Summary = "Create and assign a page task")]
-        public async Task<IActionResult> Create([FromBody] CreatePageTaskRequest request)
+    [SwaggerOperation(
+        Summary = "Approve assistant submission",
+        Description = "Mangaka-only. Approves a submitted page task submission for the authenticated mangaka's series.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Approve(Guid submissionId)
         {
-            var result = await _service.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = result.PageTaskId }, new BaseResponse { Data = result, Message = "Task created." });
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+        var task = await _pageTaskService.ApproveSubmissionAsync(userId.Value, submissionId);
+        return Ok(new BaseResponse { Data = task, Message = "Submission approved successfully." });
         }
 
-        [HttpPut("api/tasks/{id:guid}")]
+    [HttpPost("submissions/{submissionId:guid}/reject")]
         [Authorize(Policy = "MangakaOnly")]
-        [SwaggerOperation(Summary = "Update a page task")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePageTaskRequest request)
-            => Ok(new BaseResponse { Data = await _service.UpdateAsync(id, request), Message = "Updated." });
-
-        [HttpDelete("api/tasks/{id:guid}/soft-delete")]
-        [Authorize(Policy = "MangakaOnly")]
-        [SwaggerOperation(Summary = "Soft-delete a page task")]
-        public async Task<IActionResult> SoftDelete(Guid id)
+    [SwaggerOperation(
+        Summary = "Reject assistant submission",
+        Description = "Mangaka-only. Rejects a submitted page task submission and returns the task to InProgress.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reject(Guid submissionId, [FromBody] ReviewPageTaskSubmissionRequest request)
         {
-            await _service.SoftDeleteAsync(id);
-            return Ok(new BaseResponse { Message = "Task deleted." });
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+        var task = await _pageTaskService.RejectSubmissionAsync(userId.Value, submissionId, request);
+        return Ok(new BaseResponse { Data = task, Message = "Submission rejected successfully." });
         }
 
         private Guid? GetUserId()
         {
-            var str = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return Guid.TryParse(str, out var id) ? id : null;
-        }
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdStr, out var id) ? id : null;
     }
 }
+

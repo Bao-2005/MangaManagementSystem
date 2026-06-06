@@ -34,6 +34,8 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IUserAssignmentService, UserAssignmentService>();
             services.AddScoped<IEscalationService, EscalationService>();
+            services.AddScoped<IPageTaskService, PageTaskService>();
+
 
             services.RegisterInfrastructure();
         }
