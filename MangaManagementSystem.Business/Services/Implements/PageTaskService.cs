@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
@@ -21,6 +22,7 @@ public class PageTaskService : IPageTaskService
     private readonly IRepository<Manuscript> _manuscriptRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<FileAsset> _fileAssetRepository;
+    private readonly IMapper _mapper;
 
     public PageTaskService(
         IRepository<PageTask> pageTaskRepository,
@@ -28,7 +30,8 @@ public class PageTaskService : IPageTaskService
         IRepository<Chapter> chapterRepository,
         IRepository<Manuscript> manuscriptRepository,
         IRepository<User> userRepository,
-        IRepository<FileAsset> fileAssetRepository)
+        IRepository<FileAsset> fileAssetRepository,
+        IMapper mapper)
     {
         _pageTaskRepository = pageTaskRepository;
         _submissionRepository = submissionRepository;
@@ -36,6 +39,7 @@ public class PageTaskService : IPageTaskService
         _manuscriptRepository = manuscriptRepository;
         _userRepository = userRepository;
         _fileAssetRepository = fileAssetRepository;
+        _mapper = mapper;
     }
 
     public async Task<PageTaskResponse> CreateAsync(Guid mangakaId, CreatePageTaskRequest request)
@@ -56,12 +60,13 @@ public class PageTaskService : IPageTaskService
         if (request.PageEnd > chapter.TotalPages)
             throw new ArgumentException("Page range exceeds chapter total pages.");
 
-        var manuscriptExists = await _manuscriptRepository.GetAll()
-            .AnyAsync(x => x.ManuscriptId == request.ManuscriptId
-                && x.ChapterId == request.ChapterId
-                && x.DeletedAt == null);
+        var manuscript = await _manuscriptRepository.GetAll()
+            .Where(x => x.ChapterId == request.ChapterId && x.DeletedAt == null)
+            .OrderByDescending(x => x.VersionNo)
+            .ThenByDescending(x => x.SubmittedAt)
+            .FirstOrDefaultAsync();
 
-        if (!manuscriptExists)
+        if (manuscript == null)
             throw new KeyNotFoundException("Manuscript not found for this chapter.");
 
         var assistant = await _userRepository.GetAll()
@@ -77,7 +82,7 @@ public class PageTaskService : IPageTaskService
         var task = new PageTask
         {
             ChapterId = request.ChapterId,
-            ManuscriptId = request.ManuscriptId,
+            ManuscriptId = manuscript.ManuscriptId,
             AssistantId = request.AssistantId,
             PageStart = request.PageStart,
             PageEnd = request.PageEnd,
@@ -101,7 +106,7 @@ public class PageTaskService : IPageTaskService
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
 
-        return tasks.Select(ToResponse);
+        return _mapper.Map<IEnumerable<PageTaskResponse>>(tasks);
     }
 
     public async Task<IEnumerable<PageTaskResponse>> GetAssistantTasksAsync(Guid assistantId)
@@ -111,7 +116,7 @@ public class PageTaskService : IPageTaskService
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
 
-        return tasks.Select(ToResponse);
+        return _mapper.Map<IEnumerable<PageTaskResponse>>(tasks);
     }
 
     public async Task<PageTaskResponse> SubmitAsync(Guid assistantId, Guid pageTaskId, SubmitPageTaskRequest request)
@@ -235,7 +240,7 @@ public class PageTaskService : IPageTaskService
         if (task == null)
             throw new KeyNotFoundException("Page task not found.");
 
-        return ToResponse(task);
+        return _mapper.Map<PageTaskResponse>(task);
     }
 
     private async Task<PageTaskResponse> GetTaskResponseForAssistantAsync(Guid assistantId, Guid pageTaskId)
@@ -246,7 +251,7 @@ public class PageTaskService : IPageTaskService
         if (task == null)
             throw new KeyNotFoundException("Page task not found.");
 
-        return ToResponse(task);
+        return _mapper.Map<PageTaskResponse>(task);
     }
 
     private IQueryable<PageTask> BaseTaskQuery()
@@ -261,42 +266,5 @@ public class PageTaskService : IPageTaskService
             .Where(x => x.DeletedAt == null);
     }
 
-    private static PageTaskResponse ToResponse(PageTask task)
-    {
-        return new PageTaskResponse
-        {
-            PageTaskId = task.PageTaskId,
-            ChapterId = task.ChapterId,
-            ManuscriptId = task.ManuscriptId,
-            AssistantId = task.AssistantId,
-            AssistantName = task.Assistant.DisplayName,
-            PageStart = task.PageStart,
-            PageEnd = task.PageEnd,
-            TaskType = task.TaskType,
-            Description = task.Description,
-            DueDate = task.DueDate,
-            Status = task.Status,
-            CreatedAt = task.CreatedAt,
-            ApprovedAt = task.ApprovedAt,
-            UpdatedAt = task.UpdatedAt,
-            Submissions = task.Submissions
-                .OrderByDescending(x => x.VersionNo)
-                .Select(x => new PageTaskSubmissionResponse
-                {
-                    SubmissionId = x.SubmissionId,
-                    PageTaskId = x.PageTaskId,
-                    VersionNo = x.VersionNo,
-                    SubmittedFileAssetId = x.SubmittedFileAssetId,
-                    OriginalFileName = x.SubmittedFileAsset.OriginalFileName,
-                    ObjectPath = x.SubmittedFileAsset.ObjectPath,
-                    Status = x.Status,
-                    Note = x.Note,
-                    RejectReason = x.RejectReason,
-                    SubmittedAt = x.SubmittedAt,
-                    ReviewedAt = x.ReviewedAt
-                })
-                .ToList()
-        };
-    }
 }
 
