@@ -8,8 +8,8 @@ using MangaManagementSystem.Business.DTOs.Responses;
 
 namespace MangaManagementSystem.Business.Services.Interfaces;
 
-public interface IPageTaskService
-{
+    public interface IPageTaskService
+    {
     Task<PageTaskResponse> CreateAsync(Guid mangakaId, CreatePageTaskRequest request);
     Task<IEnumerable<PageTaskResponse>> GetMangakaTasksAsync(Guid mangakaId);
     Task<IEnumerable<PageTaskResponse>> GetAssistantTasksAsync(Guid assistantId);

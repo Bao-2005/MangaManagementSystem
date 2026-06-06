@@ -29,6 +29,7 @@ public class MangaDbContext : DbContext
     public DbSet<BoardDecision> BoardDecisions => Set<BoardDecision>();
     public DbSet<BoardVote> BoardVotes => Set<BoardVote>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
+    public DbSet<ChapterPage> ChapterPages => Set<ChapterPage>();
     public DbSet<Manuscript> Manuscripts => Set<Manuscript>();
     public DbSet<PageTask> PageTasks => Set<PageTask>();
     public DbSet<PageTaskSubmission> PageTaskSubmissions => Set<PageTaskSubmission>();
@@ -54,6 +55,7 @@ public class MangaDbContext : DbContext
         ConfigureBoardDecisions(modelBuilder);
         ConfigureBoardVotes(modelBuilder);
         ConfigureChapters(modelBuilder);
+        ConfigureChapterPages(modelBuilder);
         ConfigureManuscripts(modelBuilder);
         ConfigurePageTasks(modelBuilder);
         ConfigurePageTaskSubmissions(modelBuilder);
@@ -370,6 +372,32 @@ public class MangaDbContext : DbContext
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.Chapters)
                 .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureChapterPages(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChapterPage>(entity =>
+        {
+            entity.ToTable("ChapterPages");
+            entity.HasKey(x => x.ChapterPageId);
+
+            entity.Property(x => x.ChapterPageId).HasDefaultValueSql(NewSequentialIdSql);
+            entity.Property(x => x.PageNo).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired().HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(x => x.DeletedAt).HasColumnType("datetime2");
+
+            entity.HasIndex(x => new { x.ChapterId, x.PageNo }).IsUnique();
+
+            entity.HasOne(x => x.Chapter)
+                .WithMany()
+                .HasForeignKey(x => x.ChapterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ImageFileAsset)
+                .WithMany()
+                .HasForeignKey(x => x.ImageFileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

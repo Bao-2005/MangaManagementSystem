@@ -14,8 +14,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MangaManagementSystem.Business.Services.Implements;
 
-public class PageTaskService : IPageTaskService
-{
+    public class PageTaskService : IPageTaskService
+    {
     private readonly IRepository<PageTask> _pageTaskRepository;
     private readonly IRepository<PageTaskSubmission> _submissionRepository;
     private readonly IRepository<Chapter> _chapterRepository;
@@ -79,19 +79,21 @@ public class PageTaskService : IPageTaskService
         if (assistant.Role.RoleName != UserRole.Assistant.ToString())
             throw new ArgumentException("Assigned user must have Assistant role.");
 
-        var task = new PageTask
+        public async Task<PageTaskResponse> CreateAsync(CreatePageTaskRequest request)
         {
-            ChapterId = request.ChapterId,
+            var task = new PageTask
+            {
+                ChapterId = request.ChapterId,
             ManuscriptId = manuscript.ManuscriptId,
-            AssistantId = request.AssistantId,
-            PageStart = request.PageStart,
-            PageEnd = request.PageEnd,
+                AssistantId = request.AssistantId,
+                PageStart = request.PageStart,
+                PageEnd = request.PageEnd,
             TaskType = request.TaskType.Trim(),
             Description = request.Description?.Trim(),
-            DueDate = request.DueDate,
-            Status = PageTaskStatus.Assigned,
-            CreatedAt = DateTime.UtcNow
-        };
+                DueDate = request.DueDate,
+                Status = PageTaskStatus.Assigned,
+                CreatedAt = DateTime.UtcNow
+            };
 
         await _pageTaskRepository.AddAsync(task);
         await _pageTaskRepository.SaveChangeAsync();
@@ -165,10 +167,10 @@ public class PageTaskService : IPageTaskService
         await _pageTaskRepository.SaveChangeAsync();
 
         return await GetTaskResponseForAssistantAsync(assistantId, task.PageTaskId);
-    }
+        }
 
     public async Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid submissionId)
-    {
+        {
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Approved;
@@ -177,7 +179,7 @@ public class PageTaskService : IPageTaskService
 
         task.Status = PageTaskStatus.Approved;
         task.ApprovedAt = DateTime.UtcNow;
-        task.UpdatedAt = DateTime.UtcNow;
+            task.UpdatedAt = DateTime.UtcNow;
 
         _submissionRepository.Update(submission);
         _pageTaskRepository.Update(task);
@@ -241,10 +243,10 @@ public class PageTaskService : IPageTaskService
             throw new KeyNotFoundException("Page task not found.");
 
         return _mapper.Map<PageTaskResponse>(task);
-    }
+        }
 
     private async Task<PageTaskResponse> GetTaskResponseForAssistantAsync(Guid assistantId, Guid pageTaskId)
-    {
+        {
         var task = await BaseTaskQuery()
             .FirstOrDefaultAsync(x => x.PageTaskId == pageTaskId && x.AssistantId == assistantId);
 
@@ -252,10 +254,10 @@ public class PageTaskService : IPageTaskService
             throw new KeyNotFoundException("Page task not found.");
 
         return _mapper.Map<PageTaskResponse>(task);
-    }
+        }
 
     private IQueryable<PageTask> BaseTaskQuery()
-    {
+        {
         return _pageTaskRepository.GetAll()
             .AsNoTracking()
             .Include(x => x.Assistant)

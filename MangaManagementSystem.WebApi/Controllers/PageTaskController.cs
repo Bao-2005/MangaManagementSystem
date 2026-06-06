@@ -3,18 +3,19 @@ using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 using WarehouseService.Application.DTOs;
 
 namespace MangaManagementSystem.API.Controllers;
 
-[ApiController]
+    [ApiController]
 [Route("api/page-tasks")]
-[Produces("application/json")]
+    [Produces("application/json")]
 [Tags("Page Tasks")]
-public class PageTaskController : ControllerBase
-{
+    public class PageTaskController : ControllerBase
+    {
     private readonly IPageTaskService _pageTaskService;
 
     public PageTaskController(IPageTaskService pageTaskService)
@@ -59,7 +60,7 @@ public class PageTaskController : ControllerBase
     }
 
     [HttpGet("assistant")]
-    [Authorize(Policy = "AssistantOnly")]
+        [Authorize(Policy = "AssistantOnly")]
     [SwaggerOperation(
         Summary = "Get tasks assigned to current assistant",
         Description = "Assistant-only. Returns page tasks assigned to the authenticated assistant.")]
@@ -67,13 +68,13 @@ public class PageTaskController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetAssistantTasks()
-    {
+        {
         var userId = GetUserId();
         if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
         var tasks = await _pageTaskService.GetAssistantTasksAsync(userId.Value);
         return Ok(new BaseResponse { Data = tasks, Message = "Success" });
-    }
+        }
 
     [HttpPost("{pageTaskId:guid}/submissions")]
     [Authorize(Policy = "AssistantOnly")]
@@ -96,7 +97,7 @@ public class PageTaskController : ControllerBase
     }
 
     [HttpPost("submissions/{submissionId:guid}/approve")]
-    [Authorize(Policy = "MangakaOnly")]
+        [Authorize(Policy = "MangakaOnly")]
     [SwaggerOperation(
         Summary = "Approve assistant submission",
         Description = "Mangaka-only. Approves a submitted page task submission for the authenticated mangaka's series.")]
@@ -106,16 +107,16 @@ public class PageTaskController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Approve(Guid submissionId)
-    {
+        {
         var userId = GetUserId();
         if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
         var task = await _pageTaskService.ApproveSubmissionAsync(userId.Value, submissionId);
         return Ok(new BaseResponse { Data = task, Message = "Submission approved successfully." });
-    }
+        }
 
     [HttpPost("submissions/{submissionId:guid}/reject")]
-    [Authorize(Policy = "MangakaOnly")]
+        [Authorize(Policy = "MangakaOnly")]
     [SwaggerOperation(
         Summary = "Reject assistant submission",
         Description = "Mangaka-only. Rejects a submitted page task submission and returns the task to InProgress.")]
@@ -126,16 +127,16 @@ public class PageTaskController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Reject(Guid submissionId, [FromBody] ReviewPageTaskSubmissionRequest request)
-    {
+        {
         var userId = GetUserId();
         if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
 
         var task = await _pageTaskService.RejectSubmissionAsync(userId.Value, submissionId, request);
         return Ok(new BaseResponse { Data = task, Message = "Submission rejected successfully." });
-    }
+        }
 
-    private Guid? GetUserId()
-    {
+        private Guid? GetUserId()
+        {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(userIdStr, out var id) ? id : null;
     }
