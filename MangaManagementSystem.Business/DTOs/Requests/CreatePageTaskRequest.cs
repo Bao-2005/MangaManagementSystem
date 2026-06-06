@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace MangaManagementSystem.Business.DTOs.Requests
-{
+{ 
     public class CreatePageTaskRequest
     {
         [Required]
@@ -13,10 +13,10 @@ namespace MangaManagementSystem.Business.DTOs.Requests
         [Required]
         public Guid AssistantId { get; set; }
 
-        [Required]
+        [Range(1, int.MaxValue)]
         public int PageStart { get; set; }
 
-        [Required]
+        [Range(1, int.MaxValue)]
         public int PageEnd { get; set; }
 
         [Required]
