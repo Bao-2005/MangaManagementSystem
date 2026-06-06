@@ -14,6 +14,7 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
+            services.AddScoped<IPageTaskService, PageTaskService>();
             services.RegisterInfrastructure();
         }
     }
