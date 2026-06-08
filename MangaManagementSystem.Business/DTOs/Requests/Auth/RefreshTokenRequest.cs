@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MangaManagementSystem.Business.DTOs.Requests
+namespace MangaManagementSystem.Business.DTOs.Requests.Auth
 {
     /// <summary>
     /// Request body for POST /api/auth/refresh.

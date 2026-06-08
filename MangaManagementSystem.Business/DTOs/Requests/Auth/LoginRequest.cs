@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MangaManagementSystem.Business.DTOs.Requests
+namespace MangaManagementSystem.Business.DTOs.Requests.Auth
 {
     public class LoginRequest
     {

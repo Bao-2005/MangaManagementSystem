@@ -78,6 +78,7 @@ namespace MangaManagementSystem.Business.Services.Implements;
 
         if (assistant.Role.RoleName != UserRole.Assistant.ToString())
             throw new ArgumentException("Assigned user must have Assistant role.");
+    }
 
         public async Task<PageTaskResponse> CreateAsync(CreatePageTaskRequest request)
         {
