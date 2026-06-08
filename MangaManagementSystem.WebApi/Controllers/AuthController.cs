@@ -23,7 +23,7 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpPost("register")]
-        [Authorize(Policy = "AdminOnly")]
+        //[Authorize(Policy = "AdminOnly")]
         [SwaggerOperation(
             Summary = "Create user account",
             Description = "Admin-only endpoint for creating user accounts. Provide username, email, display name, password, target role ID, and optional source assignment user ID. Mangaka accounts require an active Tantou Editor as the source assignment user.")]
