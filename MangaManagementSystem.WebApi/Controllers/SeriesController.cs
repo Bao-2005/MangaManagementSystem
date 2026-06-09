@@ -46,10 +46,13 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpPut("{id:guid}")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Update a series")]
+        [Authorize(Policy = "MangakaOnly")]
+        [SwaggerOperation(Summary = "Update editable series fields")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSeriesRequest request)
-            => Ok(new BaseResponse { Data = await _seriesService.UpdateAsync(id, request), Message = "Updated." });
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _seriesService.UpdateAsync(id, userId, request), Message = "Updated." });
+        }
 
         [HttpDelete("{id:guid}/soft-delete")]
         [Authorize(Policy = "AdminOnly")]
