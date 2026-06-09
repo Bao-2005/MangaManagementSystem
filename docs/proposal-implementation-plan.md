@@ -2,210 +2,282 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the proposal flow from Mangaka upload through Tantou review annotations, editorial board voting, escalation handover, activation, and chapter creation gates.
+**Goal:** Implement the series proposal flow from Mangaka proposal creation through reusable file upload, Tantou review, editorial board voting, automatic deadline finalization, Editor-in-Chief handover, and active series activation.
 
-**Architecture:** Keep the existing layered structure: Controller -> Business service -> Repository/DataAccess -> PostgreSQL. Add workflow services around the existing CRUD model so proposal, board decision, escalation, and chapter gates are enforced in the business layer instead of controllers.
+**Architecture:** Keep the existing layered structure: Controller -> Business service -> Repository/DataAccess -> PostgreSQL. Proposal behavior should live in the Series module because a proposal is the pre-active lifecycle of a `Series`; file upload, board voting, escalation, and reusable notification remain separate supporting services.
 
-**Tech Stack:** .NET 8, ASP.NET Core Web API, EF Core 8, PostgreSQL via Npgsql, AutoMapper, Swagger, existing repository pattern, Supabase-backed `FileAsset` metadata.
+**Tech Stack:** .NET 8, ASP.NET Core Web API, EF Core 8, PostgreSQL via Npgsql, AutoMapper, Swagger, existing repository pattern, existing `FileAsset`, `Notification`, and `UserNotification` tables, optional SignalR for real-time delivery.
 
 ---
 
 ## Business Rule Scope
 
-This plan covers the business-rule flow requested by the user:
+This plan covers:
 
 - Series proposal: BR-14, BR-15, BR-17, BR-18, BR-19, BR-21, BR-24.
 - Editorial board voting: BR-27, BR-28, BR-29, BR-30, BR-31, BR-33, BR-34, BR-35, BR-37.
-- Chapter creation through BR-46: BR-40, BR-41, BR-42, BR-43, BR-46.
-- Cross-cutting rules used by the flow: BR-03, BR-04, BR-06, BR-07, BR-128, BR-129, BR-135.
-- Page-task rules from BR-49 onward are out of scope except where BR-46 depends on page-task approval status.
+- Cross-cutting authorization rules: BR-03, BR-04, BR-06, BR-07.
+- Chapter creation and page-task rules are out of scope for this plan.
+
+## Proposed New Business Rules
+
+These are not currently in `Top50_Business_Rules_Manga.md`, but they can become official business rules because they define behavior for expired/tied/no-quorum board decisions.
+
+- **BR-New-01: Editor-in-Chief Deadline Extension Rule**
+  - When a proposal board decision reaches its first deadline and cannot be finalized because it is tied or has fewer than 3 valid votes, the Editor-in-Chief may extend the voting deadline exactly once.
+  - The extension must create a clear record on the `BoardDecision`, such as `ExtensionCount = 1`, `ExtendedBy`, `ExtendedAt`, and `ExtensionReason`.
+  - A decision that has already been extended cannot be extended again.
+
+- **BR-New-02: Editor-in-Chief Special Decision Rule**
+  - If an extended voting deadline passes and the board decision still cannot be finalized by normal quorum/majority rules, the Editor-in-Chief may make a special final decision of `Approved` or `Rejected`.
+  - The special decision must store the deciding user, timestamp, and reason.
+  - If rejected, the special decision reason must be written to `Series.RejectReason`.
 
 ## Current State
 
-- Existing entities already include `Series`, `ProposalPage`, `BoardDecision`, `BoardVote`, `Escalation`, `FileAsset`, and manuscript `Annotation`.
+- Existing entities already include `Series`, `ProposalPage`, `BoardDecision`, `BoardVote`, `Escalation`, `FileAsset`, `Notification`, and `UserNotification`.
 - Existing services/controllers are mostly CRUD and do not enforce the full proposal/voting workflow.
-- Existing proposal creation stores `Series.Status = "Proposed"`, but business rules require proposal lifecycle states: `Draft -> UnderReview -> Approved | Rejected | Expired`.
+- Existing proposal creation stores `Series.Status = "Proposed"`, but business rules require proposal lifecycle states.
 - Existing `CreateSeriesRequest` conflicts with BR-15: title allows 150 chars and synopsis requires minimum 200 chars. BR-15 requires title `<= 100` and synopsis `100-2000`.
-- Existing `Annotation` belongs to `Manuscript`, so proposal page annotation should be added separately instead of overloading manuscript annotation.
-- Existing board vote logic blocks duplicate votes only. It does not enforce eligibility, conflict of interest, quorum, majority, reject reason, expiration, or escalation.
+- Existing `Series.RejectReason` should be used for Tantou/editorial rejection feedback. Proposal annotations are not needed for this proposal workflow.
+- Existing board vote logic blocks duplicate votes only. It does not enforce eligibility, conflict of interest, quorum, majority, reject reason, expiration, extension, or Editor-in-Chief special decision.
+- Existing `NotificationService.BroadcastAsync` creates persisted notifications, but it should be improved for reuse and recipient validation.
+- Existing file metadata can be reused through `FileAsset`, but there is no reusable upload service or multipart API yet.
+
+## Status Model
+
+- Use proposal status to represent proposal lifecycle before activation:
+  - `Draft`
+  - `UnderReview`
+  - `BoardVoting`
+  - `Approved`
+  - `Rejected`
+  - `Expired`
+- Use series status only after proposal voting is done and the work becomes a real series:
+  - `Active`
+  - `OnHold`
+  - `Cancelled`
+- Implementation choice:
+  - Prefer adding `ProposalStatus` to `Series` if schema change is acceptable.
+  - Keep `Series.Status` for active series lifecycle.
+  - If avoiding schema change, use `Series.Status` temporarily for both lifecycles, but this is less clear and should be documented as technical debt.
 
 ## Future Changes
 
-- Add a dedicated proposal workflow instead of relying on general `SeriesController` CRUD updates.
-- Add file upload endpoints for proposal source zip and sample-page images.
-- Add proposal-page annotations with FE-supplied coordinates and comments.
-- Add Tantou review actions: submit to board, activate approved proposal, escalate expired/tied/no-quorum decisions.
-- Add board voting finalization with quorum and majority calculation.
-- Add Editor-in-Chief resolution for escalated proposal decisions.
-- Add audit log and optimistic concurrency support for governance-sensitive entities.
-- Update API documentation so FE uses the new workflow endpoints and BR-15 values.
+- Modify current Series CRUD/services/controllers to enforce proposal rules instead of adding a completely separate proposal module.
+- Add reusable file upload support that can serve proposal pages, source zip files, manuscript/task submissions, and future upload needs.
+- Remove proposal annotation work from the plan.
+- Use `Series.RejectReason` for Tantou/editorial rejection feedback.
+- Add board voting finalization with quorum, majority, expiration, extension, and special-decision handling.
+- Add backend automatic deadline processing.
+- Add reusable notification dispatch that can be called by any service.
+- Optionally add SignalR for real-time notifications while keeping persisted notifications as source of truth.
+- Update API documentation so FE uses the revised workflow endpoints and BR-15 values.
 
 ## File Impact Map
 
 ### Files to Create
 
-- `MangaManagementSystem.DataAccess/Entities/Models/ProposalAnnotation.cs`
-  - Stores Tantou annotation comments for proposal sample pages.
-- `MangaManagementSystem.DataAccess/Entities/Models/AuditLog.cs`
-  - Stores immutable audit entries for BR-128 and BR-129.
+- `MangaManagementSystem.Business/DTOs/Requests/Files/FileUploadRequest.cs`
+  - Reusable upload metadata such as bucket/type/category when needed.
+- `MangaManagementSystem.Business/DTOs/Responses/Files/FileAssetResponse.cs`
+  - Reusable uploaded file metadata response.
 - `MangaManagementSystem.Business/DTOs/Requests/Series/CreateProposalRequest.cs`
-  - Multipart proposal creation fields: title, synopsis, publication type, genres, source zip, sample pages.
+  - Proposal creation payload using uploaded `FileAssetId` references.
+- `MangaManagementSystem.Business/DTOs/Requests/Series/CreateProposalWithFilesRequest.cs`
+  - Multipart proposal creation payload if proposal creation and upload are combined in one endpoint.
 - `MangaManagementSystem.Business/DTOs/Requests/Series/SubmitProposalToBoardRequest.cs`
   - Optional Tantou note when submitting proposal to board.
-- `MangaManagementSystem.Business/DTOs/Requests/Series/CreateProposalAnnotationRequest.cs`
-  - Proposal page annotation coordinates and comment.
-- `MangaManagementSystem.Business/DTOs/Requests/Series/UpdateProposalAnnotationRequest.cs`
-  - Proposal annotation content/position update payload.
-- `MangaManagementSystem.Business/DTOs/Requests/Series/ResolveBoardEscalationRequest.cs`
-  - Editor-in-Chief approve/reject resolution payload.
-- `MangaManagementSystem.Business/DTOs/Responses/Series/ProposalAnnotationResponse.cs`
-  - Proposal annotation response shape.
+- `MangaManagementSystem.Business/DTOs/Requests/Series/RejectProposalRequest.cs`
+  - Tantou/editorial rejection reason payload.
+- `MangaManagementSystem.Business/DTOs/Requests/Series/ExtendBoardDecisionRequest.cs`
+  - Editor-in-Chief extension reason and new deadline.
+- `MangaManagementSystem.Business/DTOs/Requests/Series/SpecialBoardDecisionRequest.cs`
+  - Editor-in-Chief special approve/reject decision payload.
 - `MangaManagementSystem.Business/DTOs/Responses/Series/BoardDecisionSummaryResponse.cs`
-  - Vote summary: approve count, reject count, valid vote count, quorum flag, current result.
-- `MangaManagementSystem.Business/Services/Interfaces/Series/IProposalWorkflowService.cs`
-  - Proposal creation, submit review, submit board, activation, and escalation workflow contract.
-- `MangaManagementSystem.Business/Services/Implements/Series/ProposalWorkflowService.cs`
-  - Business-rule implementation for proposal workflow.
-- `MangaManagementSystem.Business/Services/Interfaces/Series/IProposalAnnotationService.cs`
-  - Proposal annotation contract.
-- `MangaManagementSystem.Business/Services/Implements/Series/ProposalAnnotationService.cs`
-  - Proposal annotation implementation.
-- `MangaManagementSystem.Business/Services/Interfaces/IFileAssetService.cs`
-  - File metadata creation contract.
-- `MangaManagementSystem.Business/Services/Implements/FileAssetService.cs`
-  - File metadata implementation.
-- `MangaManagementSystem.Business/Services/Interfaces/IStorageService.cs`
-  - Storage abstraction for uploaded files.
-- `MangaManagementSystem.Business/Services/Implements/SupabaseStorageService.cs`
-  - Supabase upload implementation or local development-compatible adapter.
-- `MangaManagementSystem.Business/Services/Interfaces/IAuditLogService.cs`
-  - Audit log creation contract.
-- `MangaManagementSystem.Business/Services/Implements/AuditLogService.cs`
-  - Audit log implementation.
-- `MangaManagementSystem.WebApi/Controllers/ProposalWorkflowController.cs`
-  - Workflow endpoints for proposal creation, review, board submission, activation, and escalation.
-- `MangaManagementSystem.WebApi/Controllers/ProposalAnnotationController.cs`
-  - Proposal page annotation endpoints.
+  - Vote summary: approve count, reject count, valid vote count, quorum flag, current result, deadline state.
+- `MangaManagementSystem.Business/DTOs/Responses/NotificationDispatchResponse.cs`
+  - Reusable notification result including delivered users, skipped users, and no-recipient state.
+- `MangaManagementSystem.Business/Services/Interfaces/Series/ISeriesProposalWorkflowService.cs`
+  - Series proposal workflow contract.
+- `MangaManagementSystem.Business/Services/Implements/Series/SeriesProposalWorkflowService.cs`
+  - Proposal state transitions, validation, Tantou review, board submission, activation.
+- `MangaManagementSystem.Business/Services/Interfaces/Files/IFileUploadService.cs`
+  - Reusable upload contract that stores file bytes and creates `FileAsset` records.
+- `MangaManagementSystem.Business/Services/Implements/Files/FileUploadService.cs`
+  - Reusable upload implementation.
+- `MangaManagementSystem.Business/Services/Interfaces/Files/IStorageService.cs`
+  - Storage-provider abstraction for Supabase/local storage.
+- `MangaManagementSystem.Business/Services/Implements/Files/SupabaseStorageService.cs`
+  - Supabase-backed storage implementation.
+- `MangaManagementSystem.Business/Services/Interfaces/Series/IBoardDecisionFinalizationService.cs`
+  - Board decision finalization and deadline processing contract.
+- `MangaManagementSystem.Business/Services/Implements/Series/BoardDecisionFinalizationService.cs`
+  - Quorum, majority, expiration, extension, and special-decision logic.
+- `MangaManagementSystem.Business/Services/Interfaces/INotificationDispatchService.cs`
+  - Reusable notification dispatch contract.
+- `MangaManagementSystem.Business/Services/Implements/NotificationDispatchService.cs`
+  - User/role recipient resolution and persisted notification creation.
+- `MangaManagementSystem.WebApi/Controllers/SeriesProposalController.cs`
+  - Workflow endpoints for proposal create, review, reject, board submission, activation.
+- `MangaManagementSystem.WebApi/Controllers/FileController.cs`
+  - Reusable upload endpoint for any workflow that needs file assets.
+- `MangaManagementSystem.WebApi/BackgroundServices/BoardDecisionDeadlineWorker.cs`
+  - Backend automatic processing for decisions whose deadlines have passed.
+- Optional: `MangaManagementSystem.WebApi/Hubs/NotificationHub.cs`
+  - SignalR hub for real-time notification delivery.
 
 ### Files to Modify
 
 - `MangaManagementSystem.DataAccess/DbContext/MangaDbContext.cs`
-  - Add `DbSet<ProposalAnnotation>`, `DbSet<AuditLog>`, entity mappings, relationships, indexes, delete behavior, and board decision concurrency token.
+  - Add proposal status mapping if `Series.ProposalStatus` is added.
+  - Add board decision extension/special-decision fields.
+  - Register indexes needed for deadline worker queries.
 - `MangaManagementSystem.DataAccess/Entities/Models/Series.cs`
-  - Keep existing proposal-related fields but align status use with proposal lifecycle constants.
-- `MangaManagementSystem.DataAccess/Entities/Models/ProposalPage.cs`
-  - Add `ICollection<ProposalAnnotation>` navigation.
+  - Add `ProposalStatus` if schema change is accepted.
+  - Continue using `RejectReason` for proposal rejection feedback.
 - `MangaManagementSystem.DataAccess/Entities/Models/BoardDecision.cs`
-  - Add optimistic concurrency field such as `RowVersion` or PostgreSQL-compatible concurrency token.
+  - Add fields such as `ExtensionCount`, `ExtendedBy`, `ExtendedAt`, `ExtensionReason`, `SpecialDecisionBy`, `SpecialDecisionAt`, `SpecialDecisionReason`.
 - `MangaManagementSystem.DataAccess/Entities/Models/User.cs`
-  - Add navigation collections for `ProposalAnnotation` and `AuditLog` if needed.
+  - Add navigation properties only if needed for new board decision extension/special-decision fields.
+- `MangaManagementSystem.DataAccess/Entities/Models/FileAsset.cs`
+  - Add upload category, owner, or storage provider fields only if required for reusable upload tracking.
 - `MangaManagementSystem.DataAccess/Entities/Enums/SeriesStatus.cs`
-  - Align values with canonical active series lifecycle.
+  - Align values with active series lifecycle.
 - `MangaManagementSystem.DataAccess/Entities/Enums/ProposalStatus.cs`
-  - Add `Expired` and ensure values match BR-14.
+  - Add `BoardVoting` and `Expired`; ensure values match proposal lifecycle.
 - `MangaManagementSystem.Business/DTOs/Requests/Series/CreateSeriesRequest.cs`
-  - Either deprecate for proposal creation or correct validation to BR-15 if kept.
+  - Correct BR-15 validation or deprecate in favor of `CreateProposalRequest`.
 - `MangaManagementSystem.Business/DTOs/Requests/Series/CreateBoardVoteRequest.cs`
-  - Enforce reject comment requirement through service logic; keep DTO simple.
+  - Keep DTO simple; service enforces reject reason rule.
+- `MangaManagementSystem.Business/DTOs/Requests/CreateNotificationRequest.cs`
+  - Add optional recipient mode fields only if needed; otherwise keep and wrap through dispatch service.
 - `MangaManagementSystem.Business/DTOs/Responses/Series/SeriesDetailResponse.cs`
-  - Include proposal pages, proposal annotations summary if required by FE.
+  - Include proposal status, reject reason, latest board decision summary if useful for FE.
 - `MangaManagementSystem.Business/DTOs/Responses/Series/BoardDecisionResponse.cs`
-  - Include vote summary, quorum state, deadline state, and finalization details.
+  - Include vote summary, quorum state, deadline state, extension count, and special-decision details.
 - `MangaManagementSystem.Business/Services/Interfaces/Series/ISeriesService.cs`
-  - Avoid exposing unsafe status mutation for proposal workflow.
+  - Remove or restrict unsafe arbitrary proposal/series status mutation.
 - `MangaManagementSystem.Business/Services/Implements/Series/SeriesService.cs`
-  - Enforce or delegate proposal validation, active title uniqueness, and restricted status changes.
+  - Enforce or delegate proposal validation, title uniqueness, one-active-proposal limit, and safe state transitions.
 - `MangaManagementSystem.Business/Services/Interfaces/Series/IBoardDecisionService.cs`
-  - Add decision summary/finalization methods.
+  - Add summary and extension/special-decision methods or delegate to finalization service.
 - `MangaManagementSystem.Business/Services/Implements/Series/BoardDecisionService.cs`
-  - Implement quorum, majority, expiration, irreversible result checks, and status transitions.
+  - Keep CRUD/query responsibilities; delegate business finalization to `BoardDecisionFinalizationService`.
 - `MangaManagementSystem.Business/Services/Interfaces/Series/IBoardVoteService.cs`
   - Return decision summary after cast vote.
 - `MangaManagementSystem.Business/Services/Implements/Series/BoardVoteService.cs`
-  - Enforce eligibility, conflict of interest, duplicate vote, reject reason, and deadline.
+  - Enforce eligibility, conflict of interest, duplicate vote, reject reason, deadline, and trigger recalculation.
 - `MangaManagementSystem.Business/Services/Interfaces/Series/IEscalationService.cs`
-  - Add constrained board-decision handover creation/resolution methods.
+  - Add or keep handover support if escalations remain the UI mechanism for chief review.
 - `MangaManagementSystem.Business/Services/Implements/Series/EscalationService.cs`
-  - Enforce Tantou-only escalation and Editor-in-Chief resolution rules.
-- `MangaManagementSystem.Business/Services/Implements/Chapters/ChapterService.cs`
-  - Enforce BR-40, BR-41, BR-42, and BR-46.
+  - Support Editor-in-Chief handover review if using `Escalation` records for tie/expired decisions.
+- `MangaManagementSystem.Business/Services/Interfaces/INotificationService.cs`
+  - Keep existing user notification reads; add helper methods only if not creating separate dispatch service.
+- `MangaManagementSystem.Business/Services/Implements/NotificationService.cs`
+  - Keep read/mark/broadcast behavior; use `NotificationDispatchService` for reusable workflow sends.
 - `MangaManagementSystem.WebApi/Controllers/SeriesController.cs`
-  - Keep general reads; route creation to proposal workflow or mark old create endpoint as legacy.
+  - Keep general reads and legacy-safe CRUD; route proposal state changes through workflow endpoints.
 - `MangaManagementSystem.WebApi/Controllers/BoardDecisionController.cs`
-  - Replace unsafe admin create/update paths with workflow-aware board decision actions.
+  - Replace unsafe admin create/update paths with workflow-aware vote/finalize/extend/special-decision actions.
 - `MangaManagementSystem.WebApi/Controllers/EscalationController.cs`
-  - Route board decision handover through constrained service methods.
-- `MangaManagementSystem.WebApi/Controllers/ChapterController.cs`
-  - Ensure chapter creation uses current authenticated user and service-level ownership checks.
+  - Use only if chief handover is represented as an escalation record.
+- `MangaManagementSystem.WebApi/Controllers/NotificationController.cs`
+  - Keep user notification retrieval/read endpoints.
 - `MangaManagementSystem.WebApi/Extensions/ServiceCollection.cs`
-  - Register new workflow, annotation, storage, file asset, and audit services.
+  - Register proposal workflow, reusable file upload/storage, finalization, notification dispatch, and background worker.
 - `MangaManagementSystem.WebApi/Program.cs`
-  - Only update if multipart upload limits, request size limits, or authorization policies need adjustment.
-- `MangaManagementSystem.Business/Mappers/DependencyInjection.cs`
-  - Register new AutoMapper profile if a profile is added.
-- `MangaManagementSystem.Business/Mappers/Profiles/BoardProfile.cs`
-  - Add or update board decision summary mappings.
-- `MangaManagementSystem.Business/Mappers/Profiles/SeriesProfile.cs`
-  - Add proposal detail mappings.
+  - Register multipart upload limits if needed, storage configuration, and SignalR only if real-time notifications are included.
 - `docs/API_CONTRACT.md`
   - Update endpoints, payloads, statuses, and BR-15 values.
 - `MangaManagementSystem.WebApi/docs/AGENTS.md`
-  - Update current domain model and feature workflow notes.
+  - Update current domain model and workflow notes.
 
 ### Files Affected Indirectly
 
 - `MangaManagementSystem.DataAccess/Migrations/*`
-  - New EF migration generated from schema changes.
+  - New EF migration if `ProposalStatus`, board decision extension/special-decision fields, or extra `FileAsset` fields are added.
 - `MangaManagementSystem.DataAccess/Migrations/MangaDbContextModelSnapshot.cs`
   - Updated by EF migration generation.
-- `MangaManagementSystem.sln`
-  - No expected changes unless test projects are added.
 - `MangaManagementSystem.Business/MangaManagementSystem.Business.csproj`
-  - Update only if storage implementation requires a new package.
+  - Update only if reusable upload/storage implementation requires a package reference.
 - `MangaManagementSystem.WebApi/MangaManagementSystem.WebApi.csproj`
-  - Update only if upload/storage package references are added.
+  - Update only if SignalR, upload, or storage package references are needed.
 - `MangaManagementSystem.WebApi/appsettings.json`
-  - Do not add secrets. Add only non-secret upload/storage configuration if required.
+  - Add only non-secret worker interval or upload configuration if required.
 
 ## Implementation Checkpoints
 
-### Checkpoint 1: Normalize Constants and Validation
+### Checkpoint 1: Normalize Proposal and Series Status
 
-- [ ] Add shared constants/enums for proposal statuses, active series statuses, board decision statuses, decision results, decision types, assignment types, and allowed publication types.
+- [ ] Use `ProposalStatus` for proposal lifecycle.
+- [ ] Use `SeriesStatus` only for active/post-voting series lifecycle.
+- [ ] Add or confirm statuses: `Draft`, `UnderReview`, `BoardVoting`, `Approved`, `Rejected`, `Expired`.
+- [ ] Keep `Series.RejectReason` as the canonical rejection feedback field.
+- [ ] Remove proposal annotation work from implementation scope.
+
+### Checkpoint 2: Adapt Series CRUD to Proposal Rules
+
 - [ ] Correct BR-15 validation: title `<= 100`, synopsis `100-2000`, at least one valid genre, valid publication type, and at least 5 sample pages.
 - [ ] Enforce BR-17: proposal title cannot match an active series title.
-- [ ] Enforce BR-19: a Mangaka can have at most one `Draft` or `UnderReview` proposal.
+- [ ] Enforce BR-19: a Mangaka can have at most one `Draft`, `UnderReview`, or `BoardVoting` proposal.
 - [ ] Prevent direct arbitrary status mutation from generic update endpoints.
+- [ ] Keep reads in existing `SeriesController`; put state transitions behind explicit workflow endpoints.
 
-### Checkpoint 2: Add Proposal Upload Creation
+### Checkpoint 3: Reusable File Upload Service
 
-- [ ] Add `IStorageService` and `IFileAssetService`.
-- [ ] Add `POST /api/proposals` as `multipart/form-data`.
-- [ ] Store optional source zip and required sample-page images.
-- [ ] Create `FileAsset` rows for uploads.
-- [ ] Create `Series` as proposal draft.
-- [ ] Create `ProposalPage` rows with sequential page numbers.
-- [ ] Wrap database changes in a transaction.
+- [ ] Add reusable upload endpoint such as `POST /api/files`.
+- [ ] Accept `multipart/form-data` with one or more files.
+- [ ] Validate file type, extension, MIME type, and file size based on requested upload category.
+- [ ] Upload file bytes to storage through `IStorageService`.
+- [ ] Create `FileAsset` records with bucket name, object path, original filename, stored filename, extension, file size, and MIME type.
+- [ ] Return `FileAssetId` values for later use by proposal pages, source zip, task submissions, and future upload workflows.
+- [ ] If all files fail validation, return a clear business error.
+- [ ] If some files fail validation, either reject the whole request or return partial failure according to the chosen API policy; prefer rejecting the whole request for proposal uploads.
 
-### Checkpoint 3: Add Proposal Review and Annotations
+### Checkpoint 4: Proposal File and Sample Page Handling
 
-- [ ] Add `ProposalAnnotation` entity and EF mapping.
-- [ ] Add request/response DTOs and service methods for proposal annotations.
-- [ ] Add endpoints under `/api/proposal-pages/{proposalPageId}/annotations`.
-- [ ] Enforce object-level authorization: only assigned Tantou Editor can create proposal annotations.
-- [ ] Allow annotation only while proposal is `UnderReview`.
-- [ ] Store FE-provided position fields exactly enough for FE to render annotations back on the page.
+- [ ] Proposal creation should support uploaded file references from the reusable upload service.
+- [ ] `CreateProposalRequest` accepts optional `SourceZipFileAssetId` and required `SamplePageFileAssetIds`.
+- [ ] Validate every referenced file exists and is not deleted.
+- [ ] Validate source zip file extension/MIME category when provided.
+- [ ] Validate sample page file assets are images.
+- [ ] Create `ProposalPage` rows from `SamplePageFileAssetIds`.
+- [ ] Require at least 5 non-deleted proposal pages before Tantou/board submission.
+- [ ] Optional future convenience endpoint: `POST /api/proposals/with-files` can combine upload + proposal creation, but it should internally reuse the same file upload service.
 
-### Checkpoint 4: Submit Proposal to Editorial Board
+### Checkpoint 5: Tantou Review Without Annotations
 
 - [ ] Add `POST /api/proposals/{seriesId}/submit-review` for Mangaka to move `Draft -> UnderReview`.
-- [ ] Add `POST /api/proposals/{seriesId}/submit-board` for assigned Tantou Editor.
-- [ ] Validate proposal completeness again at board submission.
-- [ ] Create `BoardDecision` with `DecisionType = "SeriesProposal"`, `Status = "Open"`, and `VotingDeadline = UtcNow + 7 days`.
-- [ ] Block duplicate open board decisions for the same proposal.
-- [ ] Notify active Editorial Board members.
+- [ ] Add Tantou reject endpoint that writes to `Series.RejectReason` and sets proposal status `Rejected`.
+- [ ] Allow Mangaka to create a new proposal after rejection, following BR-19.
+- [ ] Add Tantou submit-to-board endpoint for valid under-review proposal.
+- [ ] Enforce object-level authorization: only assigned Tantou Editor can reject or submit to board.
 
-### Checkpoint 5: Enforce Board Voting Rules
+### Checkpoint 6: Reusable Notification Dispatch
+
+- [ ] Add `INotificationDispatchService`.
+- [ ] Support sending to explicit user IDs.
+- [ ] Support sending to all active users in a role, especially `EditorialBoard` and `EditorInChief`.
+- [ ] Validate recipients exist and are active.
+- [ ] If no recipients are resolved, return a clear `NoRecipients` result or throw a business exception.
+- [ ] If some requested users do not exist, skip them and include skipped IDs in the response.
+- [ ] Persist notifications through existing `Notification` and `UserNotification` tables.
+- [ ] Optionally push real-time events through SignalR after persistence.
+
+### Checkpoint 7: Submit Proposal to Editorial Board
+
+- [ ] Add `POST /api/proposals/{seriesId}/submit-board`.
+- [ ] Validate proposal is `UnderReview`.
+- [ ] Validate caller is assigned Tantou Editor.
+- [ ] Validate proposal completeness again.
+- [ ] Create `BoardDecision` with `DecisionType = "SeriesProposal"`, `Status = "Open"`, and `VotingDeadline = UtcNow + 7 days`.
+- [ ] Set proposal status to `BoardVoting`.
+- [ ] Block duplicate open board decisions for the same proposal.
+- [ ] Use notification dispatch service to notify active Editorial Board members.
+- [ ] If there are no active board recipients, return a clear business failure and do not silently continue.
+
+### Checkpoint 8: Enforce Board Voting Rules
 
 - [ ] Update board vote route to `POST /api/board-decisions/{boardDecisionId}/votes`.
 - [ ] Enforce active `EditorialBoard` role at request time.
@@ -214,171 +286,110 @@ This plan covers the business-rule flow requested by the user:
 - [ ] Block duplicate votes.
 - [ ] Require reject reason/comment with at least 50 characters.
 - [ ] Return current vote summary after vote creation.
+- [ ] Trigger finalization recalculation after each vote.
 
-### Checkpoint 6: Finalize Board Decisions
+### Checkpoint 9: Board Decision Finalization Logic
 
-- [ ] Add a finalization method used after each vote and by manual deadline checks.
+- [ ] Add `BoardDecisionFinalizationService`.
+- [ ] Count only valid, non-deleted, conflict-free votes.
 - [ ] Require quorum of at least 3 valid votes.
 - [ ] Approve when approve votes are greater than 50 percent of valid votes.
-- [ ] Reject when reject votes are greater than 50 percent of valid votes and finalization conditions are met.
-- [ ] If deadline passes with equal approve/reject votes, set decision to escalation-needed state and notify Editor-in-Chief.
-- [ ] If deadline passes without quorum, mark `Expired` or `NoQuorum` and notify Editor-in-Chief.
-- [ ] Update proposal status to `Approved`, `Rejected`, or `Expired` only through finalization logic.
+- [ ] Reject when reject votes are greater than 50 percent of valid votes.
+- [ ] Write rejection reason to `Series.RejectReason`; choose an aggregated reject summary or require Tantou/chief final reason.
+- [ ] If deadline passes with fewer than 3 valid votes, mark proposal status `Expired` and decision result `NoQuorum`.
+- [ ] If deadline passes with equal approve/reject votes, mark decision as `Tie` and notify Editor-in-Chief.
+- [ ] Do not let FE decide finalization. FE only displays state and calls allowed actions.
 
-### Checkpoint 7: Activate Approved Proposal
+### Checkpoint 10: Automatic Deadline Processing
+
+- [ ] Add `BoardDecisionDeadlineWorker` as ASP.NET Core `BackgroundService`.
+- [ ] Worker runs every 1-5 minutes.
+- [ ] Worker queries open board decisions where `VotingDeadline <= UtcNow`.
+- [ ] Worker calls `BoardDecisionFinalizationService`.
+- [ ] Worker must be idempotent: processing the same decision twice must not duplicate finalization or notifications.
+- [ ] For this project, use `BackgroundService`; future production option can be Hangfire, Quartz.NET, or database scheduler.
+
+### Checkpoint 11: Editor-in-Chief Extension and Special Decision
+
+- [ ] Notify Editor-in-Chief when first deadline ends in tie or no quorum.
+- [ ] Add `POST /api/board-decisions/{id}/extend-deadline`.
+- [ ] Allow only `EditorInChief`.
+- [ ] Allow extension only once.
+- [ ] Require extension reason and new future deadline.
+- [ ] After extended deadline passes, worker finalizes normally if possible.
+- [ ] If still tied or no quorum after the extension, allow `POST /api/board-decisions/{id}/special-decision`.
+- [ ] Special decision must be `Approved` or `Rejected` and include reason.
+- [ ] If rejected, write reason to `Series.RejectReason`.
+- [ ] If approved, set proposal status `Approved`.
+
+### Checkpoint 12: Activate Approved Proposal
 
 - [ ] Add `POST /api/proposals/{seriesId}/activate`.
 - [ ] Allow only assigned Tantou Editor.
 - [ ] Require proposal status `Approved`.
-- [ ] Require finalized approved board decision with quorum.
+- [ ] Require finalized approved board decision with quorum or valid Editor-in-Chief special approval.
 - [ ] Set series status to `Active`.
 - [ ] Block Mangaka self-activation.
 
-### Checkpoint 8: Escalate to Editor-in-Chief
+### Checkpoint 13: Update Documentation
 
-- [ ] Add constrained board decision escalation creation.
-- [ ] Allow assigned Tantou Editor to escalate only expired, tied, no-quorum, or deadline-passed decisions with no final result.
-- [ ] Store escalation as `Type = "BoardDecisionHandover"` and `EntityType = "BoardDecision"`.
-- [ ] Add Editor-in-Chief resolution flow that approves or rejects the proposal and finalizes the decision.
-- [ ] Notify Tantou and Mangaka after resolution.
+- [ ] Update `docs/API_CONTRACT.md` with revised proposal, rejection, board vote, notification, extension, special-decision, and activation endpoints.
+- [ ] Update `MangaManagementSystem.WebApi/docs/AGENTS.md` with new workflow responsibilities.
+- [ ] Add BR-New-01 and BR-New-02 to project business-rule documentation if approved by the team.
 
-### Checkpoint 9: Enforce Chapter Creation Through BR-46
+## Finalize Board Voting Behavior
 
-- [ ] Enforce BR-40: only Mangaka owner can create chapters for active series.
-- [ ] Enforce BR-41: chapter number must be unique and monotonically increasing within the series.
-- [ ] Enforce BR-42: publication date cannot be in the past; submission deadline is publication date minus 14 days; deadline must be at least 3 days after chapter creation.
-- [ ] Enforce BR-43: add overdue chapter notification path for Tantou Editor.
-- [ ] Enforce BR-46: chapter can move to submitted only when all required page tasks are approved.
+Finalization is backend-owned.
 
-### Checkpoint 10: Add Audit and Concurrency
+The FE must not determine whether a proposal is approved, rejected, expired, or tied. FE can display the latest state and call allowed actions, but the backend owns:
 
-- [ ] Add immutable audit log for `Series`, `BoardDecision`, `BoardVote`, `Escalation`, and `Chapter`.
-- [ ] Capture actor ID, actor role, action, entity type, entity ID, UTC timestamp, old value, new value, from status, and to status.
-- [ ] Add optimistic concurrency to `BoardDecision`.
-- [ ] Ensure decision finalization and downstream status updates happen transactionally.
+- Deadline comparison.
+- Valid vote count.
+- Conflict-of-interest exclusion.
+- Quorum calculation.
+- Majority calculation.
+- Proposal status update.
+- Notification dispatch.
 
-### Checkpoint 11: Update Documentation
+### Normal Finalization
 
-- [ ] Update `docs/API_CONTRACT.md` with new proposal, annotation, board vote, escalation, activation, and chapter gate endpoints.
-- [ ] Update `MangaManagementSystem.WebApi/docs/AGENTS.md` with new domain model notes and workflow responsibilities.
-- [ ] Document that `docs/Top50_Business_Rules_Manga.md` is the source of truth for BR-15 conflicts.
+When a vote is cast or a deadline worker processes an expired deadline:
 
-## API Shape
+- Count valid votes.
+- If valid votes are at least 3:
+  - If approve votes are greater than 50 percent of valid votes, set board result `Approved` and proposal status `Approved`.
+  - If reject votes are greater than 50 percent of valid votes, set board result `Rejected`, proposal status `Rejected`, and set `Series.RejectReason`.
+  - If approve votes equal reject votes after deadline, set board result `Tie` and notify Editor-in-Chief.
+- If valid votes are fewer than 3 after deadline:
+  - Set board result `NoQuorum`.
+  - Set proposal status `Expired`.
+  - Notify Editor-in-Chief.
 
-### Proposal Creation
+### Extension and Special Decision
 
-`POST /api/proposals`
+- First failed deadline because of tie/no quorum:
+  - Editor-in-Chief may extend deadline once.
+- Second failed deadline after extension:
+  - Editor-in-Chief may issue special `Approved` or `Rejected` decision.
 
-Role: `Mangaka`
+## Reusable Notification Behavior
 
-Content type: `multipart/form-data`
+Notification sending should be a reusable service, not embedded in board voting only.
 
-Fields:
+Expected behavior:
 
-- `title`: required, max 100 chars.
-- `synopsis`: required, 100-2000 chars.
-- `publicationType`: required, from configured list.
-- `genreIds`: required, at least one valid genre ID.
-- `sourceZip`: optional zip file.
-- `samplePages`: required image files, at least 5.
+- Resolve target users by role or explicit user IDs.
+- Validate users exist and are not deleted/deactivated.
+- If no recipients exist, report that clearly to the caller.
+- If some recipients are invalid, skip them and report skipped IDs.
+- Persist notification rows before any real-time push.
+- Return delivery summary.
 
-Result:
+SignalR can be added for real-time notifications:
 
-- Creates proposal draft series.
-- Creates proposal sample pages.
-- Returns proposal detail.
-
-### Proposal Review
-
-`POST /api/proposals/{seriesId}/submit-review`
-
-Role: `Mangaka`
-
-Result:
-
-- Moves proposal from `Draft` to `UnderReview`.
-
-`POST /api/proposal-pages/{proposalPageId}/annotations`
-
-Role: assigned `TantouEditor`
-
-Body:
-
-```json
-{
-  "positionX": 120.5,
-  "positionY": 340.25,
-  "content": "Panel composition needs clearer focus."
-}
-```
-
-Result:
-
-- Stores annotation for FE coordinate rendering.
-
-### Board Submission and Voting
-
-`POST /api/proposals/{seriesId}/submit-board`
-
-Role: assigned `TantouEditor`
-
-Result:
-
-- Creates open board decision with 7 calendar day voting window.
-
-`POST /api/board-decisions/{boardDecisionId}/votes`
-
-Role: `EditorialBoard`
-
-Body:
-
-```json
-{
-  "voteValue": false,
-  "comment": "The proposal needs stronger character motivation before launch."
-}
-```
-
-Result:
-
-- Records valid vote and returns current board decision summary.
-
-### Escalation
-
-`POST /api/board-decisions/{boardDecisionId}/escalate`
-
-Role: assigned `TantouEditor`
-
-Result:
-
-- Creates handover escalation for Editor-in-Chief when decision expired, tied, or lacks quorum.
-
-`POST /api/escalations/{id}/resolve`
-
-Role: `EditorInChief`
-
-Body:
-
-```json
-{
-  "resolution": "Approved",
-  "comment": "Approved after handover review."
-}
-```
-
-Result:
-
-- Finalizes escalation and updates proposal/decision status.
-
-### Activation
-
-`POST /api/proposals/{seriesId}/activate`
-
-Role: assigned `TantouEditor`
-
-Result:
-
-- Activates the approved proposal as an active series.
+- Database tables remain source of truth.
+- SignalR pushes notification events to connected clients.
+- Offline users still receive persisted notifications when they later call notification APIs.
 
 ## Test Plan
 
@@ -386,50 +397,58 @@ Result:
 - Proposal validation rejects synopsis shorter than 100 chars or longer than 2000 chars.
 - Proposal validation rejects invalid genre IDs.
 - Proposal validation rejects invalid publication type.
+- Reusable file upload rejects invalid file type, invalid MIME type, and oversized files.
+- Reusable file upload creates `FileAsset` rows for valid files.
+- Proposal creation rejects missing sample page file references.
+- Proposal creation rejects sample page file references that are not images.
+- Proposal creation rejects deleted or missing `FileAssetId` references.
 - Proposal validation rejects fewer than 5 sample pages.
 - Proposal validation rejects duplicate proposal title when an active series has the same title.
-- Proposal validation rejects second draft or under-review proposal from the same Mangaka.
-- Assigned Tantou Editor can create proposal annotations.
-- Unassigned Tantou Editor cannot create proposal annotations.
-- Mangaka cannot create Tantou annotations.
+- Proposal validation rejects second draft, under-review, or board-voting proposal from the same Mangaka.
+- Assigned Tantou Editor can reject proposal and write `Series.RejectReason`.
+- Unassigned Tantou Editor cannot reject or submit proposal to board.
+- Mangaka can create new proposal after rejection.
 - Board submission fails when proposal is not under review.
-- Board submission fails for unassigned Tantou Editor.
 - Board submission creates a 7-day voting deadline.
+- Board notification fails clearly if no active Editorial Board users exist.
 - Editorial Board member can cast one valid vote.
 - Duplicate vote is rejected.
 - Conflict-of-interest vote is rejected.
 - Reject vote with comment shorter than 50 characters is rejected.
 - Vote after deadline is rejected.
-- Decision with fewer than 3 valid votes does not finalize as approved or rejected.
+- Decision with fewer than 3 valid votes expires after deadline.
 - Decision with quorum and approve votes greater than 50 percent finalizes as approved.
-- Decision with quorum and equal approve/reject votes after deadline enters escalation path.
-- Expired no-quorum decision can be escalated by assigned Tantou Editor.
-- Editor-in-Chief can resolve escalation.
+- Decision with quorum and reject votes greater than 50 percent finalizes as rejected and writes reject reason.
+- Decision with equal approve/reject votes after deadline notifies Editor-in-Chief.
+- Editor-in-Chief can extend deadline once.
+- Editor-in-Chief cannot extend deadline twice.
+- After extended deadline, Editor-in-Chief can issue special approve/reject decision if still tied or no quorum.
 - Mangaka cannot activate proposal.
-- Tantou cannot activate without finalized approved board decision with quorum.
+- Tantou cannot activate without approved proposal.
 - Assigned Tantou can activate approved proposal.
-- Non-owner cannot create chapter.
-- Owner cannot create chapter for non-active series.
-- Chapter creation rejects invalid publication/deadline dates.
-- Chapter submission is blocked until all required page tasks are approved.
 
 ## Acceptance Criteria
 
-- Mangaka can create a proposal with uploaded files and at least 5 sample pages.
-- Tantou Editor can review the proposal and leave page-positioned annotations from FE coordinate data.
-- Tantou Editor can submit a complete under-review proposal to the editorial board.
+- Mangaka can create and submit a proposal with enough sample pages.
+- File upload is reusable and returns `FileAssetId` values for proposal and future workflows.
+- Tantou Editor reviews by approving board submission or rejecting with `Series.RejectReason`.
 - Editorial Board voting follows eligibility, conflict, quorum, majority, deadline, and reject-reason rules.
-- Expired, tied, or no-quorum decisions can be escalated by Tantou Editor to Editor-in-Chief.
-- Editor-in-Chief can resolve escalated decisions.
-- Series activation requires a finalized approved board decision with quorum and Tantou review.
-- Chapter creation is blocked unless BR-40, BR-41, BR-42, and BR-46 gates are satisfied.
-- API docs and agent docs reflect the new workflow.
+- Backend automatically processes expired voting deadlines.
+- No-quorum decisions become expired after deadline.
+- Tied decisions notify Editor-in-Chief.
+- Editor-in-Chief can extend once, then make a special final decision after the second failed deadline.
+- Notifications are sent through reusable dispatch logic and report no-recipient/missing-recipient cases.
+- Optional SignalR real-time notification can be added without replacing persisted notification storage.
+- Series activation requires approved proposal and Tantou activation action.
 
 ## Assumptions
 
-- Supabase remains the storage target because `appsettings.json` already contains Supabase configuration and the domain model already uses `FileAsset`.
-- Proposal annotations are separate from manuscript annotations to preserve the current manuscript review model.
+- `Series.RejectReason` is the canonical proposal rejection feedback field.
+- Proposal annotations are intentionally out of scope.
 - `docs/Top50_Business_Rules_Manga.md` overrides older conflicts in `docs/API_CONTRACT.md`.
 - Tantou assignment uses `UserAssignment` with `FromUserId = MangakaId`, `ToUserId = TantouEditorId`, and `AssignmentType = "TantouEditor"`.
-- Assistant conflict checks use existing assignment data where assistants are assigned to the same Mangaka or series context.
-- Existing CRUD endpoints can remain for reads/admin support, but workflow endpoints are the only supported path for proposal state transitions.
+- Existing `Notification` and `UserNotification` tables are enough for persisted notifications.
+- Existing `FileAsset` table is the reusable metadata table for uploaded files.
+- Audit log is removed from this proposal implementation plan.
+- SignalR is optional and can be implemented after persisted notification dispatch is reliable.
+- Chapter creation is intentionally excluded from this revision and should be planned separately.
