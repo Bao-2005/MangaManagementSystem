@@ -15,7 +15,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Auth
     public class AuthService : IAuthService
     {
         private readonly IRepository<User> _userRepository;
-        private readonly IRepository<Role> _roleRepository;
+        private readonly IRepository<DataAccess.Entities.Models.Role> _roleRepository;
         private readonly IRepository<UserAssignment> _userAssignmentRepository;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly PasswordHasher<User> _passwordHasher;
@@ -24,7 +24,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Auth
 
         public AuthService(
             IRepository<User> userRepository,
-            IRepository<Role> roleRepository,
+            IRepository<DataAccess.Entities.Models.Role> roleRepository,
             IRepository<UserAssignment> userAssignmentRepository,
             IJwtTokenService jwtTokenService,
             IConfiguration configuration,
