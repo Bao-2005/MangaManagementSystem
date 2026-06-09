@@ -1,4 +1,4 @@
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.Services.Interfaces.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;

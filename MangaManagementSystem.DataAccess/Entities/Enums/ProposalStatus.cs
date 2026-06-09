@@ -5,5 +5,6 @@ public enum ProposalStatus
     Draft,
     UnderReview,
     Approved,
+    Expired,
     Rejected
 }

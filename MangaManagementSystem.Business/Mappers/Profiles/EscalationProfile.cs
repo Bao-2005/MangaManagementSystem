@@ -1,5 +1,5 @@
 using AutoMapper;
-using MangaManagementSystem.Business.DTOs.Responses;
+using MangaManagementSystem.Business.DTOs.Responses.Series;
 using MangaManagementSystem.DataAccess.Entities.Models;
 
 namespace MangaManagementSystem.Business.Mappers.Profiles

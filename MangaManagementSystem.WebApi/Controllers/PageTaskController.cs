@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
-using MangaManagementSystem.Business.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 using WarehouseService.Application.DTOs;
+using MangaManagementSystem.Business.DTOs.Requests.Tasks;
+using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 
 namespace MangaManagementSystem.API.Controllers;
 

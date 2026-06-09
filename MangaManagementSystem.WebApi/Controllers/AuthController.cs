@@ -1,6 +1,8 @@
 using MangaManagementSystem.Business.DTOs.Requests.Auth;
 using MangaManagementSystem.Business.DTOs.Responses;
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.DTOs.Responses.Auth;
+using MangaManagementSystem.Business.DTOs.Responses.Users;
+using MangaManagementSystem.Business.Services.Interfaces.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
