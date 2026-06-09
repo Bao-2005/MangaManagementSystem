@@ -46,6 +46,7 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IVoteRecordService, VoteRecordService>();
             services.AddScoped<IRankingSnapshotService, RankingSnapshotService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
             services.AddScoped<IUserAssignmentService, UserAssignmentService>();
             services.AddScoped<IEscalationService, EscalationService>();
             services.AddScoped<IStorageService, LocalStorageService>();
