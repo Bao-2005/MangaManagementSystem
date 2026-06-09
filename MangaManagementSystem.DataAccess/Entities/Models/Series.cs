@@ -16,7 +16,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public string PublicationType { get; set; } = null!;
         public decimal RankingScore { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string Status { get; set; } = null!;
+        public SeriesStatus Status { get; set; }
         public Guid? SourceZipFileAssetId { get; set; }
         public string Synopsis { get; set; } = null!;
         public string? RejectReason { get; set; }

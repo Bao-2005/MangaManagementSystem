@@ -46,21 +46,17 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ## Status Model
 
-- Use proposal status to represent proposal lifecycle before activation:
+- Use a single `SeriesStatus` enum for both proposal lifecycle and active series lifecycle:
   - `Draft`
   - `UnderReview`
   - `BoardVoting`
   - `Approved`
   - `Rejected`
   - `Expired`
-- Use series status only after proposal voting is done and the work becomes a real series:
   - `Active`
-  - `OnHold`
   - `Cancelled`
-- Implementation choice:
-  - Prefer adding `ProposalStatus` to `Series` if schema change is acceptable.
-  - Keep `Series.Status` for active series lifecycle.
-  - If avoiding schema change, use `Series.Status` temporarily for both lifecycles, but this is less clear and should be documented as technical debt.
+- Store `Series.Status` in the database as a string using EF enum conversion.
+- Do not add a separate `ProposalStatus` field or enum.
 
 ## Future Changes
 
@@ -130,11 +126,11 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 ### Files to Modify
 
 - `MangaManagementSystem.DataAccess/DbContext/MangaDbContext.cs`
-  - Add proposal status mapping if `Series.ProposalStatus` is added.
+  - Map `Series.Status` with `HasConversion<string>()`.
   - Add board decision extension/special-decision fields.
   - Register indexes needed for deadline worker queries.
 - `MangaManagementSystem.DataAccess/Entities/Models/Series.cs`
-  - Add `ProposalStatus` if schema change is accepted.
+  - Use `SeriesStatus Status` for proposal and active lifecycle.
   - Continue using `RejectReason` for proposal rejection feedback.
 - `MangaManagementSystem.DataAccess/Entities/Models/BoardDecision.cs`
   - Add fields such as `ExtensionCount`, `ExtendedBy`, `ExtendedAt`, `ExtensionReason`, `SpecialDecisionBy`, `SpecialDecisionAt`, `SpecialDecisionReason`.
@@ -143,9 +139,7 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 - `MangaManagementSystem.DataAccess/Entities/Models/FileAsset.cs`
   - Add upload category, owner, or storage provider fields only if required for reusable upload tracking.
 - `MangaManagementSystem.DataAccess/Entities/Enums/SeriesStatus.cs`
-  - Align values with active series lifecycle.
-- `MangaManagementSystem.DataAccess/Entities/Enums/ProposalStatus.cs`
-  - Add `BoardVoting` and `Expired`; ensure values match proposal lifecycle.
+  - Include both proposal lifecycle values and active series lifecycle values.
 - `MangaManagementSystem.Business/DTOs/Requests/Series/CreateSeriesRequest.cs`
   - Correct BR-15 validation or deprecate in favor of `CreateProposalRequest`.
 - `MangaManagementSystem.Business/DTOs/Requests/Series/CreateBoardVoteRequest.cs`
@@ -153,7 +147,7 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 - `MangaManagementSystem.Business/DTOs/Requests/CreateNotificationRequest.cs`
   - Add optional recipient mode fields only if needed; otherwise keep and wrap through dispatch service.
 - `MangaManagementSystem.Business/DTOs/Responses/Series/SeriesDetailResponse.cs`
-  - Include proposal status, reject reason, latest board decision summary if useful for FE.
+  - Include `Series.Status`, reject reason, latest board decision summary if useful for FE.
 - `MangaManagementSystem.Business/DTOs/Responses/Series/BoardDecisionResponse.cs`
   - Include vote summary, quorum state, deadline state, extension count, and special-decision details.
 - `MangaManagementSystem.Business/Services/Interfaces/Series/ISeriesService.cs`
@@ -196,7 +190,7 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 ### Files Affected Indirectly
 
 - `MangaManagementSystem.DataAccess/Migrations/*`
-  - New EF migration if `ProposalStatus`, board decision extension/special-decision fields, or extra `FileAsset` fields are added.
+  - New EF migration if board decision extension/special-decision fields or extra `FileAsset` fields are added; status normalization may use a data-only migration.
 - `MangaManagementSystem.DataAccess/Migrations/MangaDbContextModelSnapshot.cs`
   - Updated by EF migration generation.
 - `MangaManagementSystem.Business/MangaManagementSystem.Business.csproj`
@@ -208,11 +202,11 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ## Implementation Checkpoints
 
-### Checkpoint 1: Normalize Proposal and Series Status
+### Checkpoint 1: Normalize Series Status
 
-- [ ] Use `ProposalStatus` for proposal lifecycle.
-- [ ] Use `SeriesStatus` only for active/post-voting series lifecycle.
-- [ ] Add or confirm statuses: `Draft`, `UnderReview`, `BoardVoting`, `Approved`, `Rejected`, `Expired`.
+- [ ] Use one `SeriesStatus` enum for proposal and active series lifecycle.
+- [ ] Store `Series.Status` as a string in the database through EF enum conversion.
+- [ ] Add or confirm statuses: `Draft`, `UnderReview`, `BoardVoting`, `Approved`, `Rejected`, `Expired`, `Active`, `Cancelled`.
 - [ ] Keep `Series.RejectReason` as the canonical rejection feedback field.
 - [ ] Remove proposal annotation work from implementation scope.
 
@@ -249,7 +243,7 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 ### Checkpoint 5: Tantou Review Without Annotations
 
 - [ ] Add `POST /api/proposals/{seriesId}/submit-review` for Mangaka to move `Draft -> UnderReview`.
-- [ ] Add Tantou reject endpoint that writes to `Series.RejectReason` and sets proposal status `Rejected`.
+- [ ] Add Tantou reject endpoint that writes to `Series.RejectReason` and sets `Series.Status` to `Rejected`.
 - [ ] Allow Mangaka to create a new proposal after rejection, following BR-19.
 - [ ] Add Tantou submit-to-board endpoint for valid under-review proposal.
 - [ ] Enforce object-level authorization: only assigned Tantou Editor can reject or submit to board.
@@ -272,7 +266,7 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 - [ ] Validate caller is assigned Tantou Editor.
 - [ ] Validate proposal completeness again.
 - [ ] Create `BoardDecision` with `DecisionType = "SeriesProposal"`, `Status = "Open"`, and `VotingDeadline = UtcNow + 7 days`.
-- [ ] Set proposal status to `BoardVoting`.
+- [ ] Set `Series.Status` to `BoardVoting`.
 - [ ] Block duplicate open board decisions for the same proposal.
 - [ ] Use notification dispatch service to notify active Editorial Board members.
 - [ ] If there are no active board recipients, return a clear business failure and do not silently continue.
@@ -296,7 +290,7 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 - [ ] Approve when approve votes are greater than 50 percent of valid votes.
 - [ ] Reject when reject votes are greater than 50 percent of valid votes.
 - [ ] Write rejection reason to `Series.RejectReason`; choose an aggregated reject summary or require Tantou/chief final reason.
-- [ ] If deadline passes with fewer than 3 valid votes, mark proposal status `Expired` and decision result `NoQuorum`.
+- [ ] If deadline passes with fewer than 3 valid votes, set `Series.Status` to `Expired` and decision result `NoQuorum`.
 - [ ] If deadline passes with equal approve/reject votes, mark decision as `Tie` and notify Editor-in-Chief.
 - [ ] Do not let FE decide finalization. FE only displays state and calls allowed actions.
 
@@ -320,13 +314,13 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 - [ ] If still tied or no quorum after the extension, allow `POST /api/board-decisions/{id}/special-decision`.
 - [ ] Special decision must be `Approved` or `Rejected` and include reason.
 - [ ] If rejected, write reason to `Series.RejectReason`.
-- [ ] If approved, set proposal status `Approved`.
+- [ ] If approved, set `Series.Status` to `Approved`.
 
 ### Checkpoint 12: Activate Approved Proposal
 
 - [ ] Add `POST /api/proposals/{seriesId}/activate`.
 - [ ] Allow only assigned Tantou Editor.
-- [ ] Require proposal status `Approved`.
+- [ ] Require `Series.Status` to be `Approved`.
 - [ ] Require finalized approved board decision with quorum or valid Editor-in-Chief special approval.
 - [ ] Set series status to `Active`.
 - [ ] Block Mangaka self-activation.
@@ -348,7 +342,7 @@ The FE must not determine whether a proposal is approved, rejected, expired, or 
 - Conflict-of-interest exclusion.
 - Quorum calculation.
 - Majority calculation.
-- Proposal status update.
+- `Series.Status` update.
 - Notification dispatch.
 
 ### Normal Finalization
@@ -357,12 +351,12 @@ When a vote is cast or a deadline worker processes an expired deadline:
 
 - Count valid votes.
 - If valid votes are at least 3:
-  - If approve votes are greater than 50 percent of valid votes, set board result `Approved` and proposal status `Approved`.
-  - If reject votes are greater than 50 percent of valid votes, set board result `Rejected`, proposal status `Rejected`, and set `Series.RejectReason`.
+  - If approve votes are greater than 50 percent of valid votes, set board result `Approved` and `Series.Status` to `Approved`.
+  - If reject votes are greater than 50 percent of valid votes, set board result `Rejected`, set `Series.Status` to `Rejected`, and set `Series.RejectReason`.
   - If approve votes equal reject votes after deadline, set board result `Tie` and notify Editor-in-Chief.
 - If valid votes are fewer than 3 after deadline:
   - Set board result `NoQuorum`.
-  - Set proposal status `Expired`.
+  - Set `Series.Status` to `Expired`.
   - Notify Editor-in-Chief.
 
 ### Extension and Special Decision

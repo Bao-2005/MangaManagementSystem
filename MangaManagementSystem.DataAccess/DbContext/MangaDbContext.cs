@@ -233,7 +233,7 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.PublicationType).IsRequired().HasMaxLength(50);
             entity.Property(x => x.RankingScore).IsRequired().HasPrecision(18, 2).HasDefaultValue(0);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
-            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.Synopsis).IsRequired().HasMaxLength(2000);
             entity.Property(x => x.RejectReason).HasMaxLength(1000);
             entity.Property(x => x.SubmittedAt).HasColumnType("timestamptz");

@@ -11,6 +11,8 @@ namespace MangaManagementSystem.Business.Mappers.Profiles
             CreateMap<Series, SeriesResponse>()
                 .ForMember(dest => dest.MangakaName,
                     opt => opt.MapFrom(src => src.Mangaka.DisplayName))
+                .ForMember(dest => dest.Status,
+                    opt => opt.MapFrom(src => src.Status.ToString()))
                 .ForMember(dest => dest.Genres,
                     opt => opt.MapFrom(src =>
                         src.SeriesGenres

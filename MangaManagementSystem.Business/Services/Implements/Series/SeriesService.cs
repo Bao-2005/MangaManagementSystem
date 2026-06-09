@@ -2,6 +2,7 @@ using MangaManagementSystem.Business.DTOs.Requests.Series;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
 using MangaManagementSystem.Business.Services.Interfaces.Series;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +28,23 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 .Where(s => s.DeletedAt == null);
 
             if (!string.IsNullOrWhiteSpace(status))
-                query = query.Where(s => s.Status == status);
+            {
+                if (status.Equals("Proposed", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(s =>
+                        s.Status == SeriesStatus.Draft
+                        || s.Status == SeriesStatus.UnderReview
+                        || s.Status == SeriesStatus.BoardVoting);
+                }
+                else if (Enum.TryParse<SeriesStatus>(status, ignoreCase: true, out var parsedStatus))
+                {
+                    query = query.Where(s => s.Status == parsedStatus);
+                }
+                else
+                {
+                    query = query.Where(s => s.Status.ToString() == status);
+                }
+            }
 
             return await query.Select(s => MapToResponse(s)).ToListAsync();
         }
@@ -45,7 +62,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             {
                 SeriesId = s.SeriesId, MangakaId = s.MangakaId, MangakaName = s.Mangaka.DisplayName,
                 Title = s.Title, Synopsis = s.Synopsis, PublicationType = s.PublicationType,
-                Status = s.Status, RankingScore = s.RankingScore, CreatedAt = s.CreatedAt,
+                Status = s.Status.ToString(),
+                RankingScore = s.RankingScore, CreatedAt = s.CreatedAt,
                 SubmittedAt = s.SubmittedAt, RejectReason = s.RejectReason,
                 Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList(),
                 ProposalPages = s.ProposalPages.Where(p => p.DeletedAt == null)
@@ -66,11 +84,15 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         public async Task<SeriesResponse> CreateAsync(Guid mangakaId, CreateSeriesRequest request)
         {
-            // BR-15/BR-19: no active Proposed series for this Mangaka
+            // BR-19: no active pending proposal for this Mangaka
             var hasPending = await _seriesRepo.GetAll()
-                .AnyAsync(s => s.MangakaId == mangakaId && s.Status == "Proposed" && s.DeletedAt == null);
+                .AnyAsync(s => s.MangakaId == mangakaId
+                    && (s.Status == SeriesStatus.Draft
+                        || s.Status == SeriesStatus.UnderReview
+                        || s.Status == SeriesStatus.BoardVoting)
+                    && s.DeletedAt == null);
             if (hasPending)
-                throw new InvalidOperationException("You already have a series in Proposed status.");
+                throw new InvalidOperationException("You already have a pending proposal.");
 
             var series = new MangaManagementSystem.DataAccess.Entities.Models.Series
             {
@@ -78,7 +100,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 Title = request.Title,
                 Synopsis = request.Synopsis,
                 PublicationType = request.PublicationType,
-                Status = "Proposed",
+                Status = SeriesStatus.Draft,
                 SubmittedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
                 SourceZipFileAssetId = request.SourceZipFileAssetId
@@ -102,7 +124,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             if (request.Title != null) series.Title = request.Title;
             if (request.Synopsis != null) series.Synopsis = request.Synopsis;
-            if (request.Status != null) series.Status = request.Status;
+            if (request.Status != null)
+            {
+                if (!Enum.TryParse<SeriesStatus>(request.Status, ignoreCase: true, out var parsedStatus))
+                    throw new ArgumentException("Invalid series status.");
+                series.Status = parsedStatus;
+            }
             if (request.RejectReason != null) series.RejectReason = request.RejectReason;
             if (request.PublicationType != null) series.PublicationType = request.PublicationType;
 
@@ -142,7 +169,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         {
             SeriesId = s.SeriesId, MangakaId = s.MangakaId, MangakaName = s.Mangaka.DisplayName,
             Title = s.Title, Synopsis = s.Synopsis, PublicationType = s.PublicationType,
-            Status = s.Status, RankingScore = s.RankingScore, CreatedAt = s.CreatedAt,
+            Status = s.Status.ToString(),
+            RankingScore = s.RankingScore, CreatedAt = s.CreatedAt,
             SubmittedAt = s.SubmittedAt, RejectReason = s.RejectReason,
             Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList()
         };
