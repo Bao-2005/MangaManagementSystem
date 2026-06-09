@@ -28,6 +28,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public ICollection<UserNotification> UserNotifications { get; set; } = new List<UserNotification>();
         public ICollection<UserAssignment> AssignmentsFromUser { get; set; } = new List<UserAssignment>();
         public ICollection<UserAssignment> AssignmentsToUser { get; set; } = new List<UserAssignment>();
+        public ICollection<BoardDecision> CreatedBoardDecisions { get; set; } = new List<BoardDecision>();
         public ICollection<BoardVote> BoardVotes { get; set; } = new List<BoardVote>();
         public ICollection<Manuscript> ReviewedManuscripts { get; set; } = new List<Manuscript>();
         public ICollection<PageTask> AssistantPageTasks { get; set; } = new List<PageTask>();

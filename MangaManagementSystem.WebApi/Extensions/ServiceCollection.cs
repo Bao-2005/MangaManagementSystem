@@ -34,6 +34,7 @@ namespace MangaManagementSystem.API.Extensions
             // Domain services
             services.AddScoped<IGenreService, GenreService>();
             services.AddScoped<ISeriesService, SeriesService>();
+            services.AddScoped<ISeriesProposalWorkflowService, SeriesProposalWorkflowService>();
             services.AddScoped<IProposalPageService, ProposalPageService>();
             services.AddScoped<IChapterService, ChapterService>();
             services.AddScoped<IManuscriptService, ManuscriptService>();

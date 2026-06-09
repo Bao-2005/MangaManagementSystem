@@ -242,34 +242,34 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 5: Tantou Review Without Annotations
 
-- [ ] Add `POST /api/proposals/{seriesId}/submit-review` for Mangaka to move `Draft -> UnderReview`.
-- [ ] Add Tantou reject endpoint that writes to `Series.RejectReason` and sets `Series.Status` to `Rejected`.
-- [ ] Allow Mangaka to create a new proposal after rejection, following BR-19.
-- [ ] Add Tantou submit-to-board endpoint for valid under-review proposal.
-- [ ] Enforce object-level authorization: only assigned Tantou Editor can reject or submit to board.
+- [x] Add `POST /api/proposals/{seriesId}/submit-review` for Mangaka to move `Draft -> UnderReview`.
+- [x] Add Tantou reject endpoint that writes to `Series.RejectReason` and sets `Series.Status` to `Rejected`.
+- [x] Allow Mangaka to create a new proposal after rejection, following BR-19.
+- [x] Add Tantou submit-to-board endpoint for valid under-review proposal.
+- [x] Enforce object-level authorization: only assigned Tantou Editor can reject or submit to board.
 
 ### Checkpoint 6: Reusable Notification Dispatch
 
-- [ ] Add `INotificationDispatchService`.
-- [ ] Support sending to explicit user IDs.
-- [ ] Support sending to all active users in a role, especially `EditorialBoard` and `EditorInChief`.
-- [ ] Validate recipients exist and are active.
-- [ ] If no recipients are resolved, return a clear `NoRecipients` result or throw a business exception.
-- [ ] If some requested users do not exist, skip them and include skipped IDs in the response.
-- [ ] Persist notifications through existing `Notification` and `UserNotification` tables.
-- [ ] Optionally push real-time events through SignalR after persistence.
+- [x] Add `INotificationDispatchService`.
+- [x] Support sending to explicit user IDs.
+- [x] Support sending to all active users in a role, especially `EditorialBoard` and `EditorInChief`.
+- [x] Validate recipients exist and are active.
+- [x] If no recipients are resolved, return a clear `NoRecipients` result or throw a business exception.
+- [x] If some requested users do not exist, skip them and include skipped IDs in the response.
+- [x] Persist notifications through existing `Notification` and `UserNotification` tables.
+- [x] Optionally push real-time events through SignalR after persistence.
 
 ### Checkpoint 7: Submit Proposal to Editorial Board
 
-- [ ] Add `POST /api/proposals/{seriesId}/submit-board`.
-- [ ] Validate proposal is `UnderReview`.
-- [ ] Validate caller is assigned Tantou Editor.
-- [ ] Validate proposal completeness again.
-- [ ] Create `BoardDecision` with `DecisionType = "SeriesProposal"`, `Status = "Open"`, and `VotingDeadline = UtcNow + 7 days`.
-- [ ] Set `Series.Status` to `BoardVoting`.
-- [ ] Block duplicate open board decisions for the same proposal.
-- [ ] Use notification dispatch service to notify active Editorial Board members.
-- [ ] If there are no active board recipients, return a clear business failure and do not silently continue.
+- [x] Add `POST /api/proposals/{seriesId}/submit-board`.
+- [x] Validate proposal is `UnderReview`.
+- [x] Validate caller is assigned Tantou Editor.
+- [x] Validate proposal completeness again.
+- [x] Create `BoardDecision` with `DecisionType = "SeriesProposal"`, `Status = "Open"`, and `VotingDeadline = UtcNow + 7 days`.
+- [x] Set `Series.Status` to `BoardVoting`.
+- [x] Block duplicate open board decisions for the same proposal.
+- [x] Use notification dispatch service to notify active Editorial Board members.
+- [x] If there are no active board recipients, return a clear business failure and do not silently continue.
 
 ### Checkpoint 8: Enforce Board Voting Rules
 

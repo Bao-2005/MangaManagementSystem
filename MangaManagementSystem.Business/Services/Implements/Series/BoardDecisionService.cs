@@ -67,7 +67,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         {
             BoardDecisionId = b.BoardDecisionId, SeriesId = b.SeriesId, DecisionType = b.DecisionType,
             Status = b.Status, Result = b.Result, VotingDeadline = b.VotingDeadline,
-            FinalizedAt = b.FinalizedAt, CreatedAt = b.CreatedAt,
+            FinalizedAt = b.FinalizedAt, CreatedBy = b.CreatedBy, CreatedAt = b.CreatedAt,
             VoteCount = b.BoardVotes?.Count(v => v.DeletedAt == null) ?? 0
         };
     }

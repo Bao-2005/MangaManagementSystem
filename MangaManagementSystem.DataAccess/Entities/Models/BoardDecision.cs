@@ -16,10 +16,12 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public string? Result { get; set; }
         public DateTime VotingDeadline { get; set; }
         public DateTime? FinalizedAt { get; set; }
+        public Guid? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
 
         public Series Series { get; set; } = null!;
+        public User? Creator { get; set; }
         public ICollection<BoardVote> BoardVotes { get; set; } = new List<BoardVote>();
     }
 }

@@ -9,6 +9,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Series
         public string? Result { get; set; }
         public DateTime VotingDeadline { get; set; }
         public DateTime? FinalizedAt { get; set; }
+        public Guid? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public int VoteCount { get; set; }
     }

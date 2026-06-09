@@ -30,7 +30,6 @@ namespace MangaManagementSystem.Business.Services.Implements
             ValidateRequest(request);
 
             var requestedUserIds = userIds
-                .Where(userId => userId != Guid.Empty)
                 .Distinct()
                 .ToList();
 
@@ -39,8 +38,12 @@ namespace MangaManagementSystem.Business.Services.Implements
                 return CreateNoRecipientsResponse("No recipient user IDs were provided.", 0);
             }
 
+            var queryableUserIds = requestedUserIds
+                .Where(userId => userId != Guid.Empty)
+                .ToList();
+
             var users = await _userRepo.GetAll()
-                .Where(user => requestedUserIds.Contains(user.UserId))
+                .Where(user => queryableUserIds.Contains(user.UserId))
                 .Select(user => new
                 {
                     user.UserId,
@@ -176,7 +179,7 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             if (request.Link is { Length: > 500 })
             {
-                throw new ArgumentException("Link must be 500 characters or fewer.", nameof(request));
+                throw new ArgumentException("Link must be 500 characters or fewer.", nameof(request.Link));
             }
         }
 

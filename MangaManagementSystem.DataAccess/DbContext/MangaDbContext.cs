@@ -316,6 +316,7 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
             entity.Property(x => x.Result).HasMaxLength(50);
             entity.Property(x => x.VotingDeadline).IsRequired().HasColumnType("timestamptz");
+            entity.Property(x => x.CreatedBy);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
@@ -323,6 +324,18 @@ public class MangaDbContext : DbContext
                 .WithMany(x => x.BoardDecisions)
                 .HasForeignKey(x => x.SeriesId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Creator)
+                .WithMany(x => x.CreatedBoardDecisions)
+                .HasForeignKey(x => x.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.SeriesId);
+
+            entity.HasIndex(x => new { x.SeriesId, x.DecisionType, x.Status })
+                .IsUnique()
+                .HasDatabaseName("IX_BoardDecisions_OpenSeriesProposal_SeriesId")
+                .HasFilter("\"DecisionType\" = 'SeriesProposal' AND \"Status\" = 'Open' AND \"DeletedAt\" IS NULL");
         });
     }
 
