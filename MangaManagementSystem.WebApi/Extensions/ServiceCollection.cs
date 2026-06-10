@@ -1,3 +1,4 @@
+using MangaManagementSystem.API.BackgroundServices;
 using MangaManagementSystem.Business.Mappers;
 using MangaManagementSystem.Business.Services.Implements;
 using MangaManagementSystem.Business.Services.Implements.Auth;
@@ -54,6 +55,8 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IStorageService, LocalStorageService>();
             services.AddScoped<IFileUploadService, FileUploadService>();
             services.AddScoped<IRoleService, RoleService>();
+
+            services.AddHostedService<BoardDecisionDeadlineWorker>();
 
             services.RegisterInfrastructure();
         }

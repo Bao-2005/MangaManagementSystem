@@ -296,12 +296,12 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 10: Automatic Deadline Processing
 
-- [ ] Add `BoardDecisionDeadlineWorker` as ASP.NET Core `BackgroundService`.
-- [ ] Worker runs every 1-5 minutes.
-- [ ] Worker queries open board decisions where `VotingDeadline <= UtcNow`.
-- [ ] Worker calls `BoardDecisionFinalizationService`.
-- [ ] Worker must be idempotent: processing the same decision twice must not duplicate finalization or notifications.
-- [ ] For this project, use `BackgroundService`; future production option can be Hangfire, Quartz.NET, or database scheduler.
+- [x] Add `BoardDecisionDeadlineWorker` as ASP.NET Core `BackgroundService`.
+- [x] Worker runs every 1-5 minutes.
+- [x] Worker queries open board decisions where `VotingDeadline <= UtcNow`.
+- [x] Worker calls `BoardDecisionFinalizationService`.
+- [x] Worker must be idempotent: processing the same decision twice must not duplicate finalization or notifications.
+- [x] For this project, use `BackgroundService`; future production option can be Hangfire, Quartz.NET, or database scheduler.
 
 ### Checkpoint 11: Editor-in-Chief Extension and Special Decision
 
