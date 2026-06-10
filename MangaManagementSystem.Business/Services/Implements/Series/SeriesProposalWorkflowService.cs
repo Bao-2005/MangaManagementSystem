@@ -17,7 +17,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
     public class SeriesProposalWorkflowService : ISeriesProposalWorkflowService
     {
         private const int MinimumProposalPageCount = 5;
-        private const string TantouEditorAssignmentType = "TantouEditor";
+
         private const string SeriesProposalDecisionType = "SeriesProposal";
         private const string OpenDecisionStatus = "Open";
         private const string OpenSeriesProposalDecisionIndexName = "IX_BoardDecisions_OpenSeriesProposal_SeriesId";
@@ -261,10 +261,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private async Task EnsureAssignedTantouEditorAsync(Guid mangakaId, Guid tantouEditorId)
         {
             var isAssigned = await _userAssignmentRepo.GetAll()
+                .Include(a => a.ToUser).ThenInclude(u => u.Role)
                 .AnyAsync(a => a.FromUserId == mangakaId
                     && a.ToUserId == tantouEditorId
-                    && a.AssignmentType == TantouEditorAssignmentType
-                    && a.Status
+                    && a.ToUser.Role.RoleName == UserRole.TantouEditor.ToString()
                     && a.UnassignedAt == null
                     && a.DeletedAt == null);
             if (!isAssigned)

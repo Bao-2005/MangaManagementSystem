@@ -29,8 +29,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             {
                 FromUserId = fromUserId,
                 ToUserId = request.ToUserId,
-                AssignmentType = request.AssignmentType,
-                Status = true,
                 AssignedAt = DateTime.UtcNow
             };
             await _repo.AddAsync(assignment);
@@ -44,7 +42,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         {
             var a = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == assignmentId && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Assignment not found.");
-            a.Status = false;
             a.UnassignedAt = DateTime.UtcNow;
             _repo.Update(a);
             await _repo.SaveChangeAsync();
@@ -63,7 +60,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         {
             AssignmentId = a.AssignmentId, FromUserId = a.FromUserId, FromUserName = a.FromUser?.DisplayName ?? "",
             ToUserId = a.ToUserId, ToUserName = a.ToUser?.DisplayName ?? "",
-            AssignmentType = a.AssignmentType, Status = a.Status,
             AssignedAt = a.AssignedAt, UnassignedAt = a.UnassignedAt
         };
     }

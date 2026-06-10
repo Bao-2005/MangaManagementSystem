@@ -159,7 +159,6 @@ public class MangaDbContext : DbContext
             entity.HasKey(x => x.AssignmentId);
 
             entity.Property(x => x.AssignmentId).HasDefaultValueSql(NewGuidSql);
-            entity.Property(x => x.AssignmentType).IsRequired().HasMaxLength(50);
             entity.Property(x => x.AssignedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.UnassignedAt).HasColumnType("timestamptz");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
@@ -169,9 +168,9 @@ public class MangaDbContext : DbContext
                 t.HasCheckConstraint("CK_UserAssignments_NotSelf", "\"FromUserId\" <> \"ToUserId\"");
             });
 
-            entity.HasIndex(x => new { x.FromUserId, x.AssignmentType })
+            entity.HasIndex(x => new { x.FromUserId, x.ToUserId })
                 .IsUnique()
-                .HasFilter("\"AssignmentType\" = 'TantouEditor' AND \"UnassignedAt\" IS NULL AND \"DeletedAt\" IS NULL");
+                .HasFilter("\"UnassignedAt\" IS NULL AND \"DeletedAt\" IS NULL");
 
             entity.HasOne(x => x.FromUser)
                 .WithMany(x => x.AssignmentsFromUser)

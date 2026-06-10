@@ -203,13 +203,18 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private async Task<List<BoardVote>> GetValidVotesAsync(BoardDecision decision)
         {
+            var conflictingRoles = new[]
+            {
+                UserRole.TantouEditor.ToString(),
+                UserRole.Assistant.ToString()
+            };
+
             var assignedConflictUserIds = await _assignmentRepo.GetAll()
+                .Include(a => a.ToUser).ThenInclude(u => u.Role)
                 .Where(a => a.FromUserId == decision.Series.MangakaId
-                    && a.Status
                     && a.UnassignedAt == null
                     && a.DeletedAt == null
-                    && (a.AssignmentType == AssignmentType.TantouEditor.ToString()
-                        || a.AssignmentType == AssignmentType.Assistant.ToString()))
+                    && conflictingRoles.Contains(a.ToUser.Role.RoleName))
                 .Select(a => a.ToUserId)
                 .ToListAsync();
 

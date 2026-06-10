@@ -127,19 +127,19 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 throw new ForbiddenAccessException("You cannot vote on a decision where you have a conflict of interest.");
             }
 
-            var conflictingAssignmentTypes = new[]
+            var conflictingRoles = new[]
             {
-                AssignmentType.TantouEditor.ToString(),
-                AssignmentType.Assistant.ToString()
+                UserRole.TantouEditor.ToString(),
+                UserRole.Assistant.ToString()
             };
 
             var hasAssignmentConflict = await _assignmentRepo.GetAll()
+                .Include(a => a.ToUser).ThenInclude(u => u.Role)
                 .AnyAsync(a => a.FromUserId == decision.Series.MangakaId
                     && a.ToUserId == voterId
-                    && a.Status
                     && a.UnassignedAt == null
                     && a.DeletedAt == null
-                    && conflictingAssignmentTypes.Contains(a.AssignmentType));
+                    && conflictingRoles.Contains(a.ToUser.Role.RoleName));
 
             if (hasAssignmentConflict)
             {
