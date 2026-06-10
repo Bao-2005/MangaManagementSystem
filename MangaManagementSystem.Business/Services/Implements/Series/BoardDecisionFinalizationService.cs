@@ -8,6 +8,7 @@ using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MangaManagementSystem.Business.Services.Implements.Series
 {
@@ -27,19 +28,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<UserAssignment> _assignmentRepo;
         private readonly INotificationDispatchService _notificationDispatchService;
         private readonly MangaDbContext _dbContext;
+        private readonly ILogger<BoardDecisionFinalizationService> _logger;
 
         public BoardDecisionFinalizationService(
             IRepository<BoardDecision> decisionRepo,
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
             IRepository<UserAssignment> assignmentRepo,
             INotificationDispatchService notificationDispatchService,
-            MangaDbContext dbContext)
+            MangaDbContext dbContext,
+            ILogger<BoardDecisionFinalizationService> logger)
         {
             _decisionRepo = decisionRepo;
             _seriesRepo = seriesRepo;
             _assignmentRepo = assignmentRepo;
             _notificationDispatchService = notificationDispatchService;
             _dbContext = dbContext;
+            _logger = logger;
         }
 
         public async Task RecalculateAsync(Guid boardDecisionId)
@@ -119,6 +123,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
                 var summary = CreateSummary(decision, validVotes);
                 await transaction.CommitAsync();
+                await TryNotifyEditorInChiefOfFailedOutcomeAsync(decision);
                 return summary;
             }
 
@@ -154,16 +159,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 decision.FinalizedAt = now;
 
                 _decisionRepo.Update(decision);
-                var dispatchResult = await NotifyEditorInChiefOfTieAsync(decision);
-                if (dispatchResult.Status == NotificationDispatchStatus.NoRecipients)
-                {
-                    throw new InvalidOperationException(dispatchResult.Message);
-                }
-
                 await _decisionRepo.SaveChangeAsync();
 
                 var summary = CreateSummary(decision, validVotes);
                 await transaction.CommitAsync();
+                await TryNotifyEditorInChiefOfFailedOutcomeAsync(decision);
                 return summary;
             }
 
@@ -263,18 +263,59 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             };
         }
 
-        private async Task<NotificationDispatchResponse> NotifyEditorInChiefOfTieAsync(BoardDecision decision)
+        private async Task<NotificationDispatchResponse> NotifyEditorInChiefOfFailedOutcomeAsync(BoardDecision decision)
         {
+            var outcome = string.Equals(decision.Result, NoQuorumResult, StringComparison.OrdinalIgnoreCase)
+                ? "no quorum"
+                : "a tie";
+            var requiresSpecialDecision = decision.ExtensionCount >= 1;
+
             return await _notificationDispatchService.DispatchToRoleAsync(
                 new NotificationDispatchRequest
                 {
-                    Title = "Board vote requires Editor-in-Chief decision",
-                    Message = $"Board decision for series '{decision.Series.Title}' ended in a tie and requires final review.",
-                    Type = "BoardDecisionTie",
+                    Title = requiresSpecialDecision
+                        ? "Board vote requires special decision"
+                        : "Board vote requires deadline extension review",
+                    Message = requiresSpecialDecision
+                        ? $"Extended board decision for series '{decision.Series.Title}' ended in {outcome} and requires a special decision."
+                        : $"Board decision for series '{decision.Series.Title}' ended in {outcome} and requires deadline extension review.",
+                    Type = requiresSpecialDecision
+                        ? "BoardDecisionSpecialDecisionRequired"
+                        : string.Equals(decision.Result, NoQuorumResult, StringComparison.OrdinalIgnoreCase)
+                            ? "BoardDecisionNoQuorum"
+                            : "BoardDecisionTie",
                     Link = $"/board-decisions/{decision.BoardDecisionId}",
                     Priority = "High"
                 },
                 UserRole.EditorInChief.ToString());
+        }
+
+        private async Task TryNotifyEditorInChiefOfFailedOutcomeAsync(BoardDecision decision)
+        {
+            try
+            {
+                var dispatchResult = await NotifyEditorInChiefOfFailedOutcomeAsync(decision);
+                if (dispatchResult.Status == NotificationDispatchStatus.NoRecipients)
+                {
+                    _logger.LogWarning(
+                        "Board decision {BoardDecisionId} finalized as {Result}, but Editor-in-Chief notification had no recipients: {Message}",
+                        decision.BoardDecisionId,
+                        decision.Result,
+                        dispatchResult.Message);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Board decision {BoardDecisionId} finalized as {Result}, but Editor-in-Chief notification dispatch failed.",
+                    decision.BoardDecisionId,
+                    decision.Result);
+            }
         }
 
         private static string BuildRejectReason(IEnumerable<BoardVote> validVotes)

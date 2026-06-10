@@ -50,6 +50,32 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBoardDecisionRequest request)
             => Ok(new BaseResponse { Data = await _decisionService.UpdateAsync(id, request), Message = "Updated." });
 
+        [HttpPost("api/board-decisions/{id:guid}/extend-deadline")]
+        [Authorize(Policy = "EditorInChiefOnly")]
+        [SwaggerOperation(Summary = "Extend a tied or no-quorum board decision deadline")]
+        public async Task<IActionResult> ExtendDeadline(Guid id, [FromBody] ExtendBoardDecisionRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse
+            {
+                Data = await _decisionService.ExtendDeadlineAsync(id, userId, request),
+                Message = "Deadline extended."
+            });
+        }
+
+        [HttpPost("api/board-decisions/{id:guid}/special-decision")]
+        [Authorize(Policy = "EditorInChiefOnly")]
+        [SwaggerOperation(Summary = "Make a special decision after an extended tied or no-quorum board decision")]
+        public async Task<IActionResult> SpecialDecision(Guid id, [FromBody] SpecialBoardDecisionRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse
+            {
+                Data = await _decisionService.SpecialDecisionAsync(id, userId, request),
+                Message = "Special decision recorded."
+            });
+        }
+
         [HttpDelete("api/board-decisions/{id:guid}/soft-delete")]
         [Authorize(Policy = "AdminOnly")]
         [SwaggerOperation(Summary = "Soft-delete a board decision")]

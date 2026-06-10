@@ -317,6 +317,11 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.Result).HasMaxLength(50);
             entity.Property(x => x.VotingDeadline).IsRequired().HasColumnType("timestamptz");
             entity.Property(x => x.CreatedBy);
+            entity.Property(x => x.ExtensionCount).IsRequired().HasDefaultValue(0);
+            entity.Property(x => x.ExtendedAt).HasColumnType("timestamptz");
+            entity.Property(x => x.ExtensionReason).HasMaxLength(1000);
+            entity.Property(x => x.SpecialDecisionAt).HasColumnType("timestamptz");
+            entity.Property(x => x.SpecialDecisionReason).HasMaxLength(1000);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 

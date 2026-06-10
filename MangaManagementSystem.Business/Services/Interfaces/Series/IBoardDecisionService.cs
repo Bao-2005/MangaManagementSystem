@@ -9,6 +9,8 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Series
         Task<BoardDecisionResponse> GetByIdAsync(Guid id);
         Task<BoardDecisionResponse> CreateAsync(CreateBoardDecisionRequest request, Guid? createdBy = null);
         Task<BoardDecisionResponse> UpdateAsync(Guid id, UpdateBoardDecisionRequest request);
+        Task<BoardDecisionResponse> ExtendDeadlineAsync(Guid id, Guid editorInChiefId, ExtendBoardDecisionRequest request);
+        Task<BoardDecisionResponse> SpecialDecisionAsync(Guid id, Guid editorInChiefId, SpecialBoardDecisionRequest request);
         Task SoftDeleteAsync(Guid id);
     }
 }

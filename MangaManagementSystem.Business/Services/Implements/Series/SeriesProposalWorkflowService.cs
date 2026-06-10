@@ -159,6 +159,34 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             return MapDecision(decision);
         }
 
+        public async Task<SeriesDetailResponse> ActivateAsync(Guid seriesId, Guid tantouEditorId)
+        {
+            var series = await GetSeriesAsync(seriesId);
+            await EnsureAssignedTantouEditorAsync(series.MangakaId, tantouEditorId);
+
+            if (series.Status != SeriesStatus.Approved)
+                throw new InvalidOperationException("Only proposals with Approved status can be activated.");
+
+            // Require a finalized approved board decision: either normal majority quorum or EiC special decision.
+            var hasApprovedDecision = await _boardDecisionRepo.GetAll()
+                .AnyAsync(d => d.SeriesId == seriesId
+                    && d.DecisionType == SeriesProposalDecisionType
+                    && d.DeletedAt == null
+                    && d.Result == "Approved"
+                    && d.FinalizedAt != null);
+
+            if (!hasApprovedDecision)
+                throw new InvalidOperationException(
+                    "Activation requires a finalized approved board decision with valid quorum or Editor-in-Chief special approval.");
+
+            series.Status = SeriesStatus.Active;
+            _seriesRepo.Update(series);
+            await _seriesRepo.SaveChangeAsync();
+
+            return await _seriesService.GetByIdAsync(seriesId);
+        }
+
+
         private async Task<MangaManagementSystem.DataAccess.Entities.Models.Series> GetSeriesAsync(Guid seriesId)
         {
             return await _seriesRepo.GetAll()
@@ -254,6 +282,13 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             FinalizedAt = decision.FinalizedAt,
             CreatedAt = decision.CreatedAt,
             CreatedBy = decision.CreatedBy,
+            ExtensionCount = decision.ExtensionCount,
+            ExtendedBy = decision.ExtendedBy,
+            ExtendedAt = decision.ExtendedAt,
+            ExtensionReason = decision.ExtensionReason,
+            SpecialDecisionBy = decision.SpecialDecisionBy,
+            SpecialDecisionAt = decision.SpecialDecisionAt,
+            SpecialDecisionReason = decision.SpecialDecisionReason,
             VoteCount = decision.BoardVotes?.Count(v => v.DeletedAt == null) ?? 0
         };
     }

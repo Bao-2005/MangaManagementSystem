@@ -305,16 +305,16 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 11: Editor-in-Chief Extension and Special Decision
 
-- [ ] Notify Editor-in-Chief when first deadline ends in tie or no quorum.
-- [ ] Add `POST /api/board-decisions/{id}/extend-deadline`.
-- [ ] Allow only `EditorInChief`.
-- [ ] Allow extension only once.
-- [ ] Require extension reason and new future deadline.
-- [ ] After extended deadline passes, worker finalizes normally if possible.
-- [ ] If still tied or no quorum after the extension, allow `POST /api/board-decisions/{id}/special-decision`.
-- [ ] Special decision must be `Approved` or `Rejected` and include reason.
-- [ ] If rejected, write reason to `Series.RejectReason`.
-- [ ] If approved, set `Series.Status` to `Approved`.
+- [x] Notify Editor-in-Chief when first deadline ends in tie or no quorum.
+- [x] Add `POST /api/board-decisions/{id}/extend-deadline`.
+- [x] Allow only `EditorInChief`.
+- [x] Allow extension only once.
+- [x] Require extension reason and new future deadline.
+- [x] After extended deadline passes, worker finalizes normally if possible.
+- [x] If still tied or no quorum after the extension, allow `POST /api/board-decisions/{id}/special-decision`.
+- [x] Special decision must be `Approved` or `Rejected` and include reason.
+- [x] If rejected, write reason to `Series.RejectReason`.
+- [x] If approved, set `Series.Status` to `Approved`.
 
 ### Checkpoint 12: Activate Approved Proposal
 

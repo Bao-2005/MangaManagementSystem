@@ -52,6 +52,16 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = result, Message = "Proposal submitted to editorial board." });
         }
 
+        [HttpPost("{seriesId:guid}/activate")]
+        [Authorize(Policy = "TantouEditorOnly")]
+        [SwaggerOperation(Summary = "Activate an approved proposal as assigned Tantou Editor")]
+        public async Task<IActionResult> Activate(Guid seriesId)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _workflowService.ActivateAsync(seriesId, userId);
+            return Ok(new BaseResponse { Data = result, Message = "Series activated." });
+        }
+
         private Guid? GetUserId()
         {
             var str = User.FindFirstValue(ClaimTypes.NameIdentifier);
