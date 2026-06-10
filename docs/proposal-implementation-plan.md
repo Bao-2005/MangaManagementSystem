@@ -284,15 +284,15 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 9: Board Decision Finalization Logic
 
-- [ ] Add `BoardDecisionFinalizationService`.
-- [ ] Count only valid, non-deleted, conflict-free votes.
-- [ ] Require quorum of at least 3 valid votes.
-- [ ] Approve when approve votes are greater than 50 percent of valid votes.
-- [ ] Reject when reject votes are greater than 50 percent of valid votes.
-- [ ] Write rejection reason to `Series.RejectReason`; choose an aggregated reject summary or require Tantou/chief final reason.
-- [ ] If deadline passes with fewer than 3 valid votes, set `Series.Status` to `Expired` and decision result `NoQuorum`.
-- [ ] If deadline passes with equal approve/reject votes, mark decision as `Tie` and notify Editor-in-Chief.
-- [ ] Do not let FE decide finalization. FE only displays state and calls allowed actions.
+- [x] Add `BoardDecisionFinalizationService`.
+- [x] Count only valid, non-deleted, conflict-free votes.
+- [x] Require quorum of at least 3 valid votes.
+- [x] Approve when approve votes are greater than 50 percent of valid votes.
+- [x] Reject when reject votes are greater than 50 percent of valid votes.
+- [x] Write rejection reason to `Series.RejectReason`; choose an aggregated reject summary or require Tantou/chief final reason.
+- [x] If deadline passes with fewer than 3 valid votes, set `Series.Status` to `Expired` and decision result `NoQuorum`.
+- [x] If deadline passes with equal approve/reject votes, mark decision as `Tie` and notify Editor-in-Chief.
+- [x] Do not let FE decide finalization. FE only displays state and calls allowed actions.
 
 ### Checkpoint 10: Automatic Deadline Processing
 

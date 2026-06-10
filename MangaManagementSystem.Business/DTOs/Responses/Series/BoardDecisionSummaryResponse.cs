@@ -12,5 +12,8 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Series
         public int VoteCount { get; set; }
         public int ApproveCount { get; set; }
         public int RejectCount { get; set; }
+        public int RequiredQuorum { get; set; }
+        public bool HasQuorum { get; set; }
+        public bool IsDeadlinePassed { get; set; }
     }
 }

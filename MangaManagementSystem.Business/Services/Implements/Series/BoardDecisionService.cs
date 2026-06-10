@@ -47,11 +47,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             var b = await _repo.GetAll().Include(b => b.BoardVotes)
                 .FirstOrDefaultAsync(x => x.BoardDecisionId == id && x.DeletedAt == null)
                 ?? throw new KeyNotFoundException("BoardDecision not found.");
-            if (request.Status != null) b.Status = request.Status;
-            if (request.Result != null) b.Result = request.Result;
-            if (request.FinalizedAt.HasValue) b.FinalizedAt = request.FinalizedAt;
-            _repo.Update(b);
-            await _repo.SaveChangeAsync();
+
+            if (request.Status != null || request.Result != null || request.FinalizedAt.HasValue)
+            {
+                throw new ArgumentException("Board decision finalization fields can only be changed by the board decision workflow.");
+            }
+
             return Map(b);
         }
 
