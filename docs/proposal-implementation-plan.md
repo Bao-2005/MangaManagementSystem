@@ -204,41 +204,41 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 1: Normalize Series Status
 
-- [ ] Use one `SeriesStatus` enum for proposal and active series lifecycle.
-- [ ] Store `Series.Status` as a string in the database through EF enum conversion.
-- [ ] Add or confirm statuses: `Draft`, `UnderReview`, `BoardVoting`, `Approved`, `Rejected`, `Expired`, `Active`, `Cancelled`.
-- [ ] Keep `Series.RejectReason` as the canonical rejection feedback field.
-- [ ] Remove proposal annotation work from implementation scope.
+- [x] Use one `SeriesStatus` enum for proposal and active series lifecycle.
+- [x] Store `Series.Status` as a string in the database through EF enum conversion.
+- [x] Add or confirm statuses: `Draft`, `UnderReview`, `BoardVoting`, `Approved`, `Rejected`, `Expired`, `Active`, `Cancelled`.
+- [x] Keep `Series.RejectReason` as the canonical rejection feedback field.
+- [x] Remove proposal annotation work from implementation scope.
 
 ### Checkpoint 2: Adapt Series CRUD to Proposal Rules
 
-- [ ] Correct BR-15 validation: title `<= 100`, synopsis `100-2000`, at least one valid genre, valid publication type, and at least 5 sample pages.
-- [ ] Enforce BR-17: proposal title cannot match an active series title.
-- [ ] Enforce BR-19: a Mangaka can have at most one `Draft`, `UnderReview`, or `BoardVoting` proposal.
-- [ ] Prevent direct arbitrary status mutation from generic update endpoints.
-- [ ] Keep reads in existing `SeriesController`; put state transitions behind explicit workflow endpoints.
+- [x] Correct BR-15 validation: title `<= 100`, synopsis `100-2000`, at least one valid genre, valid publication type, and at least 5 sample pages.
+- [x] Enforce BR-17: proposal title cannot match an active series title.
+- [x] Enforce BR-19: a Mangaka can have at most one `Draft`, `UnderReview`, or `BoardVoting` proposal.
+- [x] Prevent direct arbitrary status mutation from generic update endpoints.
+- [x] Keep reads in existing `SeriesController`; put state transitions behind explicit workflow endpoints.
 
 ### Checkpoint 3: Reusable File Upload Service
 
-- [ ] Add reusable upload endpoint such as `POST /api/files`.
-- [ ] Accept `multipart/form-data` with one or more files.
-- [ ] Validate file type, extension, MIME type, and file size based on requested upload category.
-- [ ] Upload file bytes to storage through `IStorageService`.
-- [ ] Create `FileAsset` records with bucket name, object path, original filename, stored filename, extension, file size, and MIME type.
-- [ ] Return `FileAssetId` values for later use by proposal pages, source zip, task submissions, and future upload workflows.
-- [ ] If all files fail validation, return a clear business error.
-- [ ] If some files fail validation, either reject the whole request or return partial failure according to the chosen API policy; prefer rejecting the whole request for proposal uploads.
+- [x] Add reusable upload endpoint such as `POST /api/files`.
+- [x] Accept `multipart/form-data` with one or more files.
+- [x] Validate file type, extension, MIME type, and file size based on requested upload category.
+- [x] Upload file bytes to storage through `IStorageService`.
+- [x] Create `FileAsset` records with bucket name, object path, original filename, stored filename, extension, file size, and MIME type.
+- [x] Return `FileAssetId` values for later use by proposal pages, source zip, task submissions, and future upload workflows.
+- [x] If all files fail validation, return a clear business error.
+- [x] If some files fail validation, either reject the whole request or return partial failure according to the chosen API policy; prefer rejecting the whole request for proposal uploads.
 
 ### Checkpoint 4: Proposal File and Sample Page Handling
 
-- [ ] Proposal creation should support uploaded file references from the reusable upload service.
-- [ ] `CreateProposalRequest` accepts optional `SourceZipFileAssetId` and required `SamplePageFileAssetIds`.
-- [ ] Validate every referenced file exists and is not deleted.
-- [ ] Validate source zip file extension/MIME category when provided.
-- [ ] Validate sample page file assets are images.
-- [ ] Create `ProposalPage` rows from `SamplePageFileAssetIds`.
-- [ ] Require at least 5 non-deleted proposal pages before Tantou/board submission.
-- [ ] Optional future convenience endpoint: `POST /api/proposals/with-files` can combine upload + proposal creation, but it should internally reuse the same file upload service.
+- [x] Proposal creation should support uploaded file references from the reusable upload service.
+- [x] `CreateProposalRequest` accepts optional `SourceZipFileAssetId` and required `SamplePageFileAssetIds`.
+- [x] Validate every referenced file exists and is not deleted.
+- [x] Validate source zip file extension/MIME category when provided.
+- [x] Validate sample page file assets are images.
+- [x] Create `ProposalPage` rows from `SamplePageFileAssetIds`.
+- [x] Require at least 5 non-deleted proposal pages before Tantou/board submission.
+- [x] Optional future convenience endpoint: `POST /api/proposals/with-files` — deferred as intended (plan marks it optional).
 
 ### Checkpoint 5: Tantou Review Without Annotations
 
@@ -327,9 +327,10 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 13: Update Documentation
 
-- [ ] Update `docs/API_CONTRACT.md` with revised proposal, rejection, board vote, notification, extension, special-decision, and activation endpoints.
-- [ ] Update `MangaManagementSystem.WebApi/docs/AGENTS.md` with new workflow responsibilities.
-- [ ] Add BR-New-01 and BR-New-02 to project business-rule documentation if approved by the team.
+- [x] Update `docs/API_CONTRACT.md` with revised proposal, rejection, board vote, notification, extension, special-decision, and activation endpoints.
+- [x] Update `MangaManagementSystem.WebApi/docs/AGENTS.md` with new workflow responsibilities.
+- [x] Add BR-New-01 and BR-New-02 to project business-rule documentation if approved by the team.
+
 
 ## Finalize Board Voting Behavior
 

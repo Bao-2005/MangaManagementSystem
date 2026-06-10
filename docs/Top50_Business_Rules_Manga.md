@@ -79,3 +79,14 @@
 | **BR-135** | **Concurrency Protection** | *Structural* | **Critical** | XC — Audit | Manuscript, VoteRecord, and BoardDecision entities must use optimistic locking or version checks to prevent concurrent overwrites. Essential for a multi-user studio system where editors and board members work simultaneously. |
 
 **Legend:** Critical (red) \= hard-block if violated | High (white) \= severe business impact | Type: Def=Definitional, Beh=Behavioral, Calc=Calculational, Temp=Temporal, Str=Structural  
+
+---
+
+## Proposed New Rules (SU26-v1.1 — Series Proposal Extension)
+
+These rules were identified during implementation of the proposal workflow and are not yet in the original BR catalog. They define behavior for tie and no-quorum board decisions that cannot be finalized by normal majority/quorum rules.
+
+| ID | Rule Name | Type | Level | Flow | Description & System Impact |
+| ----- | ----- | ----- | ----- | ----- | ----- |
+| **BR-New-01** | **Editor-in-Chief Deadline Extension Rule** | *Behavioral* | **Critical** | P2 — Board Voting | When a proposal board decision reaches its first deadline and cannot be finalized because it is tied or has fewer than 3 valid votes, the Editor-in-Chief may extend the voting deadline exactly **once**. The extension must record `ExtensionCount = 1`, `ExtendedBy`, `ExtendedAt`, and `ExtensionReason` on the `BoardDecision`. A decision that has already been extended cannot be extended again. |
+| **BR-New-02** | **Editor-in-Chief Special Decision Rule** | *Behavioral* | **Critical** | P2 — Board Voting | If an extended voting deadline passes and the board decision still cannot be finalized by normal quorum/majority rules, the Editor-in-Chief may make a special final decision of `Approved` or `Rejected`. The special decision must store `SpecialDecisionBy`, `SpecialDecisionAt`, and `SpecialDecisionReason`. If rejected, the reason must be written to `Series.RejectReason`. If approved, `Series.Status` is set to `Approved`. |

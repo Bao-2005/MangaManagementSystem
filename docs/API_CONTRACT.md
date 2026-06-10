@@ -41,10 +41,14 @@
 
 | Value | Ý nghĩa |
 |---|---|
-| `Proposed` | Mới đề xuất, đang chờ Editorial Board bỏ phiếu |
-| `Active` | Đang trong tiến trình sáng tác và xuất bản đều đặn |
-| `Rejected` | Đề xuất bị Editorial Board bác bỏ |
-| `Cancelled` | Series đã bị hủy xuất bản (sau khi rơi vào bottom 20% và được Board quyết định) |
+| `Draft` | Bản đề xuất đang soạn, chưa nộp cho Tantou Editor |
+| `UnderReview` | Đã nộp, đang chờ Tantou Editor xem xét |
+| `BoardVoting` | Tantou Editor đã chuyển lên, đang trong giai đoạn Editorial Board bỏ phiếu |
+| `Approved` | Ban biên tập đã thông qua (hoặc TBT ra quyết định đặc biệt) — chờ Tantou kích hoạt |
+| `Rejected` | Đề xuất bị Tantou Editor hoặc Editorial Board bác bỏ |
+| `Expired` | Hết thời gian bỏ phiếu mà không đủ quorum |
+| `Active` | Series đã được Tantou Editor kích hoạt, đang trong tiến trình sáng tác |
+| `Cancelled` | Series đã bị hủy xuất bản theo quyết định của Board |
 
 ### `ChapterStatus`
 
@@ -251,120 +255,180 @@ Lấy thông tin người dùng đang đăng nhập dựa trên token.
 
 ## 4. Series & Proposals
 
-### `GET /series`
+> **Base URL for proposal workflow:** `http://localhost:5151/api`
 
-Lấy danh sách các series và các bản đề xuất.
+### `GET /api/series`
 
-**Response `200`**
+Lấy danh sách tất cả series (bao gồm đề xuất ở mọi trạng thái, tùy quyền hạn).
 
-```json
-[
-  {
-    "id": "S01",
-    "title": "Demon Slayer: Chronicles",
-    "author": "Koyoharu Gotouge",
-    "genre": ["Action", "Fantasy"],
-    "type": "Weekly",
-    "status": "Active",
-    "description": "A young man sets out to become a demon slayer...",
-    "coverColor": "from-red-500 to-rose-700",
-    "rating": 4.9
-  }
-]
-```
+**Response `200`** — array of `SeriesResponse`
 
 ---
 
-### `GET /series/:id`
+### `GET /api/series/{id}`
 
-Lấy thông tin chi tiết một series theo `id`.
-
-**Response `200`**
-
-```json
-{
-  "id": "S01",
-  "title": "Demon Slayer: Chronicles",
-  "author": "Koyoharu Gotouge",
-  "genre": ["Action", "Fantasy"],
-  "type": "Weekly",
-  "status": "Active",
-  "description": "A young man sets out to become a demon slayer...",
-  "coverColor": "from-red-500 to-rose-700",
-  "rating": 4.9
-}
-```
+Lấy chi tiết một series (bao gồm `status`, `rejectReason`, thông tin board decision mới nhất).
 
 ---
 
-### `POST /series/proposal`
+### `POST /api/series` *(Mangaka — tạo bản nháp proposal)*
 
-Gửi bản đề xuất series truyện mới lên Ban biên tập (chỉ dùng cho Mangaka).
+Tạo bản đề xuất series ở trạng thái `Draft`.
+
+**Validation (BR-15):**
+- `title` ≤ 100 ký tự, bắt buộc, không trùng với title series đang `Active` (BR-17).
+- `synopsis` từ 100 đến 2000 ký tự.
+- `publicationType` phải là `Weekly`, `Monthly`, hoặc `One-shot`.
+- Ít nhất 1 genre hợp lệ.
+- Mangaka không được có hơn 1 proposal ở `Draft`, `UnderReview`, hoặc `BoardVoting` (BR-19).
 
 **Request body**
 
 ```json
 {
   "title": "Sakura Knights",
-  "genre": "Action, Romance",
-  "publicationType": "Weekly",
   "synopsis": "In feudal Japan reimagined with magitech armor, five orphaned warriors...",
-  "samplePages": 8,
-  "mangakaId": "U01",
-  "coverImageUrl": "https://api.mangahub.vn/covers/sakura-knights.jpg"
+  "publicationType": "Weekly",
+  "genreIds": ["<genre-uuid>"],
+  "coverImageUrl": "https://..."
 }
 ```
 
-> **Ràng buộc kiểm tra đề xuất (BR-15 & BR-19):**
-> - `synopsis` phải từ 200 đến 2000 ký tự.
-> - Số trang vẽ thử mẫu `samplePages` phải $\ge 5$.
-> - Mangaka không được phép gửi đề xuất mới nếu đang có đề xuất khác ở trạng thái `Pending Review` hoặc `Under Review`.
-
-**Response `201`**
-
-```json
-{
-  "success": true,
-  "proposal": {
-    "id": "PR02",
-    "title": "Sakura Knights",
-    "author": "Tanaka Yuki",
-    "genre": ["Action", "Romance"],
-    "type": "Weekly",
-    "status": "Proposed",
-    "description": "In feudal Japan reimagined with magitech armor...",
-    "coverColor": "from-pink-500 to-purple-600",
-    "rating": 0
-  }
-}
-```
+**Response `201`** — `SeriesResponse` với `status: "Draft"`
 
 ---
 
-### `POST /series/:seriesId/vote`
+### `POST /api/proposals/{seriesId}/submit-review` *(Mangaka)*
 
-Editorial Board bỏ phiếu phê duyệt đề xuất.
+Nộp bản nháp lên cho Tantou Editor xem xét. Chuyển `Draft → UnderReview`.
+
+**Điều kiện:** Phải có ít nhất 5 `ProposalPage` chưa bị xóa.
+
+**Response `200`** — `SeriesDetailResponse` với `status: "UnderReview"`
+
+---
+
+### `POST /api/proposals/{seriesId}/reject` *(TantouEditorOnly)*
+
+Tantou Editor từ chối proposal đang ở trạng thái `UnderReview`. Chuyển `UnderReview → Rejected`.
+
+**Object-level auth:** Chỉ Tantou Editor được gán cho Mangaka đó qua `UserAssignment`.
+
+**Request body**
+
+```json
+{ "rejectReason": "Nội dung chưa phù hợp vì..." }
+```
+
+**Response `200`** — `SeriesDetailResponse` với `status: "Rejected"`, `rejectReason` được ghi vào `Series.RejectReason`.
+
+---
+
+### `POST /api/proposals/{seriesId}/submit-to-board` *(TantouEditorOnly)*
+
+Tantou Editor chuyển proposal lên Editorial Board bỏ phiếu. Chuyển `UnderReview → BoardVoting`.
+
+**Điều kiện:**
+- Proposal phải ở `UnderReview`.
+- Phải có ít nhất 5 sample pages.
+- Không được có open `BoardDecision` trùng.
+- Tạo `BoardDecision` với `DecisionType = "SeriesProposal"`, `Status = "Open"`, deadline = UtcNow + 7 ngày.
+- Gửi notification đến tất cả `EditorialBoard` active. Nếu không có recipient nào → trả lỗi.
+
+**Response `200`** — `BoardDecisionResponse`
+
+---
+
+### `GET /api/series/{seriesId}/board-decisions` *(Authenticated)*
+
+Lấy danh sách `BoardDecision` của một series.
+
+---
+
+### `GET /api/board-decisions/{id}` *(Authenticated)*
+
+Lấy chi tiết một `BoardDecision` (bao gồm vote summary, extension info, special decision info).
+
+---
+
+### `POST /api/board-decisions/{boardDecisionId}/votes` *(EditorialBoardOnly)*
+
+Bỏ phiếu cho một `BoardDecision` đang mở.
+
+**Quy tắc bỏ phiếu (BR-27, BR-28, BR-29, BR-30, BR-33, BR-35):**
+- Chỉ `EditorialBoard` active mới được bỏ phiếu.
+- Xung đột lợi ích: không được bỏ phiếu nếu là Mangaka, Tantou Editor được gán, Assistant được gán, người tạo proposal/decision.
+- Không được bỏ phiếu sau deadline hoặc sau khi decision đã finalized.
+- Không được bỏ phiếu trùng.
+- Vote từ chối (`voteValue: false`) bắt buộc phải có `comment` tối thiểu 50 ký tự.
 
 **Request body**
 
 ```json
 {
-  "vote": "Approved"
+  "voteValue": true,
+  "comment": "Cốt truyện hấp dẫn, nét vẽ phù hợp..."
 }
 ```
 
-> **Quy tắc bỏ phiếu (BR-01 & BR-05):**
-> - Tantou Editor trực tiếp quản lý series **KHÔNG ĐƯỢC PHÉP** bỏ phiếu cho series đó.
-> - Đề xuất cần tối thiểu **3 phiếu bầu (quorum)** để thông qua trạng thái `Active`. Nếu dưới 3 phiếu, trạng thái sẽ là `Deferred`.
+**Response `200`** — `BoardDecisionSummaryResponse` (approve count, reject count, quorum state, current result)
 
-**Response `200`**
+---
+
+### `POST /api/board-decisions/{id}/extend-deadline` *(EditorInChiefOnly)*
+
+Tổng biên tập gia hạn deadline bỏ phiếu sau khi decision kết thúc bằng `Tie` hoặc `NoQuorum`.
+
+**Điều kiện:**
+- `ExtensionCount` phải là 0 (chỉ được gia hạn 1 lần — BR-New-01).
+- Decision phải ở trạng thái `Tie` hoặc `NoQuorum`.
+- `newDeadline` phải ở tương lai.
+
+**Request body**
 
 ```json
 {
-  "success": true,
-  "votes": 120
+  "newDeadline": "2026-07-15T00:00:00Z",
+  "reason": "Cần thêm thời gian để các thành viên bỏ phiếu đầy đủ."
 }
 ```
+
+**Response `200`** — `BoardDecisionResponse` với deadline mới, `status: "Open"`
+
+---
+
+### `POST /api/board-decisions/{id}/special-decision` *(EditorInChiefOnly)*
+
+Tổng biên tập đưa ra quyết định đặc biệt sau khi deadline gia hạn vẫn không đủ điều kiện finalize (BR-New-02).
+
+**Điều kiện:**
+- `ExtensionCount >= 1`.
+- Decision chưa có `SpecialDecisionAt`.
+- Decision phải ở trạng thái `Tie` hoặc `NoQuorum` sau khi deadline gia hạn đã qua.
+
+**Request body**
+
+```json
+{
+  "decision": "Approved",
+  "reason": "Sau khi xem xét toàn diện, đề xuất đủ điều kiện phát hành."
+}
+```
+
+**Response `200`** — `BoardDecisionResponse`. Nếu `decision = "Rejected"`, `Series.RejectReason` được cập nhật.
+
+---
+
+### `POST /api/proposals/{seriesId}/activate` *(TantouEditorOnly)*
+
+Tantou Editor kích hoạt series đã được phê duyệt. Chuyển `Approved → Active` (BR-24).
+
+**Điều kiện:**
+- Series phải ở `Approved`.
+- Phải có `BoardDecision` finalized với `Result = "Approved"`.
+- Chỉ Tantou Editor được gán (object-level auth). Mangaka không thể tự kích hoạt.
+
+**Response `200`** — `SeriesDetailResponse` với `status: "Active"`
 
 ---
 
@@ -819,40 +883,80 @@ Tất cả các lỗi trả về từ API đều tuân thủ cấu trúc lỗi t
 
 ## 12. Tóm tắt Endpoints
 
+### Authentication
+
 | Endpoint | Method | Role | Mô tả | Priority |
 |---|---|---|---|---|
-| `/auth/login` | POST | All | Đăng nhập hệ thống | 🔴 High |
-| `/auth/logout` | POST | All | Đăng xuất hệ thống | 🔴 High |
-| `/auth/me` | GET | All | Lấy thông tin user hiện tại | 🔴 High |
-| `/series` | GET | All | Lấy danh sách series & đề cử | 🔴 High |
-| `/series/:id` | GET | All | Lấy chi tiết tác phẩm | 🔴 High |
-| `/series/proposal` | POST | Mangaka | Tạo đề xuất tác phẩm mới | 🔴 High |
-| `/series/:seriesId/vote` | POST | Board/BTV | Bỏ phiếu đề xuất | 🟡 Medium |
-| `/chapters` | GET | All | Lấy toàn bộ danh sách chương | 🔴 High |
-| `/chapters/series/:seriesId` | GET | All | Lấy danh sách chương của series | 🔴 High |
-| `/chapters` | POST | Mangaka | Tạo chương mới | 🔴 High |
-| `/chapters/:id` | PUT | Mangaka | Cập nhật thông tin/trạng thái chương | 🟡 Medium |
-| `/manuscripts` | GET | All | Lấy danh sách bản thảo | 🔴 High |
-| `/manuscripts/:id` | GET | All | Xem chi tiết một bản thảo | 🟡 Medium |
-| `/manuscripts` | POST | Mangaka | Nộp bản thảo chương lên BTV | 🔴 High |
-| `/tasks` | GET | All | Xem danh sách task phân vẽ trang | 🔴 High |
-| `/tasks/assign` | POST | Mangaka | Giao task vẽ trang cho Assistant | 🔴 High |
-| `/reviews` | GET | Board/BTV | Xem danh sách đề cử cần quyết định | 🟡 Medium |
-| `/reviews/:id/decision` | PUT | Board/BTV | Phê duyệt/từ chối đề xuất | 🟡 Medium |
-| `/ranking` | GET | All | Lấy bảng xếp hạng series truyện | 🔴 High |
-| `/ranking/confirm` | POST | Board | Xác nhận danh sách xếp hạng quý | 🟢 Low |
-| `/votes/submit` | POST | Reader | Gửi phiếu bình chọn cho series | 🔴 High |
-| `/notifications` | GET | All | Lấy danh sách thông báo cá nhân | 🔴 High |
-| `/notifications/:id/read` | PUT | All | Đánh dấu thông báo đã đọc | 🟡 Medium |
+| `/api/auth/login` | POST | All | Đăng nhập hệ thống | 🔴 High |
+| `/api/auth/logout` | POST | All | Đăng xuất hệ thống | 🔴 High |
+| `/api/auth/me` | GET | All | Lấy thông tin user hiện tại | 🔴 High |
+
+### Series & Proposal Workflow
+
+| Endpoint | Method | Role | Mô tả | Priority |
+|---|---|---|---|---|
+| `/api/series` | GET | All | Lấy danh sách series | 🔴 High |
+| `/api/series/{id}` | GET | All | Lấy chi tiết series | 🔴 High |
+| `/api/series` | POST | Mangaka | Tạo bản nháp đề xuất (`Draft`) | 🔴 High |
+| `/api/proposals/{seriesId}/submit-review` | POST | Mangaka | Nộp bản nháp cho Tantou xem xét (`Draft→UnderReview`) | 🔴 High |
+| `/api/proposals/{seriesId}/reject` | POST | TantouEditor | Từ chối proposal (`UnderReview→Rejected`) | 🔴 High |
+| `/api/proposals/{seriesId}/submit-to-board` | POST | TantouEditor | Chuyển lên Editorial Board bỏ phiếu (`UnderReview→BoardVoting`) | 🔴 High |
+| `/api/proposals/{seriesId}/activate` | POST | TantouEditor | Kích hoạt series đã được phê duyệt (`Approved→Active`) | 🔴 High |
+
+### Board Decisions & Voting
+
+| Endpoint | Method | Role | Mô tả | Priority |
+|---|---|---|---|---|
+| `/api/series/{seriesId}/board-decisions` | GET | All | Lấy danh sách board decisions của series | 🔴 High |
+| `/api/board-decisions/{id}` | GET | All | Lấy chi tiết board decision | 🔴 High |
+| `/api/board-decisions/{boardDecisionId}/votes` | GET | All | Lấy danh sách phiếu bầu | 🟡 Medium |
+| `/api/board-decisions/{boardDecisionId}/votes` | POST | EditorialBoard | Bỏ phiếu cho board decision | 🔴 High |
+| `/api/board-decisions/{id}/extend-deadline` | POST | EditorInChief | Gia hạn deadline (1 lần, BR-New-01) | 🔴 High |
+| `/api/board-decisions/{id}/special-decision` | POST | EditorInChief | Quyết định đặc biệt sau gia hạn (BR-New-02) | 🔴 High |
+
+### Chapters
+
+| Endpoint | Method | Role | Mô tả | Priority |
+|---|---|---|---|---|
+| `/api/chapters` | GET | All | Lấy toàn bộ danh sách chương | 🔴 High |
+| `/api/chapters/series/{seriesId}` | GET | All | Lấy danh sách chương của series | 🔴 High |
+| `/api/chapters` | POST | Mangaka | Tạo chương mới | 🔴 High |
+| `/api/chapters/{id}` | PUT | Mangaka | Cập nhật thông tin/trạng thái chương | 🟡 Medium |
+
+### Manuscripts, Tasks & Others
+
+| Endpoint | Method | Role | Mô tả | Priority |
+|---|---|---|---|---|
+| `/api/manuscripts` | GET | All | Lấy danh sách bản thảo | 🔴 High |
+| `/api/manuscripts/{id}` | GET | All | Xem chi tiết một bản thảo | 🟡 Medium |
+| `/api/manuscripts` | POST | Mangaka | Nộp bản thảo chương lên BTV | 🔴 High |
+| `/api/notifications` | GET | All | Lấy danh sách thông báo cá nhân | 🔴 High |
+| `/api/notifications/{id}/read` | PUT | All | Đánh dấu thông báo đã đọc | 🟡 Medium |
 
 ---
 
 ## 13. Ghi chú & Quy tắc nghiệp vụ
 
-### Đã thống nhất giữa FE và BE
+### Proposal Workflow
+
+* **Validation (BR-15, đã cập nhật):** `title` ≤ 100 ký tự; `synopsis` từ **100 đến 2000** ký tự; ít nhất 5 sample pages; genre hợp lệ; publication type hợp lệ.
+* **Single active proposal (BR-19):** Một Mangaka không được có hơn 1 proposal ở `Draft`, `UnderReview`, hoặc `BoardVoting` cùng lúc.
+* **Unique title (BR-17):** Title proposal không được trùng với title series đang `Active`.
+* **Object-level auth:** Tantou Editor phải được gán cho Mangaka đó qua `UserAssignment` (`AssignmentType = "TantouEditor"`, active, không bị unassign).
+* **Board submission:** Tạo `BoardDecision` với deadline 7 ngày; gửi notification đến tất cả `EditorialBoard` active. Không có recipient → lỗi.
+* **Quorum (BR-29):** Tối thiểu 3 phiếu hợp lệ (không xung đột lợi ích).
+* **Majority (BR-33):** Approve > 50% phiếu hợp lệ → Approved; Reject > 50% → Rejected; bằng nhau sau deadline → Tie → notify EditorInChief.
+* **No quorum (BR-37):** Hết deadline mà chưa đủ 3 phiếu → `Series.Status = Expired`, notify EditorInChief.
+* **Reject vote (BR-35):** Vote từ chối bắt buộc phải có `comment` ≥ 50 ký tự.
+* **Xung đột lợi ích (BR-28):** Loại trừ Mangaka, Tantou Editor được gán, Assistant được gán, người tạo proposal/decision.
+* **Deadline extension (BR-New-01):** EditorInChief chỉ được gia hạn 1 lần cho decision kết thúc bằng Tie/NoQuorum.
+* **Special decision (BR-New-02):** Sau deadline gia hạn vẫn không finalize được, EditorInChief đưa ra quyết định cuối `Approved` hoặc `Rejected`.
+* **Activation (BR-24):** Chỉ Tantou Editor được gán mới kích hoạt series đã `Approved`. Mangaka không được tự kích hoạt.
+
+### Các quy tắc khác
+
 * **Định dạng Datetime:** Chuẩn ISO 8601 UTC. Ví dụ: `"2026-06-01T08:30:00Z"`.
-* **Ràng buộc nộp đề xuất (BR-15):** Phải kiểm tra tính hợp lệ của `synopsis` (từ 200 đến 2000 ký tự) và số lượng `samplePages` vẽ nháp (tối thiểu 5 trang).
-* **Ràng buộc trễ hạn chương (BR-03):** Hạn chót nộp bản thảo (`deadline`) được hệ thống tính tự động lùi **14 ngày** so với ngày dự kiến xuất bản (`publicationDate`). Trễ deadline sẽ tự động kích hoạt notification cảnh báo cho tác giả và BTV phụ trách.
-* **Tiến trình hoàn thành chương (BR-04):** Để có thể bấm nút nộp bản thảo chương (`POST /manuscripts`), 100% các page task của chương đó bắt buộc phải có trạng thái là `Approved` từ Mangaka.
-* **Hạn chế xung đột lợi ích (BR-01):** BTV phụ trách chính của một series không được tham gia bỏ phiếu duyệt đề cử của series đó.
-* **Cơ chế biểu quyết quorum (BR-05):** Yêu cầu tối thiểu 3 phiếu từ Editorial Board để đưa ra quyết định duyệt đề cử hoặc chấm dứt hợp đồng xuất bản series.
+* **Deadline chương (BR-42):** Deadline = publicationDate − 14 ngày; publicationDate phải cách ngày tạo ít nhất 17 ngày.
+* **Chapter submission (BR-46, BR-67):** 100% PageTask của chương phải `Approved` trước khi nộp bản thảo.
+* **Quorum cancellation (BR-101):** Quyết định hủy series cũng yêu cầu tối thiểu 3 phiếu hợp lệ.
+* **Finalization là backend-owned:** FE chỉ hiển thị trạng thái và gọi các action được phép. Backend tự động xử lý quorum, majority, deadline qua `BoardDecisionDeadlineWorker` (chạy mỗi 1–5 phút).
