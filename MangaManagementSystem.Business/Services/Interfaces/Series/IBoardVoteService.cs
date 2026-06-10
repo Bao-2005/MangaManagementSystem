@@ -6,7 +6,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Series
     public interface IBoardVoteService
     {
         Task<IEnumerable<BoardVoteResponse>> GetByDecisionAsync(Guid boardDecisionId);
-        Task<BoardVoteResponse> CastVoteAsync(Guid voterId, CreateBoardVoteRequest request);
+        Task<BoardDecisionSummaryResponse> CastVoteAsync(Guid voterId, Guid boardDecisionId, CreateBoardVoteRequest request);
         Task SoftDeleteAsync(Guid id);
     }
 }

@@ -39,7 +39,8 @@ namespace MangaManagementSystem.API.Controllers
         [SwaggerOperation(Summary = "Create a board decision")]
         public async Task<IActionResult> Create([FromBody] CreateBoardDecisionRequest request)
         {
-            var result = await _decisionService.CreateAsync(request);
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _decisionService.CreateAsync(request, userId);
             return CreatedAtAction(nameof(GetById), new { id = result.BoardDecisionId }, new BaseResponse { Data = result, Message = "Decision created." });
         }
 
@@ -66,13 +67,13 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> GetVotes(Guid boardDecisionId)
             => Ok(new BaseResponse { Data = await _voteService.GetByDecisionAsync(boardDecisionId), Message = "Success" });
 
-        [HttpPost("api/board-votes")]
+        [HttpPost("api/board-decisions/{boardDecisionId:guid}/votes")]
         [Authorize(Policy = "EditorialBoardOnly")]
         [SwaggerOperation(Summary = "Cast a board vote")]
-        public async Task<IActionResult> CastVote([FromBody] CreateBoardVoteRequest request)
+        public async Task<IActionResult> CastVote(Guid boardDecisionId, [FromBody] CreateBoardVoteRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _voteService.CastVoteAsync(userId, request), Message = "Vote cast." });
+            return Ok(new BaseResponse { Data = await _voteService.CastVoteAsync(userId, boardDecisionId, request), Message = "Vote cast." });
         }
 
         [HttpDelete("api/board-votes/{id:guid}/soft-delete")]

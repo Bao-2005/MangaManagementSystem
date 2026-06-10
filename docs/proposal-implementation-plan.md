@@ -273,14 +273,14 @@ These are not currently in `Top50_Business_Rules_Manga.md`, but they can become 
 
 ### Checkpoint 8: Enforce Board Voting Rules
 
-- [ ] Update board vote route to `POST /api/board-decisions/{boardDecisionId}/votes`.
-- [ ] Enforce active `EditorialBoard` role at request time.
-- [ ] Enforce conflict of interest: voter cannot be series Mangaka, assigned Tantou Editor, assigned Assistant, proposal creator, or decision creator.
-- [ ] Block votes after deadline or after decision finalization.
-- [ ] Block duplicate votes.
-- [ ] Require reject reason/comment with at least 50 characters.
-- [ ] Return current vote summary after vote creation.
-- [ ] Trigger finalization recalculation after each vote.
+- [x] Update board vote route to `POST /api/board-decisions/{boardDecisionId}/votes`.
+- [x] Enforce active `EditorialBoard` role at request time.
+- [x] Enforce conflict of interest: voter cannot be series Mangaka, assigned Tantou Editor, assigned Assistant, proposal creator, or decision creator.
+- [x] Block votes after deadline or after decision finalization.
+- [x] Block duplicate votes.
+- [x] Require reject reason/comment with at least 50 characters.
+- [x] Return current vote summary after vote creation.
+- [x] Trigger finalization recalculation after each vote.
 
 ### Checkpoint 9: Board Decision Finalization Logic
 

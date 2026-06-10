@@ -7,7 +7,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Series
     {
         Task<IEnumerable<BoardDecisionResponse>> GetBySeriesAsync(Guid seriesId);
         Task<BoardDecisionResponse> GetByIdAsync(Guid id);
-        Task<BoardDecisionResponse> CreateAsync(CreateBoardDecisionRequest request);
+        Task<BoardDecisionResponse> CreateAsync(CreateBoardDecisionRequest request, Guid? createdBy = null);
         Task<BoardDecisionResponse> UpdateAsync(Guid id, UpdateBoardDecisionRequest request);
         Task SoftDeleteAsync(Guid id);
     }

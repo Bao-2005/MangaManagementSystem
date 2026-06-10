@@ -43,6 +43,7 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IPageTaskSubmissionService, PageTaskSubmissionService>();
             services.AddScoped<IAnnotationService, AnnotationService>();
             services.AddScoped<IBoardDecisionService, BoardDecisionService>();
+            services.AddScoped<IBoardDecisionFinalizationService, BoardDecisionFinalizationService>();
             services.AddScoped<IBoardVoteService, BoardVoteService>();
             services.AddScoped<IVoteRecordService, VoteRecordService>();
             services.AddScoped<IRankingSnapshotService, RankingSnapshotService>();

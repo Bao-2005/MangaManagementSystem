@@ -26,7 +26,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             return Map(b);
         }
 
-        public async Task<BoardDecisionResponse> CreateAsync(CreateBoardDecisionRequest request)
+        public async Task<BoardDecisionResponse> CreateAsync(CreateBoardDecisionRequest request, Guid? createdBy = null)
         {
             var decision = new BoardDecision
             {
@@ -34,6 +34,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 DecisionType = request.DecisionType,
                 VotingDeadline = request.VotingDeadline,
                 Status = "Open",
+                CreatedBy = createdBy,
                 CreatedAt = DateTime.UtcNow
             };
             await _repo.AddAsync(decision);
