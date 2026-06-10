@@ -53,7 +53,7 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IEscalationService, EscalationService>();
             services.AddScoped<IStorageService, LocalStorageService>();
             services.AddScoped<IFileUploadService, FileUploadService>();
-
+            services.AddScoped<IRoleService, RoleService>();
 
             services.RegisterInfrastructure();
         }
