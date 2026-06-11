@@ -32,17 +32,34 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         {
             return await _userRepository.GetAll()
                 .Include(x => x.Role)
+                .Include(x => x.AssignmentsToUser)
+                    .ThenInclude(x => x.FromUser)
                 .Where(x => x.DeletedAt == null)
+                .Select(x => new
+                {
+                    User = x,
+                    AssignedEditor = x.AssignmentsToUser
+                        .Where(a => a.DeletedAt == null && a.UnassignedAt == null && a.FromUser.DeletedAt == null)
+                        .OrderByDescending(a => a.AssignedAt)
+                        .Select(a => new
+                        {
+                            a.FromUserId,
+                            a.FromUser.DisplayName
+                        })
+                        .FirstOrDefault()
+                })
                 .Select(x => new UserProfileResponse
                 {
-                    UserId = x.UserId,
-                    UserName = x.UserName,
-                    Email = x.Email,
-                    DisplayName = x.DisplayName,
-                    RoleName = x.Role.RoleName,
-                    CreatedAt = x.CreatedAt,
-                    LastLoginAt = x.LastLoginAt,
-                    DeletedAt = x.DeletedAt
+                    UserId = x.User.UserId,
+                    UserName = x.User.UserName,
+                    Email = x.User.Email,
+                    DisplayName = x.User.DisplayName,
+                    RoleName = x.User.Role.RoleName,
+                    AssignedEditorId = x.AssignedEditor == null ? null : x.AssignedEditor.FromUserId,
+                    AssignedEditorName = x.AssignedEditor == null ? null : x.AssignedEditor.DisplayName,
+                    CreatedAt = x.User.CreatedAt,
+                    LastLoginAt = x.User.LastLoginAt,
+                    DeletedAt = x.User.DeletedAt
                 })
                 .ToListAsync();
         }
