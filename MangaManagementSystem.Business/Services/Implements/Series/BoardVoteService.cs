@@ -134,12 +134,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             };
 
             var hasAssignmentConflict = await _assignmentRepo.GetAll()
-                .Include(a => a.ToUser).ThenInclude(u => u.Role)
-                .AnyAsync(a => a.FromUserId == decision.Series.MangakaId
-                    && a.ToUserId == voterId
+                .Include(a => a.FromUser).ThenInclude(u => u.Role)
+                .AnyAsync(a => a.ToUserId == decision.Series.MangakaId
+                    && a.FromUserId == voterId
                     && a.UnassignedAt == null
                     && a.DeletedAt == null
-                    && conflictingRoles.Contains(a.ToUser.Role.RoleName));
+                    && conflictingRoles.Contains(a.FromUser.Role.RoleName));
 
             if (hasAssignmentConflict)
             {

@@ -13,14 +13,14 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
 
         public UserAssignmentService(IRepository<UserAssignment> repo) => _repo = repo;
 
-        public async Task<IEnumerable<UserAssignmentResponse>> GetByMangakaAsync(Guid fromUserId)
+        public async Task<IEnumerable<UserAssignmentResponse>> GetByMangakaAsync(Guid mangakaId)
             => await _repo.GetAll().Include(a => a.FromUser).Include(a => a.ToUser)
-                .Where(a => a.FromUserId == fromUserId && a.DeletedAt == null)
+                .Where(a => a.ToUserId == mangakaId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
 
-        public async Task<IEnumerable<UserAssignmentResponse>> GetByAssistantAsync(Guid toUserId)
+        public async Task<IEnumerable<UserAssignmentResponse>> GetByTantouEditorAsync(Guid tantouEditorId)
             => await _repo.GetAll().Include(a => a.FromUser).Include(a => a.ToUser)
-                .Where(a => a.ToUserId == toUserId && a.DeletedAt == null)
+                .Where(a => a.FromUserId == tantouEditorId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
 
         public async Task<UserAssignmentResponse> CreateAsync(Guid fromUserId, CreateUserAssignmentRequest request)

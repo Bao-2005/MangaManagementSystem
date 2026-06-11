@@ -261,10 +261,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private async Task EnsureAssignedTantouEditorAsync(Guid mangakaId, Guid tantouEditorId)
         {
             var isAssigned = await _userAssignmentRepo.GetAll()
-                .Include(a => a.ToUser).ThenInclude(u => u.Role)
-                .AnyAsync(a => a.FromUserId == mangakaId
-                    && a.ToUserId == tantouEditorId
-                    && a.ToUser.Role.RoleName == UserRole.TantouEditor.ToString()
+                .Include(a => a.FromUser).ThenInclude(u => u.Role)
+                .AnyAsync(a => a.FromUserId == tantouEditorId
+                    && a.ToUserId == mangakaId
+                    && a.FromUser.Role.RoleName == UserRole.TantouEditor.ToString()
                     && a.UnassignedAt == null
                     && a.DeletedAt == null);
             if (!isAssigned)
