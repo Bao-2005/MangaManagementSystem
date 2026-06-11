@@ -6,5 +6,6 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Files
     public interface IFileUploadService
     {
         Task<FileUploadResponse> UploadAsync(FileUploadRequest request, CancellationToken cancellationToken = default);
+        Task<FileAssetResponse?> GetByIdAsync(Guid fileAssetId, CancellationToken cancellationToken = default);
     }
 }

@@ -7,6 +7,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Users
         public string FromUserName { get; set; } = null!;
         public Guid ToUserId { get; set; }
         public string ToUserName { get; set; } = null!;
+        public string ToUserEmail { get; set; } = null!;
         public DateTime AssignedAt { get; set; }
         public DateTime? UnassignedAt { get; set; }
     }

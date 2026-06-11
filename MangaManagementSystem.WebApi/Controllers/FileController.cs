@@ -45,5 +45,20 @@ namespace MangaManagementSystem.API.Controllers
             var result = await _fileUploadService.UploadAsync(request, cancellationToken);
             return Ok(new BaseResponse { Data = result, Message = "Files uploaded." });
         }
+
+        [HttpGet("{id:guid}")]
+        [Authorize]
+        [SwaggerOperation(
+            Summary = "Retrieve file asset metadata and public URL by ID",
+            Description = "Returns the FileAssetResponse including the Supabase public URL for preview or download.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetFile(Guid id, CancellationToken cancellationToken)
+        {
+            var asset = await _fileUploadService.GetByIdAsync(id, cancellationToken);
+            if (asset is null)
+                return NotFound(new BaseResponse { Message = "File not found." });
+            return Ok(new BaseResponse { Data = asset, Message = "Success" });
+        }
     }
 }

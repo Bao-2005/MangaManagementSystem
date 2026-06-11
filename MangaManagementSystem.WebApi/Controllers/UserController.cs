@@ -49,6 +49,21 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Message = "User deleted successfully." });
         }
 
+        [HttpGet("my-mangakas")]
+        [Authorize(Policy = "TantouEditorOnly")]
+        [SwaggerOperation(
+            Summary = "Get assigned mangakas for the current editor",
+            Description = "Tantou Editor only. Returns all active Mangakas assigned to the calling editor.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetMyMangakas()
+        {
+            var editorId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var mangakas = await _userService.GetAssignedMangakasAsync(editorId);
+            return Ok(new BaseResponse { Data = mangakas, Message = "Success" });
+        }
+
         private Guid? GetUserId()
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);

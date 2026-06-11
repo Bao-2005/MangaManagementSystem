@@ -3,6 +3,7 @@ using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.Business.Services.Interfaces.Files;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.Business.Services.Implements.Files
@@ -161,6 +162,13 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
             {
                 DisposeStreams(request.Files);
             }
+        }
+
+        public async Task<FileAssetResponse?> GetByIdAsync(Guid fileAssetId, CancellationToken cancellationToken = default)
+        {
+            var asset = await _fileAssetRepository.GetAll()
+                .FirstOrDefaultAsync(x => x.FileAssetId == fileAssetId && x.DeletedAt == null, cancellationToken);
+            return asset is null ? null : Map(asset);
         }
 
         private static async Task<string?> ValidateAsync(UploadFileRequest file, UploadCategoryRule rule, CancellationToken cancellationToken)

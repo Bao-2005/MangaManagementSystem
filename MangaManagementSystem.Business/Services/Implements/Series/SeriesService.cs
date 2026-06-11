@@ -6,6 +6,7 @@ using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.Business.Services.Implements.Series
 {
@@ -49,19 +50,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<Genre> _genreRepo;
         private readonly IRepository<FileAsset> _fileAssetRepo;
         private readonly IRepository<ProposalPage> _proposalPageRepo;
+        private readonly string _supabaseUrl;
 
         public SeriesService(
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
             IRepository<SeriesGenre> seriesGenreRepo,
             IRepository<Genre> genreRepo,
             IRepository<FileAsset> fileAssetRepo,
-            IRepository<ProposalPage> proposalPageRepo)
+            IRepository<ProposalPage> proposalPageRepo,
+            IConfiguration configuration)
         {
             _seriesRepo = seriesRepo;
             _seriesGenreRepo = seriesGenreRepo;
             _genreRepo = genreRepo;
             _fileAssetRepo = fileAssetRepo;
             _proposalPageRepo = proposalPageRepo;
+            _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
         }
 
         public async Task<IEnumerable<SeriesResponse>> GetAllAsync(string? status = null)
@@ -99,6 +103,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 .Include(s => s.Mangaka)
                 .Include(s => s.SeriesGenres).ThenInclude(sg => sg.Genre)
                 .Include(s => s.ProposalPages)
+                .Include(s => s.SourceZipFileAsset)
                 .FirstOrDefaultAsync(s => s.SeriesId == id && s.DeletedAt == null)
                 ?? throw new KeyNotFoundException("Series not found.");
 
@@ -111,7 +116,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 SubmittedAt = s.SubmittedAt, RejectReason = s.RejectReason,
                 Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList(),
                 ProposalPages = s.ProposalPages.Where(p => p.DeletedAt == null)
-                    .Select(p => new ProposalPageResponse { ProposalPageId = p.ProposalPageId, SeriesId = p.SeriesId, PageNo = p.PageNo, PreviewFileAssetId = p.PreviewFileAssetId, CreatedAt = p.CreatedAt }).ToList()
+                    .Select(p => new ProposalPageResponse { ProposalPageId = p.ProposalPageId, SeriesId = p.SeriesId, PageNo = p.PageNo, PreviewFileAssetId = p.PreviewFileAssetId, CreatedAt = p.CreatedAt }).ToList(),
+                SourceZipFileAssetId = s.SourceZipFileAssetId,
+                SourceZipPublicUrl = (s.SourceZipFileAsset == null || string.IsNullOrEmpty(_supabaseUrl)) ? null : (_supabaseUrl + "/storage/v1/object/public/" + s.SourceZipFileAsset.BucketName + "/" + s.SourceZipFileAsset.ObjectPath)
             };
             return detail;
         }
@@ -206,6 +213,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             await _seriesRepo.SaveChangeAsync();
             return await GetByIdAsync(id) as SeriesResponse ?? throw new Exception("Update failed.");
         }
+
 
         public async Task SoftDeleteAsync(Guid id)
         {

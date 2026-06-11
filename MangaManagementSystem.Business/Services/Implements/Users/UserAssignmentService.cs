@@ -60,6 +60,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         {
             AssignmentId = a.AssignmentId, FromUserId = a.FromUserId, FromUserName = a.FromUser?.DisplayName ?? "",
             ToUserId = a.ToUserId, ToUserName = a.ToUser?.DisplayName ?? "",
+            ToUserEmail = a.ToUser?.Email ?? "",
             AssignedAt = a.AssignedAt, UnassignedAt = a.UnassignedAt
         };
     }
