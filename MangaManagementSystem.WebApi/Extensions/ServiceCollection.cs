@@ -18,6 +18,7 @@ using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
 using MangaManagementSystem.DataAccess.Repositories.Implements;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.API.Extensions
 {
@@ -52,7 +53,18 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
             services.AddScoped<IUserAssignmentService, UserAssignmentService>();
             services.AddScoped<IEscalationService, EscalationService>();
-            services.AddScoped<IStorageService, LocalStorageService>();
+            // Supabase client (singleton — shared, no Realtime)
+            services.AddSingleton(provider =>
+            {
+                var config = provider.GetRequiredService<IConfiguration>();
+                var url = config["Supabase:Url"]!;
+                var key = config["Supabase:ServiceRoleKey"]!;
+                var options = new Supabase.SupabaseOptions { AutoConnectRealtime = false };
+                var client = new Supabase.Client(url, key, options);
+                client.InitializeAsync().GetAwaiter().GetResult();
+                return client;
+            });
+            services.AddScoped<IStorageService, SupabaseStorageService>();
             services.AddScoped<IFileUploadService, FileUploadService>();
             services.AddScoped<IRoleService, RoleService>();
 

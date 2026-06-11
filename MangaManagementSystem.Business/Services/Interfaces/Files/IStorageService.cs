@@ -17,5 +17,6 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Files
         public string BucketName { get; set; } = null!;
         public string ObjectPath { get; set; } = null!;
         public string StoredFileName { get; set; } = null!;
+        public string? PublicUrl { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.Business.Services.Interfaces.Files;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.Business.Services.Implements.Files
 {
@@ -58,11 +59,16 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
 
         private readonly IRepository<FileAsset> _fileAssetRepository;
         private readonly IStorageService _storageService;
+        private readonly string _supabaseUrl;
 
-        public FileUploadService(IRepository<FileAsset> fileAssetRepository, IStorageService storageService)
+        public FileUploadService(
+            IRepository<FileAsset> fileAssetRepository,
+            IStorageService storageService,
+            IConfiguration configuration)
         {
             _fileAssetRepository = fileAssetRepository;
             _storageService = storageService;
+            _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
         }
 
         public async Task<FileUploadResponse> UploadAsync(FileUploadRequest request, CancellationToken cancellationToken = default)
@@ -290,7 +296,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
         private static string NormalizeMimeType(string? mimeType)
             => (mimeType ?? string.Empty).Split(';', 2)[0].Trim().ToLowerInvariant();
 
-        private static FileAssetResponse Map(FileAsset asset) => new()
+        private FileAssetResponse Map(FileAsset asset) => new()
         {
             FileAssetId = asset.FileAssetId,
             BucketName = asset.BucketName,
@@ -299,7 +305,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
             StoredFileName = asset.StoredFileName,
             Extension = asset.Extension,
             FileSizeBytes = asset.FileSizeBytes,
-            MimeType = asset.MimeType
+            MimeType = asset.MimeType,
+            PublicUrl = string.IsNullOrEmpty(_supabaseUrl)
+                ? null
+                : $"{_supabaseUrl}/storage/v1/object/public/{asset.BucketName}/{asset.ObjectPath}"
         };
 
         private sealed record UploadCategoryRule(

@@ -16,5 +16,6 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Files
         public string Extension { get; set; } = null!;
         public long FileSizeBytes { get; set; }
         public string MimeType { get; set; } = null!;
+        public string? PublicUrl { get; set; }
     }
 }
