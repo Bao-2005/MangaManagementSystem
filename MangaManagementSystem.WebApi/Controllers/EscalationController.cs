@@ -29,8 +29,8 @@ namespace MangaManagementSystem.API.Controllers
             => Ok(new BaseResponse { Data = await _service.GetByIdAsync(id), Message = "Success" });
 
         [HttpPost("api/escalations")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Raise an escalation")]
+        [Authorize(Policy = "EditorInChiefOnly")]
+        [SwaggerOperation(Summary = "Raise an escalation (EditorInChief only)")]
         public async Task<IActionResult> Create([FromBody] CreateEscalationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
