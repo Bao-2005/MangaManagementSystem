@@ -1,5 +1,6 @@
-using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.Services.Interfaces.Series;
+using MangaManagementSystem.DataAccess.Entities.Models;
+using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace MangaManagementSystem.API.BackgroundServices
@@ -51,11 +52,10 @@ namespace MangaManagementSystem.API.BackgroundServices
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<MangaDbContext>();
+                var repo = scope.ServiceProvider.GetRequiredService<IRepository<BoardDecision>>();
                 var now = DateTime.UtcNow;
 
-                expiredDecisionIds = await dbContext.BoardDecisions
-                    .AsNoTracking()
+                expiredDecisionIds = await repo.GetAll()
                     .Where(d => d.DeletedAt == null
                         && d.FinalizedAt == null
                         && d.Status == OpenStatus

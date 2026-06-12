@@ -1,4 +1,3 @@
-using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.DTOs.Requests.Series;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
 using MangaManagementSystem.Business.Services.Interfaces.Series;
@@ -23,18 +22,15 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<BoardDecision> _repo;
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepo;
         private readonly IBoardDecisionFinalizationService _finalizationService;
-        private readonly MangaDbContext _dbContext;
 
         public BoardDecisionService(
             IRepository<BoardDecision> repo,
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
-            IBoardDecisionFinalizationService finalizationService,
-            MangaDbContext dbContext)
+            IBoardDecisionFinalizationService finalizationService)
         {
             _repo = repo;
             _seriesRepo = seriesRepo;
             _finalizationService = finalizationService;
-            _dbContext = dbContext;
         }
 
         public async Task<IEnumerable<BoardDecisionResponse>> GetBySeriesAsync(Guid seriesId)
@@ -95,9 +91,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 throw new ArgumentException("NewDeadline must be in the future.");
             }
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-
-            var decision = await GetDecisionForUpdateAsync(id);
+            var decision = await GetDecisionWithSeriesAndVotesAsync(id);
 
             if (!string.Equals(decision.DecisionType, SeriesProposalDecisionType, StringComparison.OrdinalIgnoreCase))
             {
@@ -128,7 +122,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _repo.Update(decision);
             _seriesRepo.Update(decision.Series);
             await _repo.SaveChangeAsync();
-            await transaction.CommitAsync();
 
             return Map(decision);
         }
@@ -142,16 +135,14 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 throw new ArgumentException("Special decision reason is required.");
             }
 
-            var currentDecision = await GetDecisionForSpecialDecisionAsync(id);
+            var currentDecision = await GetDecisionWithSeriesAndVotesAsync(id);
             if (string.Equals(currentDecision.Status, OpenStatus, StringComparison.OrdinalIgnoreCase)
                 && DateTime.UtcNow > currentDecision.VotingDeadline)
             {
                 await _finalizationService.ProcessDeadlineAsync(id);
             }
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-
-            var decision = await GetDecisionForUpdateAsync(id);
+            var decision = await GetDecisionWithSeriesAndVotesAsync(id);
 
             if (decision.ExtensionCount < 1)
             {
@@ -195,7 +186,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _repo.Update(decision);
             _seriesRepo.Update(decision.Series);
             await _repo.SaveChangeAsync();
-            await transaction.CommitAsync();
 
             return Map(decision);
         }
@@ -209,22 +199,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             await _repo.SaveChangeAsync();
         }
 
-        private async Task<BoardDecision> GetDecisionForSpecialDecisionAsync(Guid id)
+        private async Task<BoardDecision> GetDecisionWithSeriesAndVotesAsync(Guid id)
         {
             return await _repo.GetAll()
                 .Include(b => b.Series)
                 .Include(b => b.BoardVotes)
                 .FirstOrDefaultAsync(x => x.BoardDecisionId == id && x.DeletedAt == null)
-                ?? throw new KeyNotFoundException("BoardDecision not found.");
-        }
-
-        private async Task<BoardDecision> GetDecisionForUpdateAsync(Guid id)
-        {
-            return await _dbContext.BoardDecisions
-                .FromSqlInterpolated($"SELECT * FROM \"BoardDecisions\" WHERE \"BoardDecisionId\" = {id} AND \"DeletedAt\" IS NULL FOR UPDATE")
-                .Include(b => b.Series)
-                .Include(b => b.BoardVotes)
-                .FirstOrDefaultAsync()
                 ?? throw new KeyNotFoundException("BoardDecision not found.");
         }
 

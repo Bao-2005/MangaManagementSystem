@@ -1,4 +1,3 @@
-using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Requests.Series;
 using MangaManagementSystem.Business.DTOs.Responses;
@@ -35,7 +34,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<BoardDecision> _boardDecisionRepo;
         private readonly ISeriesService _seriesService;
         private readonly INotificationDispatchService _notificationDispatchService;
-        private readonly MangaDbContext _dbContext;
 
         public SeriesProposalWorkflowService(
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
@@ -43,8 +41,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             IRepository<UserAssignment> userAssignmentRepo,
             IRepository<BoardDecision> boardDecisionRepo,
             ISeriesService seriesService,
-            INotificationDispatchService notificationDispatchService,
-            MangaDbContext dbContext)
+            INotificationDispatchService notificationDispatchService)
         {
             _seriesRepo = seriesRepo;
             _proposalPageRepo = proposalPageRepo;
@@ -52,7 +49,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _boardDecisionRepo = boardDecisionRepo;
             _seriesService = seriesService;
             _notificationDispatchService = notificationDispatchService;
-            _dbContext = dbContext;
         }
 
         public async Task<SeriesDetailResponse> SubmitForReviewAsync(Guid seriesId, Guid mangakaId)
@@ -103,8 +99,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             await EnsureProposalCompletenessAsync(series);
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-
             var hasOpenDecision = await _boardDecisionRepo.GetAll()
                 .AnyAsync(d => d.SeriesId == seriesId
                     && d.DecisionType == SeriesProposalDecisionType
@@ -153,8 +147,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             {
                 throw new InvalidOperationException(dispatchResult.Message);
             }
-
-            await transaction.CommitAsync();
 
             return MapDecision(decision);
         }

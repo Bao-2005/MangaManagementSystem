@@ -27,6 +27,7 @@ namespace MangaManagementSystem.API.Extensions
         public static void Register(this IServiceCollection services)
         {
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            services.AddScoped<IEscalationRepository, EscalationRepository>();
 
             // Auth & User
             services.AddScoped<IAuthService, AuthService>();

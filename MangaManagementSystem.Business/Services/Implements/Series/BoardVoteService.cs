@@ -1,4 +1,3 @@
-using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.DTOs.Requests.Series;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
 using MangaManagementSystem.Business.Exceptions;
@@ -14,23 +13,23 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
     public class BoardVoteService : IBoardVoteService
     {
         private readonly IRepository<BoardVote> _repo;
+        private readonly IRepository<BoardDecision> _decisionRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRepository<UserAssignment> _assignmentRepo;
         private readonly IBoardDecisionFinalizationService _finalizationService;
-        private readonly MangaDbContext _dbContext;
 
         public BoardVoteService(
             IRepository<BoardVote> repo,
+            IRepository<BoardDecision> decisionRepo,
             IRepository<User> userRepo,
             IRepository<UserAssignment> assignmentRepo,
-            IBoardDecisionFinalizationService finalizationService,
-            MangaDbContext dbContext)
+            IBoardDecisionFinalizationService finalizationService)
         {
             _repo = repo;
+            _decisionRepo = decisionRepo;
             _userRepo = userRepo;
             _assignmentRepo = assignmentRepo;
             _finalizationService = finalizationService;
-            _dbContext = dbContext;
         }
 
         public async Task<IEnumerable<BoardVoteResponse>> GetByDecisionAsync(Guid boardDecisionId)
@@ -53,8 +52,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             }
 
             await EnsureActiveEditorialBoardAsync(voterId);
-
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
             var decision = await GetOpenDecisionForVotingAsync(boardDecisionId);
             await EnsureNoConflictOfInterestAsync(voterId, decision);
@@ -85,9 +82,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             await _finalizationService.RecalculateAsync(boardDecisionId);
 
-            var summary = await _finalizationService.GetSummaryAsync(boardDecisionId);
-            await transaction.CommitAsync();
-            return summary;
+            return await _finalizationService.GetSummaryAsync(boardDecisionId);
         }
 
         public async Task SoftDeleteAsync(Guid id)
@@ -149,10 +144,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private async Task<BoardDecision> GetOpenDecisionForVotingAsync(Guid boardDecisionId)
         {
-            var decision = await _dbContext.BoardDecisions
-                .FromSqlInterpolated($"SELECT * FROM \"BoardDecisions\" WHERE \"BoardDecisionId\" = {boardDecisionId} AND \"DeletedAt\" IS NULL FOR UPDATE")
+            var decision = await _decisionRepo.GetAll()
                 .Include(d => d.Series)
-                .FirstOrDefaultAsync()
+                .FirstOrDefaultAsync(d => d.BoardDecisionId == boardDecisionId && d.DeletedAt == null)
                 ?? throw new KeyNotFoundException("BoardDecision not found.");
 
             if (decision.FinalizedAt.HasValue || !string.Equals(decision.Status, "Open", StringComparison.OrdinalIgnoreCase))

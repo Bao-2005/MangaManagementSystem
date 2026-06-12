@@ -1,4 +1,3 @@
-using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
@@ -27,7 +26,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepo;
         private readonly IRepository<UserAssignment> _assignmentRepo;
         private readonly INotificationDispatchService _notificationDispatchService;
-        private readonly MangaDbContext _dbContext;
         private readonly ILogger<BoardDecisionFinalizationService> _logger;
 
         public BoardDecisionFinalizationService(
@@ -35,14 +33,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
             IRepository<UserAssignment> assignmentRepo,
             INotificationDispatchService notificationDispatchService,
-            MangaDbContext dbContext,
             ILogger<BoardDecisionFinalizationService> logger)
         {
             _decisionRepo = decisionRepo;
             _seriesRepo = seriesRepo;
             _assignmentRepo = assignmentRepo;
             _notificationDispatchService = notificationDispatchService;
-            _dbContext = dbContext;
             _logger = logger;
         }
 
@@ -89,22 +85,16 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         public async Task<BoardDecisionSummaryResponse> ProcessDeadlineAsync(Guid boardDecisionId)
         {
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-
-            var decision = await GetDecisionWithVotesForUpdateAsync(boardDecisionId);
+            var decision = await GetDecisionWithVotesAsync(boardDecisionId);
 
             if (decision.FinalizedAt.HasValue || !string.Equals(decision.Status, OpenStatus, StringComparison.OrdinalIgnoreCase))
             {
-                var existingSummary = await BuildSummaryAsync(decision);
-                await transaction.CommitAsync();
-                return existingSummary;
+                return await BuildSummaryAsync(decision);
             }
 
             if (DateTime.UtcNow <= decision.VotingDeadline)
             {
-                var openSummary = await BuildSummaryAsync(decision);
-                await transaction.CommitAsync();
-                return openSummary;
+                return await BuildSummaryAsync(decision);
             }
 
             var validVotes = await GetValidVotesAsync(decision);
@@ -122,7 +112,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 await _decisionRepo.SaveChangeAsync();
 
                 var summary = CreateSummary(decision, validVotes);
-                await transaction.CommitAsync();
                 await TryNotifyEditorInChiefOfFailedOutcomeAsync(decision);
                 return summary;
             }
@@ -147,9 +136,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 _seriesRepo.Update(decision.Series);
                 await _decisionRepo.SaveChangeAsync();
 
-                var summary = CreateSummary(decision, validVotes);
-                await transaction.CommitAsync();
-                return summary;
+                return CreateSummary(decision, validVotes);
             }
 
             if (validVotes.Count(v => v.VoteValue) == validVotes.Count(v => !v.VoteValue))
@@ -162,14 +149,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 await _decisionRepo.SaveChangeAsync();
 
                 var summary = CreateSummary(decision, validVotes);
-                await transaction.CommitAsync();
                 await TryNotifyEditorInChiefOfFailedOutcomeAsync(decision);
                 return summary;
             }
 
-            var unchangedSummary = await BuildSummaryAsync(decision);
-            await transaction.CommitAsync();
-            return unchangedSummary;
+            return await BuildSummaryAsync(decision);
         }
 
         public async Task<BoardDecisionSummaryResponse> GetSummaryAsync(Guid boardDecisionId)
@@ -186,18 +170,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     .ThenInclude(v => v.Voter)
                     .ThenInclude(v => v.Role)
                 .FirstOrDefaultAsync(d => d.BoardDecisionId == boardDecisionId && d.DeletedAt == null)
-                ?? throw new KeyNotFoundException("BoardDecision not found.");
-        }
-
-        private async Task<BoardDecision> GetDecisionWithVotesForUpdateAsync(Guid boardDecisionId)
-        {
-            return await _dbContext.BoardDecisions
-                .FromSqlInterpolated($"SELECT * FROM \"BoardDecisions\" WHERE \"BoardDecisionId\" = {boardDecisionId} AND \"DeletedAt\" IS NULL FOR UPDATE")
-                .Include(d => d.Series)
-                .Include(d => d.BoardVotes)
-                    .ThenInclude(v => v.Voter)
-                    .ThenInclude(v => v.Role)
-                .FirstOrDefaultAsync()
                 ?? throw new KeyNotFoundException("BoardDecision not found.");
         }
 
