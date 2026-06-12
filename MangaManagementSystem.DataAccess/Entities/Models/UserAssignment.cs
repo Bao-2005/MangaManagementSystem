@@ -1,5 +1,3 @@
-using MangaManagementSystem.DataAccess.Entities.Enums;
-
 namespace MangaManagementSystem.DataAccess.Entities.Models
 {
     public class UserAssignment
@@ -7,9 +5,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public Guid AssignmentId { get; set; }
         public Guid FromUserId { get; set; }
         public Guid ToUserId { get; set; }
-
-        public bool Status { get; set; }
-        public string AssignmentType { get; set; } = null!;
 
         public DateTime AssignedAt { get; set; }
         public DateTime? UnassignedAt { get; set; }

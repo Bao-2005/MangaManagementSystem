@@ -32,5 +32,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public PageTask PageTask { get; set; } = null!;
 
         public FileAsset SubmittedFileAsset { get; set; } = null!;
+
+        public ICollection<Annotation> Annotations { get; set; } = new List<Annotation>();
     }
 }

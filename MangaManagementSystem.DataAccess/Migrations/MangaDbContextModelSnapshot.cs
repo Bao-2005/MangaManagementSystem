@@ -50,6 +50,9 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Property<int>("PageNo")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("PageTaskSubmissionId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("PositionX")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -63,6 +66,8 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.HasIndex("AuthorId");
 
                     b.HasIndex("ManuscriptId");
+
+                    b.HasIndex("PageTaskSubmissionId");
 
                     b.ToTable("Annotations", (string)null);
                 });
@@ -79,6 +84,9 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .HasColumnType("timestamptz")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DecisionType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -86,6 +94,21 @@ namespace MangaManagementSystem.DataAccess.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamptz");
+
+                    b.Property<DateTime?>("ExtendedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<Guid?>("ExtendedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ExtensionCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("ExtensionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime?>("FinalizedAt")
                         .HasColumnType("timestamp with time zone");
@@ -97,6 +120,16 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Property<Guid>("SeriesId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("SpecialDecisionAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<Guid?>("SpecialDecisionBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SpecialDecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -107,7 +140,14 @@ namespace MangaManagementSystem.DataAccess.Migrations
 
                     b.HasKey("BoardDecisionId");
 
+                    b.HasIndex("CreatedBy");
+
                     b.HasIndex("SeriesId");
+
+                    b.HasIndex("SeriesId", "DecisionType", "Status")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BoardDecisions_OpenSeriesProposal_SeriesId")
+                        .HasFilter("\"DecisionType\" = 'SeriesProposal' AND \"Status\" = 'Open' AND \"DeletedAt\" IS NULL");
 
                     b.ToTable("BoardDecisions", (string)null);
                 });
@@ -298,6 +338,10 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.HasIndex("ResolvedBy");
 
                     b.HasIndex("SeriesId");
+
+                    b.HasIndex("Type", "EntityType", "EntityId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('Open', 'InReview') AND \"DeletedAt\" IS NULL");
 
                     b.ToTable("Escalations", (string)null);
                 });
@@ -851,19 +895,11 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .HasColumnType("timestamptz")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<string>("AssignmentType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamptz");
 
                     b.Property<Guid>("FromUserId")
                         .HasColumnType("uuid");
-
-                    b.Property<bool>("Status")
-                        .HasColumnType("boolean");
 
                     b.Property<Guid>("ToUserId")
                         .HasColumnType("uuid");
@@ -875,9 +911,9 @@ namespace MangaManagementSystem.DataAccess.Migrations
 
                     b.HasIndex("ToUserId");
 
-                    b.HasIndex("FromUserId", "AssignmentType")
+                    b.HasIndex("FromUserId", "ToUserId")
                         .IsUnique()
-                        .HasFilter("\"AssignmentType\" = 'TantouEditor' AND \"UnassignedAt\" IS NULL AND \"DeletedAt\" IS NULL");
+                        .HasFilter("\"UnassignedAt\" IS NULL AND \"DeletedAt\" IS NULL");
 
                     b.ToTable("UserAssignments", null, t =>
                         {
@@ -985,18 +1021,32 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.PageTaskSubmission", "PageTaskSubmission")
+                        .WithMany("Annotations")
+                        .HasForeignKey("PageTaskSubmissionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Author");
 
                     b.Navigation("Manuscript");
+
+                    b.Navigation("PageTaskSubmission");
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.BoardDecision", b =>
                 {
+                    b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.User", "Creator")
+                        .WithMany("CreatedBoardDecisions")
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MangaManagementSystem.DataAccess.Entities.Models.Series", "Series")
                         .WithMany("BoardDecisions")
                         .HasForeignKey("SeriesId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Creator");
 
                     b.Navigation("Series");
                 });
@@ -1321,6 +1371,11 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Navigation("Submissions");
                 });
 
+            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.PageTaskSubmission", b =>
+                {
+                    b.Navigation("Annotations");
+                });
+
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.Role", b =>
                 {
                     b.Navigation("Users");
@@ -1358,6 +1413,8 @@ namespace MangaManagementSystem.DataAccess.Migrations
                     b.Navigation("BoardVotes");
 
                     b.Navigation("ConfirmedVoteRecords");
+
+                    b.Navigation("CreatedBoardDecisions");
 
                     b.Navigation("CreatedEscalations");
 

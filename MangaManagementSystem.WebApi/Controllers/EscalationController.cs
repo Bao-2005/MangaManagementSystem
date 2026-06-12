@@ -1,5 +1,5 @@
-using MangaManagementSystem.Business.DTOs.Requests;
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests.Series;
+using MangaManagementSystem.Business.Services.Interfaces.Series;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -17,20 +17,20 @@ namespace MangaManagementSystem.API.Controllers
         public EscalationController(IEscalationService service) => _service = service;
 
         [HttpGet("api/series/{seriesId:guid}/escalations")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Get escalations for a series")]
+        [Authorize(Policy = "EscalationResolver")]
+        [SwaggerOperation(Summary = "Get escalations for a series (Editor-in-Chief or Admin)")]
         public async Task<IActionResult> GetBySeries(Guid seriesId)
             => Ok(new BaseResponse { Data = await _service.GetBySeriesAsync(seriesId), Message = "Success" });
 
         [HttpGet("api/escalations/{id:guid}")]
-        [Authorize]
-        [SwaggerOperation(Summary = "Get escalation by ID")]
+        [Authorize(Policy = "EscalationResolver")]
+        [SwaggerOperation(Summary = "Get escalation by ID (Editor-in-Chief or Admin)")]
         public async Task<IActionResult> GetById(Guid id)
             => Ok(new BaseResponse { Data = await _service.GetByIdAsync(id), Message = "Success" });
 
         [HttpPost("api/escalations")]
         [Authorize]
-        [SwaggerOperation(Summary = "Raise an escalation")]
+        [SwaggerOperation(Summary = "Raise an escalation (any authenticated user)")]
         public async Task<IActionResult> Create([FromBody] CreateEscalationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
@@ -40,8 +40,8 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpPut("api/escalations/{id:guid}/resolve")]
-        [Authorize(Policy = "EditorInChiefOnly")]
-        [SwaggerOperation(Summary = "Resolve an escalation (EditorInChief only)")]
+        [Authorize(Policy = "EscalationResolver")]
+        [SwaggerOperation(Summary = "Resolve an escalation (Editor-in-Chief or Admin)")]
         public async Task<IActionResult> Resolve(Guid id, [FromBody] UpdateEscalationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();

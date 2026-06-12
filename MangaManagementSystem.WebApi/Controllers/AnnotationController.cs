@@ -1,5 +1,5 @@
-using MangaManagementSystem.Business.DTOs.Requests;
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests.Tasks;
+using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -35,8 +35,49 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> Create(Guid manuscriptId, [FromBody] CreateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            request.ManuscriptId = manuscriptId;
             var result = await _service.CreateAsync(userId, request);
             return CreatedAtAction(nameof(GetById), new { manuscriptId, id = result.AnnotationId }, new BaseResponse { Data = result, Message = "Annotation added." });
+        }
+
+        [HttpGet("/api/submissions/{submissionId:guid}/annotations")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Get all annotations for a page task submission")]
+        public async Task<IActionResult> GetBySubmission(Guid submissionId)
+            => Ok(new BaseResponse { Data = await _service.GetBySubmissionAsync(submissionId), Message = "Success" });
+
+        [HttpPost("/api/submissions/{submissionId:guid}/annotations")]
+        [Authorize(Policy = "AssistantOnly")]
+        [SwaggerOperation(Summary = "Add annotation to the assistant's own submission")]
+        public async Task<IActionResult> CreateForSubmission(
+            Guid submissionId,
+            [FromBody] CreateSubmissionAnnotationRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _service.CreateForSubmissionAsync(userId, submissionId, request);
+            return CreatedAtAction(nameof(GetById), new { manuscriptId = result.ManuscriptId, id = result.AnnotationId }, new BaseResponse { Data = result, Message = "Annotation added." });
+        }
+
+        [HttpPut("/api/submissions/{submissionId:guid}/annotations/{id:guid}")]
+        [Authorize(Policy = "AssistantOnly")]
+        [SwaggerOperation(Summary = "Update one of the assistant's own submission annotations")]
+        public async Task<IActionResult> UpdateForSubmission(
+            Guid submissionId,
+            Guid id,
+            [FromBody] UpdateAnnotationRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.UpdateForSubmissionAsync(submissionId, id, userId, request), Message = "Updated." });
+        }
+
+        [HttpDelete("/api/submissions/{submissionId:guid}/annotations/{id:guid}/soft-delete")]
+        [Authorize(Policy = "AssistantOnly")]
+        [SwaggerOperation(Summary = "Soft-delete one of the assistant's own submission annotations")]
+        public async Task<IActionResult> SoftDeleteForSubmission(Guid submissionId, Guid id)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            await _service.SoftDeleteForSubmissionAsync(submissionId, id, userId);
+            return Ok(new BaseResponse { Message = "Deleted." });
         }
 
         [HttpPut("{id:guid}")]

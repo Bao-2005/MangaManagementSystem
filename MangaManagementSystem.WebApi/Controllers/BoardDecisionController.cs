@@ -1,5 +1,5 @@
-using MangaManagementSystem.Business.DTOs.Requests;
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests.Series;
+using MangaManagementSystem.Business.Services.Interfaces.Series;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -39,7 +39,8 @@ namespace MangaManagementSystem.API.Controllers
         [SwaggerOperation(Summary = "Create a board decision")]
         public async Task<IActionResult> Create([FromBody] CreateBoardDecisionRequest request)
         {
-            var result = await _decisionService.CreateAsync(request);
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _decisionService.CreateAsync(request, userId);
             return CreatedAtAction(nameof(GetById), new { id = result.BoardDecisionId }, new BaseResponse { Data = result, Message = "Decision created." });
         }
 
@@ -48,6 +49,32 @@ namespace MangaManagementSystem.API.Controllers
         [SwaggerOperation(Summary = "Update a board decision")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBoardDecisionRequest request)
             => Ok(new BaseResponse { Data = await _decisionService.UpdateAsync(id, request), Message = "Updated." });
+
+        [HttpPost("api/board-decisions/{id:guid}/extend-deadline")]
+        [Authorize(Policy = "EditorInChiefOnly")]
+        [SwaggerOperation(Summary = "Extend a tied or no-quorum board decision deadline")]
+        public async Task<IActionResult> ExtendDeadline(Guid id, [FromBody] ExtendBoardDecisionRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse
+            {
+                Data = await _decisionService.ExtendDeadlineAsync(id, userId, request),
+                Message = "Deadline extended."
+            });
+        }
+
+        [HttpPost("api/board-decisions/{id:guid}/special-decision")]
+        [Authorize(Policy = "EditorInChiefOnly")]
+        [SwaggerOperation(Summary = "Make a special decision after an extended tied or no-quorum board decision")]
+        public async Task<IActionResult> SpecialDecision(Guid id, [FromBody] SpecialBoardDecisionRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse
+            {
+                Data = await _decisionService.SpecialDecisionAsync(id, userId, request),
+                Message = "Special decision recorded."
+            });
+        }
 
         [HttpDelete("api/board-decisions/{id:guid}/soft-delete")]
         [Authorize(Policy = "AdminOnly")]
@@ -66,13 +93,13 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> GetVotes(Guid boardDecisionId)
             => Ok(new BaseResponse { Data = await _voteService.GetByDecisionAsync(boardDecisionId), Message = "Success" });
 
-        [HttpPost("api/board-votes")]
+        [HttpPost("api/board-decisions/{boardDecisionId:guid}/votes")]
         [Authorize(Policy = "EditorialBoardOnly")]
         [SwaggerOperation(Summary = "Cast a board vote")]
-        public async Task<IActionResult> CastVote([FromBody] CreateBoardVoteRequest request)
+        public async Task<IActionResult> CastVote(Guid boardDecisionId, [FromBody] CreateBoardVoteRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _voteService.CastVoteAsync(userId, request), Message = "Vote cast." });
+            return Ok(new BaseResponse { Data = await _voteService.CastVoteAsync(userId, boardDecisionId, request), Message = "Vote cast." });
         }
 
         [HttpDelete("api/board-votes/{id:guid}/soft-delete")]

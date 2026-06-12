@@ -159,7 +159,6 @@ public class MangaDbContext : DbContext
             entity.HasKey(x => x.AssignmentId);
 
             entity.Property(x => x.AssignmentId).HasDefaultValueSql(NewGuidSql);
-            entity.Property(x => x.AssignmentType).IsRequired().HasMaxLength(50);
             entity.Property(x => x.AssignedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.UnassignedAt).HasColumnType("timestamptz");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
@@ -169,9 +168,9 @@ public class MangaDbContext : DbContext
                 t.HasCheckConstraint("CK_UserAssignments_NotSelf", "\"FromUserId\" <> \"ToUserId\"");
             });
 
-            entity.HasIndex(x => new { x.FromUserId, x.AssignmentType })
+            entity.HasIndex(x => new { x.FromUserId, x.ToUserId })
                 .IsUnique()
-                .HasFilter("\"AssignmentType\" = 'TantouEditor' AND \"UnassignedAt\" IS NULL AND \"DeletedAt\" IS NULL");
+                .HasFilter("\"UnassignedAt\" IS NULL AND \"DeletedAt\" IS NULL");
 
             entity.HasOne(x => x.FromUser)
                 .WithMany(x => x.AssignmentsFromUser)
@@ -233,7 +232,7 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.PublicationType).IsRequired().HasMaxLength(50);
             entity.Property(x => x.RankingScore).IsRequired().HasPrecision(18, 2).HasDefaultValue(0);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
-            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.Synopsis).IsRequired().HasMaxLength(2000);
             entity.Property(x => x.RejectReason).HasMaxLength(1000);
             entity.Property(x => x.SubmittedAt).HasColumnType("timestamptz");
@@ -316,6 +315,12 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
             entity.Property(x => x.Result).HasMaxLength(50);
             entity.Property(x => x.VotingDeadline).IsRequired().HasColumnType("timestamptz");
+            entity.Property(x => x.CreatedBy);
+            entity.Property(x => x.ExtensionCount).IsRequired().HasDefaultValue(0);
+            entity.Property(x => x.ExtendedAt).HasColumnType("timestamptz");
+            entity.Property(x => x.ExtensionReason).HasMaxLength(1000);
+            entity.Property(x => x.SpecialDecisionAt).HasColumnType("timestamptz");
+            entity.Property(x => x.SpecialDecisionReason).HasMaxLength(1000);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
@@ -323,6 +328,18 @@ public class MangaDbContext : DbContext
                 .WithMany(x => x.BoardDecisions)
                 .HasForeignKey(x => x.SeriesId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Creator)
+                .WithMany(x => x.CreatedBoardDecisions)
+                .HasForeignKey(x => x.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.SeriesId);
+
+            entity.HasIndex(x => new { x.SeriesId, x.DecisionType, x.Status })
+                .IsUnique()
+                .HasDatabaseName("IX_BoardDecisions_OpenSeriesProposal_SeriesId")
+                .HasFilter("\"DecisionType\" = 'SeriesProposal' AND \"Status\" = 'Open' AND \"DeletedAt\" IS NULL");
         });
     }
 
@@ -513,6 +530,11 @@ public class MangaDbContext : DbContext
                 .HasForeignKey(x => x.ManuscriptId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(x => x.PageTaskSubmission)
+                .WithMany(x => x.Annotations)
+                .HasForeignKey(x => x.PageTaskSubmissionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(x => x.Author)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.AuthorId)
@@ -586,6 +608,10 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.Resolution).HasMaxLength(1000);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+
+            entity.HasIndex(x => new { x.Type, x.EntityType, x.EntityId })
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Open', 'InReview') AND \"DeletedAt\" IS NULL");
 
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.Escalations)

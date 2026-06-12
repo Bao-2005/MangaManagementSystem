@@ -1,8 +1,9 @@
-using MangaManagementSystem.Business.DTOs.Requests;
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests.Chapters;
+using MangaManagementSystem.Business.Services.Interfaces.Chapters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Security.Claims;
 using WarehouseService.Application.DTOs;
 
 namespace MangaManagementSystem.API.Controllers
@@ -38,7 +39,19 @@ namespace MangaManagementSystem.API.Controllers
         [SwaggerOperation(Summary = "Create a chapter")]
         public async Task<IActionResult> Create([FromBody] CreateChapterRequest request)
         {
-            var result = await _service.CreateAsync(request);
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _service.CreateAsync(userId, request);
+            return CreatedAtAction(nameof(GetById), new { id = result.ChapterId }, new BaseResponse { Data = result, Message = "Chapter created." });
+        }
+
+        [HttpPost("api/series/{seriesId:guid}/chapters")]
+        [Authorize(Policy = "MangakaOnly")]
+        [SwaggerOperation(Summary = "Create a chapter for an approved or active series")]
+        public async Task<IActionResult> CreateForSeries(Guid seriesId, [FromBody] CreateChapterRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            request.SeriesId = seriesId;
+            var result = await _service.CreateAsync(userId, request);
             return CreatedAtAction(nameof(GetById), new { id = result.ChapterId }, new BaseResponse { Data = result, Message = "Chapter created." });
         }
 
@@ -55,6 +68,12 @@ namespace MangaManagementSystem.API.Controllers
         {
             await _service.SoftDeleteAsync(id);
             return Ok(new BaseResponse { Message = "Chapter deleted." });
+        }
+
+        private Guid? GetUserId()
+        {
+            var str = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.TryParse(str, out var id) ? id : null;
         }
     }
 }

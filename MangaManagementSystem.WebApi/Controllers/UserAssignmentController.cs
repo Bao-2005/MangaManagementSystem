@@ -1,5 +1,5 @@
-using MangaManagementSystem.Business.DTOs.Requests;
-using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.DTOs.Requests.Users;
+using MangaManagementSystem.Business.Services.Interfaces.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -18,7 +18,7 @@ namespace MangaManagementSystem.API.Controllers
 
         [HttpGet("api/user-assignments/from-me")]
         [Authorize(Policy = "MangakaOnly")]
-        [SwaggerOperation(Summary = "Get assignments made by me (Mangaka only)")]
+        [SwaggerOperation(Summary = "Get my assigned Tantou Editor (Mangaka only)")]
         public async Task<IActionResult> GetFromMe()
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
@@ -26,12 +26,12 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpGet("api/user-assignments/to-me")]
-        [Authorize(Policy = "AssistantOnly")]
-        [SwaggerOperation(Summary = "Get assignments assigned to me (Assistant only)")]
+        [Authorize(Policy = "TantouEditorOnly")]
+        [SwaggerOperation(Summary = "Get Mangaka(s) assigned to me (Tantou Editor only)")]
         public async Task<IActionResult> GetToMe()
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _service.GetByAssistantAsync(userId), Message = "Success" });
+            return Ok(new BaseResponse { Data = await _service.GetByTantouEditorAsync(userId), Message = "Success" });
         }
 
         [HttpPost("api/user-assignments")]

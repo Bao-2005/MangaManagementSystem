@@ -189,6 +189,8 @@ Storage/
 storage/
 Files/
 files/
+!MangaManagementSystem.Business/**/Files/
+!MangaManagementSystem.Business/**/Files/**
 
 # =========================
 # Certificates / keys

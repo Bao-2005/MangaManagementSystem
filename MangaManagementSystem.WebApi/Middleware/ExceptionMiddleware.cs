@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MangaManagementSystem.Business.Exceptions;
 using System.Net;
 using System.Text.Json;
 
@@ -27,6 +28,7 @@ namespace MangaManagementSystem.API.Middleware
                 int statusCode = ex switch
                 {
                     ArgumentException => (int)HttpStatusCode.BadRequest, // 400
+                    ForbiddenAccessException => (int)HttpStatusCode.Forbidden, // 403
                     UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized, // 401
                     KeyNotFoundException => (int)HttpStatusCode.NotFound, // 404
                     InvalidOperationException => (int)HttpStatusCode.Conflict, // 409

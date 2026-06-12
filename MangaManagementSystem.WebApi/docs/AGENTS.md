@@ -59,8 +59,20 @@ The DataAccess layer currently models a manga production workflow:
 - Production artifacts: `Manuscript`, `FileAsset`.
 - Work assignment: `PageTask`, `PageTaskSubmission`.
 - Review feedback: `Annotation`.
+- Proposal workflow: `Series` uses `SeriesStatus` for proposal and active lifecycle states; `ProposalPage`, `BoardDecision`, and `BoardVote` support proposal review and editorial board voting.
+- Notifications: `Notification` and `UserNotification` store persisted workflow notifications. Use `INotificationDispatchService` for reusable user or role notification dispatch.
 
 Treat the EF model as the source of truth for table structure, relationships, required fields, indexes, and delete behavior.
+
+## Proposal Workflow Notes
+
+- Proposal behavior lives in the Series workflow service, not in a separate proposal entity.
+- `Series.RejectReason` is the canonical proposal rejection feedback field.
+- Mangaka proposal submission uses explicit workflow endpoints under `api/proposals`.
+- Assigned Tantou Editor authorization is object-level: active `UserAssignment` from Mangaka to Tantou Editor with `AssignmentType = "TantouEditor"`.
+- Board submission creates an open `BoardDecision` with `DecisionType = "SeriesProposal"` and a 7-day voting deadline, then moves the series to `BoardVoting`.
+- Board submission must notify active `EditorialBoard` users through `INotificationDispatchService`; no active board recipients is a business failure.
+- Keep board-voting finalization, quorum, deadline processing, Editor-in-Chief extension/special-decision, and activation rules in explicit workflow services rather than frontend logic.
 
 ## API Layer Rules
 
@@ -96,10 +108,25 @@ Treat the EF model as the source of truth for table structure, relationships, re
 - Current role policies are:
   - `AdminOnly`
   - `MangakaOnly`
+  - `TantouEditorOnly`
   - `EditorOnly`
   - `AssistantOnly`
+  - `EditorialBoardOnly`
+  - `EditorInChiefOnly`
+  - `EscalationResolver` (`EditorInChief` or `Admin`)
 - Do not hardcode secrets, signing keys, passwords, or production connection strings.
 - Prefer policy or role-based authorization attributes over manual role checks in controllers.
+
+## Escalation Workflow Notes
+
+- Any authenticated user may raise an escalation for a supported entity in a series.
+- Only Editor-in-Chief or Admin users may list, inspect, or resolve escalations.
+- Admin users may soft-delete escalation records.
+- Supported entity types are `Series`, `Chapter`, `Manuscript`, `PageTask`, `PageTaskSubmission`, and `BoardDecision`.
+- The service must verify that the target entity belongs to the supplied series.
+- Duplicate active escalations for the same `Type + EntityType + EntityId` are not allowed.
+- New escalations notify active Editor-in-Chief and Admin users.
+- Resolution is terminal: only `Open` or `InReview` records can become `Resolved`, and resolution text is required.
 
 ## Response and Error Handling
 
