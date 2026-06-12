@@ -53,12 +53,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly",          policy => policy.RequireRole(UserRole.Admin.ToString()));
-    options.AddPolicy("MangakaOnly",        policy => policy.RequireRole(UserRole.Mangaka.ToString()));
-    options.AddPolicy("TantouEditorOnly",   policy => policy.RequireRole(UserRole.TantouEditor.ToString()));
-    options.AddPolicy("AssistantOnly",      policy => policy.RequireRole(UserRole.Assistant.ToString()));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(UserRole.Admin.ToString()));
+    options.AddPolicy("MangakaOnly", policy => policy.RequireRole(UserRole.Mangaka.ToString()));
+    options.AddPolicy("TantouEditorOnly", policy => policy.RequireRole(UserRole.TantouEditor.ToString()));
+    options.AddPolicy("AssistantOnly", policy => policy.RequireRole(UserRole.Assistant.ToString()));
     options.AddPolicy("EditorialBoardOnly", policy => policy.RequireRole(UserRole.EditorialBoard.ToString()));
-    options.AddPolicy("EditorInChiefOnly",  policy => policy.RequireRole(UserRole.EditorInChief.ToString()));
+    options.AddPolicy("EditorInChiefOnly", policy => policy.RequireRole(UserRole.EditorInChief.ToString()));
+    options.AddPolicy("EscalationResolver", policy => policy.RequireRole(UserRole.EditorInChief.ToString(),UserRole.Admin.ToString()));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
