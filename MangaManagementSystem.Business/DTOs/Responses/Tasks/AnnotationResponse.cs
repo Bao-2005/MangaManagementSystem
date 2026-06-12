@@ -4,6 +4,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Tasks
     {
         public Guid AnnotationId { get; set; }
         public Guid ManuscriptId { get; set; }
+        public Guid? PageTaskSubmissionId { get; set; }
         public Guid ChapterId { get; set; }
         public Guid AuthorId { get; set; }
         public string AuthorName { get; set; } = null!;
