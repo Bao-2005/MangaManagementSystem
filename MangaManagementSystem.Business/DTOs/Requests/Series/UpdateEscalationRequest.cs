@@ -8,6 +8,6 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Series
         public string? Status { get; set; }
 
         [MaxLength(1000)]
-        public string? Resolution { get; set; }
+        public string Resolution { get; set; }
     }
 }

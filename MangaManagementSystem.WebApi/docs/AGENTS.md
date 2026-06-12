@@ -113,8 +113,20 @@ Treat the EF model as the source of truth for table structure, relationships, re
   - `AssistantOnly`
   - `EditorialBoardOnly`
   - `EditorInChiefOnly`
+  - `EscalationResolver` (`EditorInChief` or `Admin`)
 - Do not hardcode secrets, signing keys, passwords, or production connection strings.
 - Prefer policy or role-based authorization attributes over manual role checks in controllers.
+
+## Escalation Workflow Notes
+
+- Any authenticated user may raise an escalation for a supported entity in a series.
+- Only Editor-in-Chief or Admin users may list, inspect, or resolve escalations.
+- Admin users may soft-delete escalation records.
+- Supported entity types are `Series`, `Chapter`, `Manuscript`, `PageTask`, `PageTaskSubmission`, and `BoardDecision`.
+- The service must verify that the target entity belongs to the supplied series.
+- Duplicate active escalations for the same `Type + EntityType + EntityId` are not allowed.
+- New escalations notify active Editor-in-Chief and Admin users.
+- Resolution is terminal: only `Open` or `InReview` records can become `Resolved`, and resolution text is required.
 
 ## Response and Error Handling
 

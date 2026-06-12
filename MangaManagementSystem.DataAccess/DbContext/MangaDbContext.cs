@@ -609,6 +609,10 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
+            entity.HasIndex(x => new { x.Type, x.EntityType, x.EntityId })
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Open', 'InReview') AND \"DeletedAt\" IS NULL");
+
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.Escalations)
                 .HasForeignKey(x => x.SeriesId)

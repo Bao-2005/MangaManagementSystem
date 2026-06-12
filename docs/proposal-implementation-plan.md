@@ -444,6 +444,8 @@ SignalR can be added for real-time notifications:
 - Tantou assignment uses `UserAssignment` with `FromUserId = MangakaId`, `ToUserId = TantouEditorId`, and `AssignmentType = "TantouEditor"`.
 - Existing `Notification` and `UserNotification` tables are enough for persisted notifications.
 - Existing `FileAsset` table is the reusable metadata table for uploaded files.
+- Generic user-raised escalations are stored in `Escalation`: any authenticated user may create one, while Editor-in-Chief or Admin users review and resolve it.
+- Board-decision tie/no-quorum handover continues to use persisted notifications plus explicit extend/special-decision endpoints unless the team separately decides to create automatic `Escalation` records for those outcomes.
 - Audit log is removed from this proposal implementation plan.
 - SignalR is optional and can be implemented after persisted notification dispatch is reliable.
 - Chapter creation is intentionally excluded from this revision and should be planned separately.

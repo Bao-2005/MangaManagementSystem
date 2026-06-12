@@ -19,6 +19,7 @@
 8. [Reviews](#8-reviews)
 9. [Rankings & Voting](#9-rankings--voting)
 10. [Notifications](#10-notifications)
+10A. [Escalations](#10a-escalations)
 11. [Error Format](#11-error-format)
 12. [Tóm tắt Endpoints](#12-tóm-tắt-endpoints)
 13. [Ghi chú & Quy tắc nghiệp vụ](#13-ghi-chú--quy-tắc-nghiệp-vụ)
@@ -856,6 +857,56 @@ Lấy toàn bộ thông báo của người dùng hiện tại.
   "success": true
 }
 ```
+
+---
+
+## 10A. Escalations
+
+Escalations allow any authenticated user to raise a series-related issue for Editor-in-Chief or Admin review.
+
+### `POST /api/escalations` *(Authenticated)*
+
+Creates an escalation with status `Open` and notifies active Editor-in-Chief and Admin users.
+
+```json
+{
+  "type": "DeadlineIssue",
+  "entityType": "Chapter",
+  "entityId": "<chapter-uuid>",
+  "seriesId": "<series-uuid>",
+  "priority": "High",
+  "reason": "The production deadline cannot be met because required source files are missing."
+}
+```
+
+Rules:
+- `entityType`: `Series`, `Chapter`, `Manuscript`, `PageTask`, `PageTaskSubmission`, or `BoardDecision`.
+- `priority`: `Low`, `Normal`, `High`, or `Critical`.
+- The entity must exist, must not be soft-deleted, and must belong to `seriesId`.
+- Only one `Open` or `InReview` escalation may exist for the same `type + entityType + entityId`.
+
+### `GET /api/series/{seriesId}/escalations` *(EditorInChief or Admin)*
+
+Returns non-deleted escalations for the series, newest first.
+
+### `GET /api/escalations/{id}` *(EditorInChief or Admin)*
+
+Returns one escalation by ID.
+
+### `PUT /api/escalations/{id}/resolve` *(EditorInChief or Admin)*
+
+Only an `Open` or `InReview` escalation can be resolved. Resolution text is required.
+
+```json
+{
+  "status": "Resolved",
+  "resolution": "The publication schedule was adjusted and the missing files were restored."
+}
+```
+
+### `DELETE /api/escalations/{id}/soft-delete` *(Admin)*
+
+Soft-deletes the escalation by setting `DeletedAt`.
 
 ---
 

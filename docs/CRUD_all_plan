@@ -466,10 +466,11 @@ SoftDeleteAsync(id)
 ### Domain 12 — Escalation
 
 Escalations belong to a Series and reference `CreatedBy` / `ResolvedBy` users.
+Any authenticated user may raise an escalation so that an Editor-in-Chief or Admin can review and resolve it.
 
 #### [NEW] DTOs
 - `CreateEscalationRequest` (Type, EntityType, EntityId, SeriesId, Priority, Reason)
-- `UpdateEscalationRequest` (Status?, Resolution?)
+- `UpdateEscalationRequest` (Status? = `Resolved`, Resolution required)
 - `EscalationResponse` (EscalationId, Type, EntityType, EntityId, SeriesId, Priority, Status, Reason, Resolution?, CreatedBy, ResolvedBy?, CreatedAt, ResolvedAt?)
 
 #### [NEW] `IEscalationService.cs`
@@ -487,8 +488,16 @@ SoftDeleteAsync(id)
 | GET | `/api/series/{seriesId}/escalations` | `EditorInChiefOnly` or `AdminOnly` |
 | GET | `/api/escalations/{id}` | `EditorInChiefOnly` or `AdminOnly` |
 | POST | `/api/escalations` | Any authenticated |
-| PUT | `/api/escalations/{id}/resolve` | `EditorInChiefOnly` |
+| PUT | `/api/escalations/{id}/resolve` | `EditorInChiefOnly` or `AdminOnly` |
 | DELETE | `/api/escalations/{id}/soft-delete` | `AdminOnly` |
+
+Business rules:
+- Supported `EntityType` values: `Series`, `Chapter`, `Manuscript`, `PageTask`, `PageTaskSubmission`, `BoardDecision`.
+- Supported `Priority` values: `Low`, `Normal`, `High`, `Critical`.
+- The target entity must exist, must not be soft-deleted, and must belong to the supplied `SeriesId`.
+- Only one `Open` or `InReview` escalation may exist for the same `Type + EntityType + EntityId`.
+- New escalations start in `Open` and notify active Editor-in-Chief and Admin users.
+- Only `Open` or `InReview` escalations can be resolved. Resolution text is required and the final status is `Resolved`.
 
 ---
 
