@@ -11,7 +11,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
     {
         private readonly IRepository<Annotation> _repo;
 
-        public AnnotationService(IRepository<Annotation> repo) => _repo = repo;
+        public AnnotationService(IRepository<Annotation> repo, IRepository<PageTaskSubmission> submissionRepo)
+        {
+            _repo = repo;
+        }
 
         public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId)
             => await _repo.GetAll()
@@ -37,7 +40,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 PageNo = request.PageNo,
                 PositionX = request.PositionX,
                 PositionY = request.PositionY,
-                Content = request.Content,
+                Content = request.Content.Trim(),
                 CreatedAt = DateTime.UtcNow
             };
             await _repo.AddAsync(annotation);
@@ -49,7 +52,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         {
             var a = await _repo.GetAll().FirstOrDefaultAsync(x => x.AnnotationId == id && x.AuthorId == authorId && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Annotation not found or access denied.");
-            a.Content = request.Content;
+            a.Content = request.Content.Trim();
             _repo.Update(a);
             await _repo.SaveChangeAsync();
             return await GetByIdAsync(id);

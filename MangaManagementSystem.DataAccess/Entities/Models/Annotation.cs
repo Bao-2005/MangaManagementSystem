@@ -10,6 +10,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
     {
         public Guid AnnotationId { get; set; }
         public Guid ManuscriptId { get; set; }
+        public Guid? PageTaskSubmissionId { get; set; }
         public Guid AuthorId { get; set; }
 
         public int PageNo { get; set; }
@@ -20,6 +21,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? DeletedAt { get; set; }
 
         public Manuscript Manuscript { get; set; } = null!;
+        public PageTaskSubmission? PageTaskSubmission { get; set; }
         public User Author { get; set; } = null!;
     }
 }
