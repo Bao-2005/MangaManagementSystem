@@ -13,6 +13,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 {
     public class BoardDecisionFinalizationService : IBoardDecisionFinalizationService
     {
+        //BR-15: Quorum Requirement
         private const int Quorum = 3;
         private const string OpenStatus = "Open";
         private const string FinalizedStatus = "Finalized";
@@ -52,7 +53,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             }
 
             var validVotes = await GetValidVotesAsync(decision);
-            if (validVotes.Count < Quorum)
+            if (validVotes.Count < Quorum) //BR-15: Quorum Requirement
             {
                 return;
             }
@@ -96,10 +97,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             {
                 return await BuildSummaryAsync(decision);
             }
-
+            //BR-15: Quorum Requirement
             var validVotes = await GetValidVotesAsync(decision);
             var now = DateTime.UtcNow;
-
+            //BR-21: Deferred & Expired Handling
             if (validVotes.Count < Quorum)
             {
                 decision.Status = FinalizedStatus;
@@ -180,7 +181,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 UserRole.TantouEditor.ToString(),
                 UserRole.Assistant.ToString()
             };
-
+            //BR-16: Invalid Vote Exclusion
             var assignedConflictUserIds = await _assignmentRepo.GetAll()
                 .Include(a => a.FromUser).ThenInclude(u => u.Role)
                 .Where(a => a.ToUserId == decision.Series.MangakaId
@@ -189,7 +190,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     && conflictingRoles.Contains(a.FromUser.Role.RoleName))
                 .Select(a => a.FromUserId)
                 .ToListAsync();
-
+            //BR-16: Invalid Vote Exclusion
             return decision.BoardVotes
                 .Where(v => v.DeletedAt == null
                     && v.Voter.DeletedAt == null

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace MangaManagementSystem.Business.DTOs.Requests.Series
 {
     public class CreateSeriesRequest
-    {
+    { // BR-06 Proposal Validation Requirements
         [Required]
         [MaxLength(100)]
         public string Title { get; set; } = null!;

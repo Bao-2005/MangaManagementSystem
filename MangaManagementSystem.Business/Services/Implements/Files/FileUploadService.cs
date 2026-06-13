@@ -76,6 +76,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
         {
             try
             {
+                // check file du dieu kien de luu
                 if (request.Files.Count == 0)
                 {
                     throw new ArgumentException("At least one file is required.");
@@ -113,7 +114,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                         : "One or more files failed validation; no files were uploaded.";
                     throw new ArgumentException($"{prefix} {string.Join(" ", validationErrors)}");
                 }
-
+                //luu file 
                 var assets = new List<FileAsset>();
                 var storedFiles = new List<StoredFileResult>();
                 try

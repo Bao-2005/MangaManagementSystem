@@ -135,14 +135,15 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         public async Task<SeriesResponse> CreateAsync(Guid mangakaId, CreateSeriesRequest request)
         {
-            var title = ValidateTitle(request.Title);
+            var title = ValidateTitle(request.Title);// BR-06: Proposal Validation Requirements
             var synopsis = ValidateSynopsis(request.Synopsis);
             var publicationType = ValidatePublicationType(request.PublicationType);
             var genreIds = await ValidateGenresAsync(request.GenreIds);
             var samplePageFileAssetIds = await ValidateSamplePagesAsync(request.SamplePageFileAssetIds);
             await ValidateSourceZipAsync(request.SourceZipFileAssetId);
 
-            // BR-19: no active pending proposal for this Mangaka
+            // BR-19: no active pending proposal for this Mangaka -> old
+            //BR-11: Single Active Proposal Limit
             var hasPending = await _seriesRepo.GetAll()
                 .AnyAsync(s => s.MangakaId == mangakaId
                     && (s.Status == SeriesStatus.Draft
@@ -152,7 +153,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             if (hasPending)
                 throw new InvalidOperationException("You already have a pending proposal.");
 
-            // BR-17: proposal title cannot match an active series title.
+            // BR-17: proposal title cannot match an active series title. -> old
+            // BR-09: Unique Series Title
             await EnsureTitleDoesNotMatchActiveSeriesAsync(title);
 
             var now = DateTime.UtcNow;

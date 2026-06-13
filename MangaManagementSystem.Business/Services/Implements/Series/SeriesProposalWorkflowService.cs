@@ -81,7 +81,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             if (series.Status != SeriesStatus.UnderReview)
                 throw new InvalidOperationException("Only under-review proposals can be rejected by Tantou Editor.");
 
-            series.Status = SeriesStatus.Rejected;
+            series.Status = SeriesStatus.Rejected;// system status
             series.RejectReason = rejectReason;
             _seriesRepo.Update(series);
             await _seriesRepo.SaveChangeAsync();
@@ -114,7 +114,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 SeriesId = seriesId,
                 DecisionType = SeriesProposalDecisionType,
                 Status = OpenDecisionStatus,
-                VotingDeadline = now.AddDays(7),
+                VotingDeadline = now.AddDays(7), //Voting deadline
                 CreatedBy = tantouEditorId,
                 CreatedAt = now
             };
@@ -152,7 +152,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         }
 
         public async Task<SeriesDetailResponse> ActivateAsync(Guid seriesId, Guid tantouEditorId)
-        {
+        { //BR-07 Activation Preconditions
             var series = await GetSeriesAsync(seriesId);
             await EnsureAssignedTantouEditorAsync(series.MangakaId, tantouEditorId);
 
