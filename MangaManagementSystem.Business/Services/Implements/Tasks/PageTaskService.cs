@@ -78,7 +78,17 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
         if (assistant.Role.RoleName != UserRole.Assistant.ToString())
             throw new ArgumentException("Assigned user must have Assistant role.");
-    
+
+        var hasOverlappingActiveTask = await _pageTaskRepository.GetAll()
+            .AnyAsync(x => x.ChapterId == request.ChapterId
+                && x.DeletedAt == null
+                && x.Status != PageTaskStatus.Approved
+                && x.PageStart <= request.PageEnd
+                && x.PageEnd >= request.PageStart);
+
+        if (hasOverlappingActiveTask)
+            throw new InvalidOperationException(
+                "Page range overlaps with an active page task in this chapter.");
 
         var task = new PageTask
         {
