@@ -198,9 +198,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             if (series.MangakaId != mangakaId)
                 throw new UnauthorizedAccessException("Only the proposal owner can update this series proposal.");
-            if (series.Status != SeriesStatus.Draft)
-                throw new InvalidOperationException("Only draft proposals can be updated through this endpoint.");
-
+           
             if (request.Title != null)
             {
                 var title = ValidateTitle(request.Title);

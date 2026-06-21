@@ -56,9 +56,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             var series = await GetSeriesAsync(seriesId);
             if (series.MangakaId != mangakaId)
                 throw new UnauthorizedAccessException("Only the proposal owner can submit this proposal for review.");
-            if (series.Status != SeriesStatus.Draft)
-                throw new InvalidOperationException("Only draft proposals can be submitted for review.");
-
+            
             await EnsureMinimumProposalPagesAsync(seriesId);
 
             series.Status = SeriesStatus.UnderReview;
