@@ -4,6 +4,7 @@ public enum SeriesStatus
 {
     Draft,
     UnderReview,
+    RevisionRequired,
     BoardVoting,
     Approved,
     Rejected,

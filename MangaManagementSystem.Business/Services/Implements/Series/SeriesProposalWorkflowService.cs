@@ -56,13 +56,37 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             var series = await GetSeriesAsync(seriesId);
             if (series.MangakaId != mangakaId)
                 throw new UnauthorizedAccessException("Only the proposal owner can submit this proposal for review.");
-            if (series.Status != SeriesStatus.Draft)
-                throw new InvalidOperationException("Only draft proposals can be submitted for review.");
+            if (series.Status != SeriesStatus.Draft && series.Status != SeriesStatus.RevisionRequired)
+                throw new InvalidOperationException("Only draft or revision-required proposals can be submitted for review.");
 
             await EnsureMinimumProposalPagesAsync(seriesId);
 
             series.Status = SeriesStatus.UnderReview;
+            series.RejectReason = null;
             series.SubmittedAt = DateTime.UtcNow;
+            _seriesRepo.Update(series);
+            await _seriesRepo.SaveChangeAsync();
+
+            return await _seriesService.GetByIdAsync(seriesId);
+        }
+
+        public async Task<SeriesDetailResponse> RequestRevisionAsync(
+            Guid seriesId,
+            Guid tantouEditorId,
+            RequestProposalRevisionRequest request)
+        {
+            var revisionReason = request.RevisionReason?.Trim();
+            if (string.IsNullOrWhiteSpace(revisionReason))
+                throw new ArgumentException("Revision reason is required.");
+
+            var series = await GetSeriesAsync(seriesId);
+            await EnsureAssignedTantouEditorAsync(series.MangakaId, tantouEditorId);
+
+            if (series.Status != SeriesStatus.UnderReview)
+                throw new InvalidOperationException("Only under-review proposals can be returned for revision.");
+
+            series.Status = SeriesStatus.RevisionRequired;
+            series.RejectReason = revisionReason;
             _seriesRepo.Update(series);
             await _seriesRepo.SaveChangeAsync();
 

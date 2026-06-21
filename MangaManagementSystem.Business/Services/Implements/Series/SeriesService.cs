@@ -82,6 +82,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     query = query.Where(s =>
                         s.Status == SeriesStatus.Draft
                         || s.Status == SeriesStatus.UnderReview
+                        || s.Status == SeriesStatus.RevisionRequired
                         || s.Status == SeriesStatus.BoardVoting);
                 }
                 else if (Enum.TryParse<SeriesStatus>(status, ignoreCase: true, out var parsedStatus))
@@ -109,11 +110,17 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             var detail = new SeriesDetailResponse
             {
-                SeriesId = s.SeriesId, MangakaId = s.MangakaId, MangakaName = s.Mangaka.DisplayName,
-                Title = s.Title, Synopsis = s.Synopsis, PublicationType = s.PublicationType,
+                SeriesId = s.SeriesId,
+                MangakaId = s.MangakaId,
+                MangakaName = s.Mangaka.DisplayName,
+                Title = s.Title,
+                Synopsis = s.Synopsis,
+                PublicationType = s.PublicationType,
                 Status = s.Status.ToString(),
-                RankingScore = s.RankingScore, CreatedAt = s.CreatedAt,
-                SubmittedAt = s.SubmittedAt, RejectReason = s.RejectReason,
+                RankingScore = s.RankingScore,
+                CreatedAt = s.CreatedAt,
+                SubmittedAt = s.SubmittedAt,
+                RejectReason = s.RejectReason,
                 Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList(),
                 ProposalPages = s.ProposalPages.Where(p => p.DeletedAt == null)
                     .Select(p => new ProposalPageResponse { ProposalPageId = p.ProposalPageId, SeriesId = p.SeriesId, PageNo = p.PageNo, PreviewFileAssetId = p.PreviewFileAssetId, CreatedAt = p.CreatedAt }).ToList(),
@@ -148,6 +155,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 .AnyAsync(s => s.MangakaId == mangakaId
                     && (s.Status == SeriesStatus.Draft
                         || s.Status == SeriesStatus.UnderReview
+                        || s.Status == SeriesStatus.RevisionRequired
                         || s.Status == SeriesStatus.BoardVoting)
                     && s.DeletedAt == null);
             if (hasPending)
@@ -198,8 +206,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             if (series.MangakaId != mangakaId)
                 throw new UnauthorizedAccessException("Only the proposal owner can update this series proposal.");
-            if (series.Status != SeriesStatus.Draft)
-                throw new InvalidOperationException("Only draft proposals can be updated through this endpoint.");
+            if (series.Status != SeriesStatus.Draft && series.Status != SeriesStatus.RevisionRequired)
+                throw new InvalidOperationException("Only draft or revision-required proposals can be updated through this endpoint.");
 
             if (request.Title != null)
             {
@@ -246,11 +254,17 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private static SeriesResponse MapToResponse(MangaManagementSystem.DataAccess.Entities.Models.Series s) => new()
         {
-            SeriesId = s.SeriesId, MangakaId = s.MangakaId, MangakaName = s.Mangaka.DisplayName,
-            Title = s.Title, Synopsis = s.Synopsis, PublicationType = s.PublicationType,
+            SeriesId = s.SeriesId,
+            MangakaId = s.MangakaId,
+            MangakaName = s.Mangaka.DisplayName,
+            Title = s.Title,
+            Synopsis = s.Synopsis,
+            PublicationType = s.PublicationType,
             Status = s.Status.ToString(),
-            RankingScore = s.RankingScore, CreatedAt = s.CreatedAt,
-            SubmittedAt = s.SubmittedAt, RejectReason = s.RejectReason,
+            RankingScore = s.RankingScore,
+            CreatedAt = s.CreatedAt,
+            SubmittedAt = s.SubmittedAt,
+            RejectReason = s.RejectReason,
             Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList()
         };
 
