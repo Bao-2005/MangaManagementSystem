@@ -6,6 +6,10 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Series
     public interface ISeriesProposalWorkflowService
     {
         Task<SeriesDetailResponse> SubmitForReviewAsync(Guid seriesId, Guid mangakaId);
+        Task<SeriesDetailResponse> RequestRevisionAsync(
+            Guid seriesId,
+            Guid tantouEditorId,
+            RequestProposalRevisionRequest request);
         Task<SeriesDetailResponse> RejectAsync(Guid seriesId, Guid tantouEditorId, RejectProposalRequest request);
         Task<BoardDecisionResponse> SubmitToBoardAsync(Guid seriesId, Guid tantouEditorId);
         Task<SeriesDetailResponse> ActivateAsync(Guid seriesId, Guid tantouEditorId);
