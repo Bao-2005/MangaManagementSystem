@@ -39,6 +39,18 @@ namespace MangaManagementSystem.API.Controllers
                 new BaseResponse { Data = result, Message = "Escalation raised." });
         }
 
+        [HttpPost("api/escalations/tantou-editor-change")]
+        [Authorize(Policy = "MangakaOnly")]
+        [SwaggerOperation(Summary = "Request a Tantou Editor change (Mangaka only)")]
+        public async Task<IActionResult> RequestTantouEditorChange(
+            [FromBody] CreateTantouEditorChangeEscalationRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _service.RequestTantouEditorChangeAsync(userId, request);
+            return CreatedAtAction(nameof(GetById), new { id = result.EscalationId },
+                new BaseResponse { Data = result, Message = "Tantou Editor change request submitted." });
+        }
+
         [HttpPut("api/escalations/{id:guid}/resolve")]
         [Authorize(Policy = "EscalationResolver")]
         [SwaggerOperation(Summary = "Resolve an escalation (Editor-in-Chief or Admin)")]
