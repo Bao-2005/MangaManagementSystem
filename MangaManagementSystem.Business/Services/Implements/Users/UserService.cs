@@ -106,6 +106,45 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             return await GetByIdForAdminAsync(userId);
         }
 
+        public async Task<UserProfileResponse> UpdateMyProfileAsync(Guid userId, UpdateMyProfileRequest request)
+        {
+            var user = await _userRepository.GetAll()
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.DeletedAt == null)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            if (request.UserName != null)
+            {
+                var userName = RequireText(request.UserName, "UserName");
+                var exists = await _userRepository.GetAll()
+                    .AnyAsync(x => x.UserId != userId
+                        && x.DeletedAt == null
+                        && x.UserName == userName);
+                if (exists)
+                    throw new InvalidOperationException("Username already exists.");
+
+                user.UserName = userName;
+            }
+
+            if (request.Email != null)
+            {
+                var email = RequireText(request.Email, "Email").ToLowerInvariant();
+                var exists = await _userRepository.GetAll()
+                    .AnyAsync(x => x.UserId != userId
+                        && x.DeletedAt == null
+                        && x.Email.ToLower() == email);
+                if (exists)
+                    throw new InvalidOperationException("Email already exists.");
+
+                user.Email = email;
+            }
+
+            if (request.DisplayName != null)
+                user.DisplayName = RequireText(request.DisplayName, "DisplayName");
+
+            await _userRepository.SaveChangeAsync();
+            return await GetByIdForAdminAsync(userId);
+        }
+
         public async Task SoftDeleteAsync(Guid userId)
         {
             var user = await _userRepository.GetAll()

@@ -7,6 +7,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Users
     {
         Task<IEnumerable<UserProfileResponse>> GetAllAsync();
         Task<UserProfileResponse> AdminUpdateAsync(Guid userId, AdminUpdateUserRequest request);
+        Task<UserProfileResponse> UpdateMyProfileAsync(Guid userId, UpdateMyProfileRequest request);
         Task SoftDeleteAsync(Guid userId);
         Task<IEnumerable<UserProfileResponse>> GetAssignedMangakasAsync(Guid editorId);
     }
