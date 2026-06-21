@@ -52,6 +52,22 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = user, Message = "User updated successfully." });
         }
 
+        [HttpPut("me")]
+        [Authorize]
+        [SwaggerOperation(
+            Summary = "Update my profile",
+            Description = "Updates the authenticated user's basic profile fields only.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> UpdateMe([FromBody] UpdateMyProfileRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var user = await _userService.UpdateMyProfileAsync(userId, request);
+            return Ok(new BaseResponse { Data = user, Message = "Profile updated successfully." });
+        }
+
         [HttpDelete("{id:guid}/soft-delete")]
         [Authorize(Policy = "AdminOnly")]
         [SwaggerOperation(
