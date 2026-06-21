@@ -41,6 +41,18 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = result, Message = "Proposal rejected." });
         }
 
+        [HttpPost("{seriesId:guid}/request-revision")]
+        [Authorize(Policy = "TantouEditorOnly")]
+        [SwaggerOperation(Summary = "Request revisions for an under-review proposal as assigned Tantou Editor")]
+        public async Task<IActionResult> RequestRevision(
+            Guid seriesId,
+            [FromBody] RequestProposalRevisionRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _workflowService.RequestRevisionAsync(seriesId, userId, request);
+            return Ok(new BaseResponse { Data = result, Message = "Proposal revision requested." });
+        }
+
         [HttpPost("{seriesId:guid}/submit-to-board")]
         [HttpPost("{seriesId:guid}/submit-board")]
         [Authorize(Policy = "TantouEditorOnly")]
