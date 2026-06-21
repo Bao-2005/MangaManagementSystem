@@ -1,4 +1,5 @@
 using AutoMapper;
+using MangaManagement.DataAccess.DbContexts;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Requests.Series;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
@@ -38,19 +39,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             "Critical"
         };
 
-        private readonly IEscalationRepository _repo;
+        private readonly IRepository<Escalation> _repo;
         private readonly IMapper _mapper;
+        private readonly MangaDbContext _dbContext;
         private readonly INotificationDispatchService _notificationDispatchService;
         private readonly ILogger<EscalationService> _logger;
 
         public EscalationService(
-            IEscalationRepository repo,
+            IRepository<Escalation> repo,
             IMapper mapper,
+            MangaDbContext dbContext,
             INotificationDispatchService notificationDispatchService,
             ILogger<EscalationService> logger)
         {
             _repo = repo;
             _mapper = mapper;
+            _dbContext = dbContext;
             _notificationDispatchService = notificationDispatchService;
             _logger = logger;
         }
@@ -165,11 +169,37 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private async Task EnsureEntityBelongsToSeriesAsync(string entityType, Guid entityId, Guid seriesId)
         {
-            var seriesExists = await _repo.SeriesExistsAsync(seriesId);
+            var seriesExists = await _dbContext.Series
+                .AnyAsync(s => s.SeriesId == seriesId && s.DeletedAt == null);
             if (!seriesExists)
                 throw new KeyNotFoundException("Series not found.");
 
-            var belongsToSeries = await _repo.EntityBelongsToSeriesAsync(entityType, entityId, seriesId);
+            var belongsToSeries = entityType switch
+            {
+                "Series" => entityId == seriesId,
+                "Chapter" => await _dbContext.Chapters.AnyAsync(
+                    c => c.ChapterId == entityId && c.SeriesId == seriesId && c.DeletedAt == null),
+                "Manuscript" => await _dbContext.Manuscripts.AnyAsync(
+                    m => m.ManuscriptId == entityId
+                        && m.Chapter.SeriesId == seriesId
+                        && m.DeletedAt == null
+                        && m.Chapter.DeletedAt == null),
+                "PageTask" => await _dbContext.PageTasks.AnyAsync(
+                    t => t.PageTaskId == entityId
+                        && t.Chapter.SeriesId == seriesId
+                        && t.DeletedAt == null
+                        && t.Chapter.DeletedAt == null),
+                "PageTaskSubmission" => await _dbContext.PageTaskSubmissions.AnyAsync(
+                    s => s.SubmissionId == entityId
+                        && s.PageTask.Chapter.SeriesId == seriesId
+                        && s.DeletedAt == null
+                        && s.PageTask.DeletedAt == null
+                        && s.PageTask.Chapter.DeletedAt == null),
+                "BoardDecision" => await _dbContext.BoardDecisions.AnyAsync(
+                    d => d.BoardDecisionId == entityId && d.SeriesId == seriesId && d.DeletedAt == null),
+                _ => false
+            };
+
             if (!belongsToSeries)
                 throw new ArgumentException($"{entityType} was not found in the specified series.");
         }
