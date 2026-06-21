@@ -1,3 +1,4 @@
+using MangaManagementSystem.Business.DTOs.Requests.Users;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,6 +33,39 @@ namespace MangaManagementSystem.API.Controllers
         {
             var users = await _userService.GetAllAsync();
             return Ok(new BaseResponse { Data = users, Message = "Success" });
+        }
+
+        [HttpPut("{id:guid}")]
+        [Authorize(Policy = "AdminOnly")]
+        [SwaggerOperation(
+            Summary = "Update a user account",
+            Description = "Admin-only. Updates account profile fields, role, and optionally resets the password.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> Update(Guid id, [FromBody] AdminUpdateUserRequest request)
+        {
+            var user = await _userService.AdminUpdateAsync(id, request);
+            return Ok(new BaseResponse { Data = user, Message = "User updated successfully." });
+        }
+
+        [HttpPut("me")]
+        [Authorize]
+        [SwaggerOperation(
+            Summary = "Update my profile",
+            Description = "Updates the authenticated user's basic profile fields only.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> UpdateMe([FromBody] UpdateMyProfileRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var user = await _userService.UpdateMyProfileAsync(userId, request);
+            return Ok(new BaseResponse { Data = user, Message = "Profile updated successfully." });
         }
 
         [HttpDelete("{id:guid}/soft-delete")]
