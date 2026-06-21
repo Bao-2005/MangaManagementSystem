@@ -1,5 +1,5 @@
 using AutoMapper;
-using MangaManagement.DataAccess.DbContexts;
+using MangaManagementSystem.Business.Exceptions;
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Requests.Series;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
@@ -19,6 +19,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private const string OpenStatus = "Open";
         private const string InReviewStatus = "InReview";
         private const string ResolvedStatus = "Resolved";
+        private const string ChangeTantouEditorType = "ChangeTantouEditor";
         private const string DuplicateEscalationIndexName = "IX_Escalations_Type_EntityType_EntityId";
 
         private static readonly string[] AllowedEntityTypes =
@@ -39,22 +40,28 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             "Critical"
         };
 
-        private readonly IRepository<Escalation> _repo;
+        private readonly IEscalationRepository _repo;
+        private readonly IRepository<DataAccess.Entities.Models.Series> _seriesRepo;
+        private readonly IRepository<User> _userRepo;
+        private readonly IRepository<UserAssignment> _userAssignmentRepo;
         private readonly IMapper _mapper;
-        private readonly MangaDbContext _dbContext;
         private readonly INotificationDispatchService _notificationDispatchService;
         private readonly ILogger<EscalationService> _logger;
 
         public EscalationService(
-            IRepository<Escalation> repo,
+            IEscalationRepository repo,
+            IRepository<DataAccess.Entities.Models.Series> seriesRepo,
+            IRepository<User> userRepo,
+            IRepository<UserAssignment> userAssignmentRepo,
             IMapper mapper,
-            MangaDbContext dbContext,
             INotificationDispatchService notificationDispatchService,
             ILogger<EscalationService> logger)
         {
             _repo = repo;
+            _seriesRepo = seriesRepo;
+            _userRepo = userRepo;
+            _userAssignmentRepo = userAssignmentRepo;
             _mapper = mapper;
-            _dbContext = dbContext;
             _notificationDispatchService = notificationDispatchService;
             _logger = logger;
         }
@@ -130,6 +137,43 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             return await GetByIdAsync(esc.EscalationId);
         }
 
+        public async Task<EscalationResponse> RequestTantouEditorChangeAsync(
+            Guid mangakaId,
+            CreateTantouEditorChangeEscalationRequest request)
+        {
+            if (request.SeriesId == Guid.Empty)
+                throw new ArgumentException("SeriesId is required.");
+
+            var series = await _seriesRepo.GetAll()
+                .FirstOrDefaultAsync(s => s.SeriesId == request.SeriesId && s.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Series not found.");
+
+            if (series.MangakaId != mangakaId)
+                throw new ForbiddenAccessException("You can only request Tantou Editor changes for your own series.");
+
+            var priority = string.IsNullOrWhiteSpace(request.Priority)
+                ? "Normal"
+                : NormalizeAllowedValue(request.Priority, AllowedPriorities, "Priority");
+
+            var reason = RequireText(request.Reason, "Reason");
+            var requestedEditorDescription = await BuildRequestedEditorDescriptionAsync(
+                mangakaId,
+                request.RequestedTantouEditorId);
+
+            if (!string.IsNullOrWhiteSpace(requestedEditorDescription))
+                reason = $"{requestedEditorDescription}\nReason: {reason}";
+
+            return await CreateAsync(mangakaId, new CreateEscalationRequest
+            {
+                Type = ChangeTantouEditorType,
+                EntityType = "Series",
+                EntityId = request.SeriesId,
+                SeriesId = request.SeriesId,
+                Priority = priority,
+                Reason = reason
+            });
+        }
+
         public async Task<EscalationResponse> ResolveAsync(Guid id, Guid resolverUserId, UpdateEscalationRequest request)
         {
             var e = await _repo.GetAll()
@@ -169,37 +213,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private async Task EnsureEntityBelongsToSeriesAsync(string entityType, Guid entityId, Guid seriesId)
         {
-            var seriesExists = await _dbContext.Series
-                .AnyAsync(s => s.SeriesId == seriesId && s.DeletedAt == null);
+            var seriesExists = await _repo.SeriesExistsAsync(seriesId);
             if (!seriesExists)
                 throw new KeyNotFoundException("Series not found.");
 
-            var belongsToSeries = entityType switch
-            {
-                "Series" => entityId == seriesId,
-                "Chapter" => await _dbContext.Chapters.AnyAsync(
-                    c => c.ChapterId == entityId && c.SeriesId == seriesId && c.DeletedAt == null),
-                "Manuscript" => await _dbContext.Manuscripts.AnyAsync(
-                    m => m.ManuscriptId == entityId
-                        && m.Chapter.SeriesId == seriesId
-                        && m.DeletedAt == null
-                        && m.Chapter.DeletedAt == null),
-                "PageTask" => await _dbContext.PageTasks.AnyAsync(
-                    t => t.PageTaskId == entityId
-                        && t.Chapter.SeriesId == seriesId
-                        && t.DeletedAt == null
-                        && t.Chapter.DeletedAt == null),
-                "PageTaskSubmission" => await _dbContext.PageTaskSubmissions.AnyAsync(
-                    s => s.SubmissionId == entityId
-                        && s.PageTask.Chapter.SeriesId == seriesId
-                        && s.DeletedAt == null
-                        && s.PageTask.DeletedAt == null
-                        && s.PageTask.Chapter.DeletedAt == null),
-                "BoardDecision" => await _dbContext.BoardDecisions.AnyAsync(
-                    d => d.BoardDecisionId == entityId && d.SeriesId == seriesId && d.DeletedAt == null),
-                _ => false
-            };
-
+            var belongsToSeries = await _repo.EntityBelongsToSeriesAsync(entityType, entityId, seriesId);
             if (!belongsToSeries)
                 throw new ArgumentException($"{entityType} was not found in the specified series.");
         }
@@ -231,6 +249,43 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     "Escalation {EscalationId} was created, but resolver notification dispatch failed.",
                     escalation.EscalationId);
             }
+        }
+
+        private async Task<string?> BuildRequestedEditorDescriptionAsync(
+            Guid mangakaId,
+            Guid? requestedTantouEditorId)
+        {
+            if (!requestedTantouEditorId.HasValue)
+                return null;
+
+            if (requestedTantouEditorId.Value == Guid.Empty)
+                throw new ArgumentException("RequestedTantouEditorId is invalid.");
+
+            var requestedEditor = await _userRepo.GetAll()
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.UserId == requestedTantouEditorId.Value)
+                ?? throw new KeyNotFoundException("Requested Tantou Editor not found.");
+
+            if (requestedEditor.DeletedAt != null)
+                throw new InvalidOperationException("Requested Tantou Editor is not active.");
+
+            if (!string.Equals(
+                    requestedEditor.Role.RoleName,
+                    UserRole.TantouEditor.ToString(),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Requested user is not a Tantou Editor.");
+            }
+
+            var isCurrentEditor = await _userAssignmentRepo.GetAll()
+                .AnyAsync(a => a.FromUserId == requestedTantouEditorId.Value
+                    && a.ToUserId == mangakaId
+                    && a.UnassignedAt == null
+                    && a.DeletedAt == null);
+            if (isCurrentEditor)
+                throw new InvalidOperationException("Requested Tantou Editor is already assigned to this Mangaka.");
+
+            return $"Requested Tantou Editor: {requestedEditor.DisplayName} ({requestedEditor.UserId}).";
         }
 
         private static string RequireText(string? value, string fieldName)

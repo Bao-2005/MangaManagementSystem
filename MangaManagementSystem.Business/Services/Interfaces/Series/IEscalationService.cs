@@ -8,6 +8,9 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Series
         Task<IEnumerable<EscalationResponse>> GetBySeriesAsync(Guid seriesId);
         Task<EscalationResponse> GetByIdAsync(Guid id);
         Task<EscalationResponse> CreateAsync(Guid createdByUserId, CreateEscalationRequest request);
+        Task<EscalationResponse> RequestTantouEditorChangeAsync(
+            Guid mangakaId,
+            CreateTantouEditorChangeEscalationRequest request);
         Task<EscalationResponse> ResolveAsync(Guid id, Guid resolverUserId, UpdateEscalationRequest request);
         Task SoftDeleteAsync(Guid id);
     }
