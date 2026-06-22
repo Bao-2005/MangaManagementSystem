@@ -35,6 +35,20 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = users, Message = "Success" });
         }
 
+        [HttpGet("assistants")]
+        [Authorize(Policy = "MangakaOnly")]
+        [SwaggerOperation(
+            Summary = "Get active assistants",
+            Description = "Mangaka-only. Returns active Assistant users for page-task assignment dropdowns.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetAssistants()
+        {
+            var assistants = await _userService.GetAssistantsAsync();
+            return Ok(new BaseResponse { Data = assistants, Message = "Success" });
+        }
+
         [HttpPut("{id:guid}")]
         [Authorize(Policy = "AdminOnly")]
         [SwaggerOperation(
