@@ -1,6 +1,7 @@
 using MangaManagementSystem.Business.DTOs.Requests.Users;
 using MangaManagementSystem.Business.DTOs.Responses.Users;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -39,6 +40,16 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         {
             return await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null)
+                .Select(x => MapProfile(x.User, x.AssignedEditor))
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<UserProfileResponse>> GetAssistantsAsync()
+        {
+            return await UserProfileQuery()
+                .Where(x => x.User.DeletedAt == null
+                    && x.User.Role.RoleName == UserRole.Assistant.ToString())
+                .OrderBy(x => x.User.DisplayName)
                 .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
         }

@@ -6,6 +6,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Users
     public interface IUserService
     {
         Task<IEnumerable<UserProfileResponse>> GetAllAsync();
+        Task<IEnumerable<UserProfileResponse>> GetAssistantsAsync();
         Task<UserProfileResponse> AdminUpdateAsync(Guid userId, AdminUpdateUserRequest request);
         Task<UserProfileResponse> UpdateMyProfileAsync(Guid userId, UpdateMyProfileRequest request);
         Task SoftDeleteAsync(Guid userId);
