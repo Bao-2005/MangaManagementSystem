@@ -13,7 +13,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Guid ChapterId { get; set; }
 
-        public Guid ManuscriptId { get; set; }
+        public Guid? ManuscriptId { get; set; }
 
         public Guid AssistantId { get; set; }
 
@@ -39,7 +39,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Chapter Chapter { get; set; } = null!;
 
-        public Manuscript Manuscript { get; set; } = null!;
+        public Manuscript? Manuscript { get; set; }
 
         public User Assistant { get; set; } = null!;
 
