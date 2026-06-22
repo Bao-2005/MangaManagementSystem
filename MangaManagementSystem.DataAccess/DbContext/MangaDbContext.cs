@@ -480,6 +480,7 @@ public class MangaDbContext : DbContext
             entity.HasOne(x => x.Manuscript)
                 .WithMany(x => x.PageTasks)
                 .HasForeignKey(x => x.ManuscriptId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

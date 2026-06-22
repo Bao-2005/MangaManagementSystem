@@ -74,12 +74,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
 
             if (submission.PageTask.AssistantId != assistantId)
                 throw new UnauthorizedAccessException("Assistant can only annotate their own submissions.");
-
+          
             ValidateAnnotationPayload(request.PageNo, request.Content);
 
             var annotation = new Annotation
             {
-                ManuscriptId = submission.PageTask.ManuscriptId,
+                ManuscriptId = submission.PageTask.ManuscriptId.Value,
                 PageTaskSubmissionId = submissionId,
                 AuthorId = assistantId,
                 PageNo = request.PageNo,

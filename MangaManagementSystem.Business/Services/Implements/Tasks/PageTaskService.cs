@@ -14,12 +14,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
-    public class PageTaskService : IPageTaskService
-    {
+public class PageTaskService : IPageTaskService
+{
     private readonly IRepository<PageTask> _pageTaskRepository;
     private readonly IRepository<PageTaskSubmission> _submissionRepository;
     private readonly IRepository<Chapter> _chapterRepository;
-    private readonly IRepository<Manuscript> _manuscriptRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<FileAsset> _fileAssetRepository;
     private readonly IMapper _mapper;
@@ -28,7 +27,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
         IRepository<PageTask> pageTaskRepository,
         IRepository<PageTaskSubmission> submissionRepository,
         IRepository<Chapter> chapterRepository,
-        IRepository<Manuscript> manuscriptRepository,
         IRepository<User> userRepository,
         IRepository<FileAsset> fileAssetRepository,
         IMapper mapper)
@@ -36,7 +34,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
         _pageTaskRepository = pageTaskRepository;
         _submissionRepository = submissionRepository;
         _chapterRepository = chapterRepository;
-        _manuscriptRepository = manuscriptRepository;
         _userRepository = userRepository;
         _fileAssetRepository = fileAssetRepository;
         _mapper = mapper;
@@ -59,15 +56,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
         if (request.PageEnd > chapter.TotalPages)
             throw new ArgumentException("Page range exceeds chapter total pages.");
-
-        var manuscript = await _manuscriptRepository.GetAll()
-            .Where(x => x.ChapterId == request.ChapterId && x.DeletedAt == null)
-            .OrderByDescending(x => x.VersionNo)
-            .ThenByDescending(x => x.SubmittedAt)
-            .FirstOrDefaultAsync();
-
-        if (manuscript == null)
-            throw new KeyNotFoundException("Manuscript not found for this chapter.");
 
         var assistant = await _userRepository.GetAll()
             .Include(x => x.Role)
@@ -93,7 +81,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
         var task = new PageTask
         {
             ChapterId = request.ChapterId,
-            ManuscriptId = manuscript.ManuscriptId,
             AssistantId = request.AssistantId,
             PageStart = request.PageStart,
             PageEnd = request.PageEnd,
@@ -176,10 +163,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
         await _pageTaskRepository.SaveChangeAsync();
 
         return await GetTaskResponseForAssistantAsync(assistantId, task.PageTaskId);
-        }
+    }
 
     public async Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid submissionId)
-        {
+    {
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Approved;
@@ -188,7 +175,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
         task.Status = PageTaskStatus.Approved;
         task.ApprovedAt = DateTime.UtcNow;
-            task.UpdatedAt = DateTime.UtcNow;
+        task.UpdatedAt = DateTime.UtcNow;
 
         _submissionRepository.Update(submission);
         _pageTaskRepository.Update(task);
@@ -252,10 +239,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
             throw new KeyNotFoundException("Page task not found.");
 
         return _mapper.Map<PageTaskResponse>(task);
-        }
+    }
 
     private async Task<PageTaskResponse> GetTaskResponseForAssistantAsync(Guid assistantId, Guid pageTaskId)
-        {
+    {
         var task = await BaseTaskQuery()
             .FirstOrDefaultAsync(x => x.PageTaskId == pageTaskId && x.AssistantId == assistantId);
 
@@ -263,10 +250,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
             throw new KeyNotFoundException("Page task not found.");
 
         return _mapper.Map<PageTaskResponse>(task);
-        }
+    }
 
     private IQueryable<PageTask> BaseTaskQuery()
-        {
+    {
         return _pageTaskRepository.GetAll()
             .AsNoTracking()
             .Include(x => x.Assistant)
