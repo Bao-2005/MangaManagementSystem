@@ -1,11 +1,14 @@
+using MangaManagementSystem.Business.DTOs.Requests.Files;
 using MangaManagementSystem.Business.DTOs.Requests.Users;
 using MangaManagementSystem.Business.DTOs.Responses.Users;
+using MangaManagementSystem.Business.Services.Interfaces.Files;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.Business.Services.Implements.Users
 {
@@ -18,6 +21,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepository;
         private readonly IRepository<Role> _roleRepository;
         private readonly PasswordHasher<User> _passwordHasher;
+        private readonly IFileUploadService _fileUploadService;
+        private readonly string _supabaseUrl;
 
         public UserService(
             IRepository<User> userRepository,
@@ -25,7 +30,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             IRepository<PageTask> pageTaskRepository,
             IRepository<Annotation> annotationRepository,
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepository,
-            IRepository<Role> roleRepository)
+            IRepository<Role> roleRepository,
+            IFileUploadService fileUploadService,
+            IConfiguration configuration)
         {
             _userRepository = userRepository;
             _userAssignmentRepository = userAssignmentRepository;
@@ -34,24 +41,26 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             _seriesRepository = seriesRepository;
             _roleRepository = roleRepository;
             _passwordHasher = new PasswordHasher<User>();
+            _fileUploadService = fileUploadService;
+            _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
         }
 
         public async Task<IEnumerable<UserProfileResponse>> GetAllAsync()
         {
-            return await UserProfileQuery()
+            var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null)
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
+            return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }
 
         public async Task<IEnumerable<UserProfileResponse>> GetAssistantsAsync()
         {
-            return await UserProfileQuery()
+            var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null
                     && x.User.Role.RoleName == UserRole.Assistant.ToString())
                 .OrderBy(x => x.User.DisplayName)
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
+            return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }
 
         public async Task<UserProfileResponse> AdminUpdateAsync(Guid userId, AdminUpdateUserRequest request)
@@ -196,28 +205,68 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
 
         public async Task<IEnumerable<UserProfileResponse>> GetAssignedMangakasAsync(Guid editorId)
         {
-            return await UserProfileQuery()
+            var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null
                     && x.User.AssignmentsToUser.Any(a =>
                         a.FromUserId == editorId
                         && a.DeletedAt == null
                         && a.UnassignedAt == null))
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
+            return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }
 
         private async Task<UserProfileResponse> GetByIdForAdminAsync(Guid userId)
         {
-            return await UserProfileQuery()
+            var projection = await UserProfileQuery()
                 .Where(x => x.User.UserId == userId && x.User.DeletedAt == null)
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .FirstAsync();
+            return MapProfile(projection.User, projection.AssignedEditor, _supabaseUrl);
+        }
+
+        public async Task<UserProfileResponse> UpdateMyAvatarAsync(
+            Guid userId,
+            UpdateMyAvatarRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _userRepository.GetAll()
+                .Include(x => x.AvatarFileAsset)
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.DeletedAt == null, cancellationToken)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            var previousAvatar = user.AvatarFileAsset;
+
+            var upload = await _fileUploadService.UploadAsync(new FileUploadRequest
+            {
+                Category = FileUploadCategory.UserAvatar,
+                Files = new List<UploadFileRequest>
+                {
+                    new()
+                    {
+                        OriginalFileName = request.OriginalFileName,
+                        ContentType = request.ContentType,
+                        Length = request.Length,
+                        Content = request.Content
+                    }
+                }
+            }, cancellationToken);
+
+            var uploadedAvatar = upload.Files.Single();
+            user.AvatarFileAssetId = uploadedAvatar.FileAssetId;
+
+            if (previousAvatar is not null)
+            {
+                previousAvatar.DeletedAt = DateTime.UtcNow;
+            }
+
+            await _userRepository.SaveChangeAsync(cancellationToken);
+            return await GetByIdForAdminAsync(userId);
         }
 
         private IQueryable<UserProfileProjection> UserProfileQuery()
         {
             return _userRepository.GetAll()
                 .Include(x => x.Role)
+                .Include(x => x.AvatarFileAsset)
                 .Include(x => x.AssignmentsToUser)
                     .ThenInclude(x => x.FromUser)
                 .Select(x => new UserProfileProjection
@@ -239,7 +288,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
 
         private static UserProfileResponse MapProfile(
             User user,
-            AssignedEditorProjection? assignedEditor)
+            AssignedEditorProjection? assignedEditor,
+            string supabaseUrl)
         {
             return new UserProfileResponse
             {
@@ -252,8 +302,18 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                 AssignedEditorName = assignedEditor == null ? null : assignedEditor.DisplayName,
                 CreatedAt = user.CreatedAt,
                 LastLoginAt = user.LastLoginAt,
-                DeletedAt = user.DeletedAt
+                DeletedAt = user.DeletedAt,
+                AvatarFileAssetId = user.AvatarFileAssetId,
+                AvatarUrl = BuildAvatarUrl(user.AvatarFileAsset, supabaseUrl),
             };
+        }
+
+        private static string? BuildAvatarUrl(FileAsset? avatarFileAsset, string supabaseUrl)
+        {
+            if (avatarFileAsset is null || avatarFileAsset.DeletedAt != null || string.IsNullOrEmpty(supabaseUrl))
+                return null;
+
+            return $"{supabaseUrl}/storage/v1/object/public/{avatarFileAsset.BucketName}/{avatarFileAsset.ObjectPath}";
         }
 
         private static string RequireText(string? value, string fieldName)

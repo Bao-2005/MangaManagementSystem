@@ -11,7 +11,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
     {
         public Guid UserId { get; set; }
         public Guid RoleId { get; set; }
-
+        public Guid? AvatarFileAssetId { get; set; }
         public string UserName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
@@ -23,6 +23,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? DeletedAt { get; set; }
 
         public Role Role { get; set; } = null!;
+        public FileAsset? AvatarFileAsset { get; set; }
 
         public ICollection<Series> Series { get; set; } = new List<Series>();
         public ICollection<UserNotification> UserNotifications { get; set; } = new List<UserNotification>();

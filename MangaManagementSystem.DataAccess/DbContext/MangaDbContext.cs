@@ -90,6 +90,7 @@ public class MangaDbContext : DbContext
             entity.HasKey(x => x.UserId);
 
             entity.Property(x => x.UserId).HasDefaultValueSql(NewGuidSql);
+
             entity.Property(x => x.UserName).IsRequired().HasMaxLength(100);
             entity.Property(x => x.Email).IsRequired().HasMaxLength(255);
             entity.Property(x => x.DisplayName).IsRequired().HasMaxLength(150);
@@ -101,10 +102,17 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.LastLoginAt).HasColumnType("timestamptz");
 
             entity.HasIndex(x => x.Email).IsUnique();
+            entity.HasIndex(x => x.AvatarFileAssetId)
+                .IsUnique()
+                .HasFilter("\"AvatarFileAssetId\" IS NOT NULL");
 
             entity.HasOne(x => x.Role)
                 .WithMany(x => x.Users)
                 .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.AvatarFileAsset)
+                .WithOne(x => x.AvatarUser)
+                .HasForeignKey<User>(x => x.AvatarFileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

@@ -82,6 +82,36 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = user, Message = "Profile updated successfully." });
         }
 
+        [HttpPost("me/avatar")]
+        [Authorize]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        [SwaggerOperation(
+            Summary = "Upload my avatar",
+            Description = "Uploads a JPG, PNG, or WEBP avatar for the authenticated user and stores it in the default/general Supabase bucket.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> UpdateMyAvatar(IFormFile file, CancellationToken cancellationToken)
+        {
+            if (file is null)
+                throw new ArgumentException("Avatar file is required.");
+
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var user = await _userService.UpdateMyAvatarAsync(
+                userId,
+                new UpdateMyAvatarRequest
+                {
+                    OriginalFileName = file.FileName,
+                    ContentType = file.ContentType,
+                    Length = file.Length,
+                    Content = file.OpenReadStream()
+                },
+                cancellationToken);
+
+            return Ok(new BaseResponse { Data = user, Message = "Avatar updated successfully." });
+        }
+
         [HttpDelete("{id:guid}/soft-delete")]
         [Authorize(Policy = "AdminOnly")]
         [SwaggerOperation(
