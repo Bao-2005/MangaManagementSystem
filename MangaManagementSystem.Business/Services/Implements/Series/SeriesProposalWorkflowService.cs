@@ -138,7 +138,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 SeriesId = seriesId,
                 DecisionType = SeriesProposalDecisionType,
                 Status = OpenDecisionStatus,
-                VotingDeadline = now.AddDays(7), //Voting deadline
+                VotingDeadline = now.AddDays(7), //Voting deadline //BR-19: Voting Window
                 CreatedBy = tantouEditorId,
                 CreatedAt = now
             };
