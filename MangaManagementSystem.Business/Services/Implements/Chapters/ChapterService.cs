@@ -1,5 +1,6 @@
 using MangaManagementSystem.Business.DTOs.Requests.Chapters;
 using MangaManagementSystem.Business.DTOs.Responses.Chapters;
+using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.Business.Services.Interfaces.Chapters;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
@@ -15,29 +16,45 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
         private readonly IRepository<SeriesEntity> _seriesRepo;
         private readonly IRepository<Manuscript> _manuscriptRepo;
         private readonly IRepository<PageTask> _pageTaskRepo;
+        private readonly IRepository<FileAsset> _fileAssetRepo;
+        private readonly IRepository<ChapterReferenceFile> _chapterReferenceFileRepo;
 
         public ChapterService(
             IRepository<Chapter> repo,
             IRepository<SeriesEntity> seriesRepo,
             IRepository<Manuscript> manuscriptRepo,
-            IRepository<PageTask> pageTaskRepo)
+            IRepository<PageTask> pageTaskRepo,
+            IRepository<FileAsset> fileAssetRepo,
+            IRepository<ChapterReferenceFile> chapterReferenceFileRepo)
         {
             _repo = repo;
             _seriesRepo = seriesRepo;
             _manuscriptRepo = manuscriptRepo;
             _pageTaskRepo = pageTaskRepo;
+            _fileAssetRepo = fileAssetRepo;
+            _chapterReferenceFileRepo = chapterReferenceFileRepo;
         }
 
         public async Task<IEnumerable<ChapterResponse>> GetAllAsync()
-            => await _repo.GetAll().Where(c => c.DeletedAt == null).Select(c => Map(c)).ToListAsync();
+        {
+            var chapters = await ChapterQuery()
+                .Where(c => c.DeletedAt == null)
+                .ToListAsync();
+            return chapters.Select(Map);
+        }
 
         public async Task<IEnumerable<ChapterResponse>> GetBySeriesAsync(Guid seriesId)
-            => await _repo.GetAll().Where(c => c.SeriesId == seriesId && c.DeletedAt == null)
-                .OrderBy(c => c.ChapterNo).Select(c => Map(c)).ToListAsync();
+        {
+            var chapters = await ChapterQuery()
+                .Where(c => c.SeriesId == seriesId && c.DeletedAt == null)
+                .OrderBy(c => c.ChapterNo)
+                .ToListAsync();
+            return chapters.Select(Map);
+        }
 
         public async Task<ChapterResponse> GetByIdAsync(Guid id)
         {
-            var c = await _repo.GetAll().FirstOrDefaultAsync(x => x.ChapterId == id && x.DeletedAt == null)
+            var c = await ChapterQuery().FirstOrDefaultAsync(x => x.ChapterId == id && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Chapter not found.");
             return Map(c);
         }
@@ -101,8 +118,69 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
                 CreatedAt = now
             };
             await _repo.AddAsync(chapter);
+
+            var fileAssetIds = NormalizeFileAssetIds(request.ReferenceFileAssetIds);
+            if (fileAssetIds.Count > 0)
+            {
+                await EnsureFileAssetsExistAsync(fileAssetIds);
+
+                foreach (var fileAssetId in fileAssetIds)
+                {
+                    chapter.ReferenceFiles.Add(new ChapterReferenceFile
+                    {
+                        FileAssetId = fileAssetId,
+                        CreatedAt = now
+                    });
+                }
+            }
+
             await _repo.SaveChangeAsync();
-            return Map(chapter);
+            var createdChapter = await ChapterQuery().FirstAsync(x => x.ChapterId == chapter.ChapterId);
+            return Map(createdChapter);
+        }
+
+        public async Task<ChapterResponse> AddReferenceFilesAsync(Guid mangakaId, Guid chapterId, AttachChapterReferenceFilesRequest request)
+        {
+            var chapter = await _repo.GetAll()
+                .Include(c => c.Series)
+                .FirstOrDefaultAsync(c => c.ChapterId == chapterId && c.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Chapter not found.");
+
+            if (chapter.Series.MangakaId != mangakaId)
+                throw new UnauthorizedAccessException("Only the owner Mangaka can attach reference files to this chapter.");
+
+            var fileAssetIds = NormalizeFileAssetIds(request.FileAssetIds);
+            if (fileAssetIds.Count == 0)
+                throw new ArgumentException("At least one file asset is required.");
+
+            await EnsureFileAssetsExistAsync(fileAssetIds);
+
+            var existingFileAssetIds = await _chapterReferenceFileRepo.GetAll()
+                .Where(x => x.ChapterId == chapterId
+                    && x.DeletedAt == null
+                    && fileAssetIds.Contains(x.FileAssetId))
+                .Select(x => x.FileAssetId)
+                .ToListAsync();
+
+            var existingSet = existingFileAssetIds.ToHashSet();
+            var newReferenceFiles = fileAssetIds
+                .Where(fileAssetId => !existingSet.Contains(fileAssetId))
+                .Select(fileAssetId => new ChapterReferenceFile
+                {
+                    ChapterId = chapterId,
+                    FileAssetId = fileAssetId,
+                    CreatedAt = DateTime.UtcNow
+                })
+                .ToList();
+
+            if (newReferenceFiles.Count > 0)
+            {
+                await _chapterReferenceFileRepo.AddRangeAsync(newReferenceFiles);
+                await _chapterReferenceFileRepo.SaveChangeAsync();
+            }
+
+            var updatedChapter = await ChapterQuery().FirstAsync(x => x.ChapterId == chapterId);
+            return Map(updatedChapter);
         }
 
         public async Task<ChapterResponse> UpdateAsync(Guid id, UpdateChapterRequest request)
@@ -116,7 +194,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             if (request.Status != null) c.Status = request.Status;
             _repo.Update(c);
             await _repo.SaveChangeAsync();
-            return Map(c);
+            var updatedChapter = await ChapterQuery().FirstAsync(x => x.ChapterId == id);
+            return Map(updatedChapter);
         }
 
         public async Task SoftDeleteAsync(Guid id)
@@ -124,6 +203,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             var chapter = await _repo.GetAll()
                 .Include(c => c.Manuscripts)
                 .Include(c => c.PageTasks)
+                .Include(c => c.ReferenceFiles)
                 .FirstOrDefaultAsync(x => x.ChapterId == id && x.DeletedAt == null)
                 ?? throw new KeyNotFoundException("Chapter not found.");
 
@@ -131,15 +211,58 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             chapter.DeletedAt = now;
             foreach (var m in chapter.Manuscripts.Where(m => m.DeletedAt == null)) m.DeletedAt = now;
             foreach (var pt in chapter.PageTasks.Where(pt => pt.DeletedAt == null)) pt.DeletedAt = now;
+            foreach (var rf in chapter.ReferenceFiles.Where(rf => rf.DeletedAt == null)) rf.DeletedAt = now;
             _repo.Update(chapter);
             await _repo.SaveChangeAsync();
         }
+
+        private IQueryable<Chapter> ChapterQuery()
+            => _repo.GetAll()
+                .Include(c => c.ReferenceFiles.Where(rf => rf.DeletedAt == null))
+                .ThenInclude(rf => rf.FileAsset);
+
+        private async Task EnsureFileAssetsExistAsync(IReadOnlyCollection<Guid> fileAssetIds)
+        {
+            var existingFileAssetIds = await _fileAssetRepo.GetAll()
+                .Where(fileAsset => fileAssetIds.Contains(fileAsset.FileAssetId) && fileAsset.DeletedAt == null)
+                .Select(fileAsset => fileAsset.FileAssetId)
+                .ToListAsync();
+
+            if (existingFileAssetIds.Count != fileAssetIds.Count)
+            {
+                var missingFileAssetIds = fileAssetIds.Except(existingFileAssetIds).ToList();
+                throw new KeyNotFoundException($"File asset not found: {string.Join(", ", missingFileAssetIds)}.");
+            }
+        }
+
+        private static IReadOnlyCollection<Guid> NormalizeFileAssetIds(IEnumerable<Guid>? fileAssetIds)
+            => (fileAssetIds ?? Array.Empty<Guid>())
+                .Where(fileAssetId => fileAssetId != Guid.Empty)
+                .Distinct()
+                .ToList();
 
         private static ChapterResponse Map(Chapter c) => new()
         {
             ChapterId = c.ChapterId, SeriesId = c.SeriesId, ChapterNo = c.ChapterNo, Title = c.Title,
             TotalPages = c.TotalPages, Status = c.Status, PublicationDate = c.PublicationDate,
-            SubmissionDeadline = c.SubmissionDeadline, CreatedAt = c.CreatedAt
+            SubmissionDeadline = c.SubmissionDeadline, CreatedAt = c.CreatedAt,
+            ReferenceFiles = c.ReferenceFiles
+                .Where(rf => rf.DeletedAt == null && rf.FileAsset.DeletedAt == null)
+                .OrderBy(rf => rf.CreatedAt)
+                .Select(rf => MapFileAsset(rf.FileAsset))
+                .ToList()
+        };
+
+        private static FileAssetResponse MapFileAsset(FileAsset fileAsset) => new()
+        {
+            FileAssetId = fileAsset.FileAssetId,
+            BucketName = fileAsset.BucketName,
+            ObjectPath = fileAsset.ObjectPath,
+            OriginalFileName = fileAsset.OriginalFileName,
+            StoredFileName = fileAsset.StoredFileName,
+            Extension = fileAsset.Extension,
+            FileSizeBytes = fileAsset.FileSizeBytes,
+            MimeType = fileAsset.MimeType
         };
     }
 }

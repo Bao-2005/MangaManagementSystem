@@ -23,5 +23,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public Series? SeriesSourceZip { get; set; }
         public ProposalPage? ProposalPagePreview { get; set; }
         public ICollection<PageTaskSubmission> PageTaskSubmissions { get; set; } = new List<PageTaskSubmission>();
+        public ICollection<ChapterReferenceFile> ChapterReferenceFiles { get; set; } = new List<ChapterReferenceFile>();
     }
 }

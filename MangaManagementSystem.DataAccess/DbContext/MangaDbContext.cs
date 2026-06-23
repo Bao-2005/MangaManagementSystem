@@ -29,6 +29,7 @@ public class MangaDbContext : DbContext
     public DbSet<BoardDecision> BoardDecisions => Set<BoardDecision>();
     public DbSet<BoardVote> BoardVotes => Set<BoardVote>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
+    public DbSet<ChapterReferenceFile> ChapterReferenceFiles => Set<ChapterReferenceFile>();
     public DbSet<ChapterPage> ChapterPages => Set<ChapterPage>();
     public DbSet<Manuscript> Manuscripts => Set<Manuscript>();
     public DbSet<PageTask> PageTasks => Set<PageTask>();
@@ -55,6 +56,7 @@ public class MangaDbContext : DbContext
         ConfigureBoardDecisions(modelBuilder);
         ConfigureBoardVotes(modelBuilder);
         ConfigureChapters(modelBuilder);
+        ConfigureChapterReferenceFiles(modelBuilder);
         ConfigureChapterPages(modelBuilder);
         ConfigureManuscripts(modelBuilder);
         ConfigurePageTasks(modelBuilder);
@@ -389,6 +391,33 @@ public class MangaDbContext : DbContext
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.Chapters)
                 .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureChapterReferenceFiles(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ChapterReferenceFile>(entity =>
+        {
+            entity.ToTable("ChapterReferenceFiles");
+            entity.HasKey(x => x.ChapterReferenceFileId);
+
+            entity.Property(x => x.ChapterReferenceFileId).HasDefaultValueSql(NewGuidSql);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+
+            entity.HasIndex(x => new { x.ChapterId, x.FileAssetId })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasOne(x => x.Chapter)
+                .WithMany(x => x.ReferenceFiles)
+                .HasForeignKey(x => x.ChapterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.FileAsset)
+                .WithMany(x => x.ChapterReferenceFiles)
+                .HasForeignKey(x => x.FileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

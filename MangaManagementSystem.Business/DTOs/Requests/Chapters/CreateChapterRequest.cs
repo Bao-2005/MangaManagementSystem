@@ -20,5 +20,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Chapters
         public DateTime? PublicationDate { get; set; }
 
         public DateTime? SubmissionDeadline { get; set; }
+
+        public IReadOnlyCollection<Guid> ReferenceFileAssetIds { get; set; } = Array.Empty<Guid>();
     }
 }

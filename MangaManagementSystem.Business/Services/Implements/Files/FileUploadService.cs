@@ -30,6 +30,19 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                 {
                     [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
                 }),
+            [FileUploadCategory.ChapterReference] = new(
+                50 * 1024 * 1024,
+                RequireContentSignature: true,
+                new Dictionary<string, string[]>
+                {
+                    [".jpg"] = new[] { "image/jpeg" },
+                    [".jpeg"] = new[] { "image/jpeg" },
+                    [".png"] = new[] { "image/png" },
+                    [".gif"] = new[] { "image/gif" },
+                    [".webp"] = new[] { "image/webp" },
+                    [".pdf"] = new[] { "application/pdf" },
+                    [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
+                }),
             [FileUploadCategory.TaskSubmission] = new(
                 50 * 1024 * 1024,
                 RequireContentSignature: true,
