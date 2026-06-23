@@ -1,6 +1,7 @@
 using AutoMapper;
 using MangaManagementSystem.Business.DTOs.Requests.Auth;
 using MangaManagementSystem.Business.DTOs.Responses.Auth;
+using MangaManagementSystem.Business.DTOs.Responses.Users;
 using MangaManagementSystem.Business.Services.Interfaces.Auth;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
@@ -21,6 +22,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Auth
         private readonly PasswordHasher<User> _passwordHasher;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly string _supabaseUrl;
 
         public AuthService(
             IRepository<User> userRepository,
@@ -37,6 +39,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Auth
             _configuration = configuration;
             _mapper = mapper;
             _passwordHasher = new PasswordHasher<User>();
+            _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -193,16 +196,17 @@ namespace MangaManagementSystem.Business.Services.Implements.Auth
             await _userRepository.SaveChangeAsync();
         }
 
-        public async Task<AuthResponse> GetCurrentUserAsync(Guid userId)
+        public async Task<UserProfileResponse> GetCurrentUserAsync(Guid userId)
         {
             var user = await _userRepository.GetAll()
                 .Include(x => x.Role)
+                .Include(x => x.AvatarFileAsset)
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
             if (user == null)
                 throw new KeyNotFoundException("User không tồn tại.");
 
-            return _mapper.Map<AuthResponse>(user);
+            return MapProfile(user, null, _supabaseUrl);
         }
 
         public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
@@ -232,6 +236,38 @@ namespace MangaManagementSystem.Business.Services.Implements.Auth
 
             await _userRepository.SaveChangeAsync();
         }
+        private static UserProfileResponse MapProfile(
+            User user,
+            AssignedEditorProjection? assignedEditor,
+            string supabaseUrl)
+        {
+            return new UserProfileResponse
+            {
+                UserId = user.UserId,
+                UserName = user.UserName,
+                Email = user.Email,
+                DisplayName = user.DisplayName,
+                RoleName = user.Role.RoleName,
+                AssignedEditorId = assignedEditor == null ? null : assignedEditor.FromUserId,
+                AssignedEditorName = assignedEditor == null ? null : assignedEditor.DisplayName,
+                CreatedAt = user.CreatedAt,
+                LastLoginAt = user.LastLoginAt,
+                DeletedAt = user.DeletedAt,
+                AvatarFileAssetId = user.AvatarFileAssetId,
+                AvatarUrl = BuildAvatarUrl(user.AvatarFileAsset, supabaseUrl),
+            };
+        }
+        private sealed class AssignedEditorProjection
+        {
+            public Guid FromUserId { get; set; }
+            public string DisplayName { get; set; } = null!;
+        }
+        private static string? BuildAvatarUrl(FileAsset? avatarFileAsset, string supabaseUrl)
+        {
+            if (avatarFileAsset is null || avatarFileAsset.DeletedAt != null || string.IsNullOrEmpty(supabaseUrl))
+                return null;
 
+            return $"{supabaseUrl}/storage/v1/object/public/{avatarFileAsset.BucketName}/{avatarFileAsset.ObjectPath}";
+        }
     }
 }
