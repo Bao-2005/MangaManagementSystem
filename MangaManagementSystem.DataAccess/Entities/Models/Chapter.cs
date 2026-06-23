@@ -24,5 +24,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public Series Series { get; set; } = null!;
         public ICollection<Manuscript> Manuscripts { get; set; } = new List<Manuscript>();
         public ICollection<PageTask> PageTasks { get; set; } = new List<PageTask>();
+        public ICollection<ChapterReferenceFile> ReferenceFiles { get; set; } = new List<ChapterReferenceFile>();
     }
 }

@@ -55,6 +55,16 @@ namespace MangaManagementSystem.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = result.ChapterId }, new BaseResponse { Data = result, Message = "Chapter created." });
         }
 
+        [HttpPost("api/chapters/{id:guid}/reference-files")]
+        [Authorize(Policy = "MangakaOnly")]
+        [SwaggerOperation(Summary = "Attach reference files to a chapter")]
+        public async Task<IActionResult> AddReferenceFiles(Guid id, [FromBody] AttachChapterReferenceFilesRequest request)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _service.AddReferenceFilesAsync(userId, id, request);
+            return Ok(new BaseResponse { Data = result, Message = "Reference files attached." });
+        }
+
         [HttpPut("api/chapters/{id:guid}")]
         [Authorize(Policy = "MangakaOnly")]
         [SwaggerOperation(Summary = "Update a chapter")]

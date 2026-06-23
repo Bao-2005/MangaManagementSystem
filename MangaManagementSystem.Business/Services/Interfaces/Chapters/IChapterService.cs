@@ -9,6 +9,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Chapters
         Task<IEnumerable<ChapterResponse>> GetBySeriesAsync(Guid seriesId);
         Task<ChapterResponse> GetByIdAsync(Guid id);
         Task<ChapterResponse> CreateAsync(Guid mangakaId, CreateChapterRequest request);
+        Task<ChapterResponse> AddReferenceFilesAsync(Guid mangakaId, Guid chapterId, AttachChapterReferenceFilesRequest request);
         Task<ChapterResponse> UpdateAsync(Guid id, UpdateChapterRequest request);
         Task SoftDeleteAsync(Guid id);
     }

@@ -1,3 +1,5 @@
+using MangaManagementSystem.Business.DTOs.Responses.Files;
+
 namespace MangaManagementSystem.Business.DTOs.Responses.Chapters
 {
     public class ChapterResponse
@@ -11,5 +13,6 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Chapters
         public DateTime? PublicationDate { get; set; }
         public DateTime? SubmissionDeadline { get; set; }
         public DateTime CreatedAt { get; set; }
+        public IReadOnlyCollection<FileAssetResponse> ReferenceFiles { get; set; } = Array.Empty<FileAssetResponse>();
     }
 }
