@@ -33,6 +33,7 @@ public class MangaDbContext : DbContext
     public DbSet<ChapterPage> ChapterPages => Set<ChapterPage>();
     public DbSet<Manuscript> Manuscripts => Set<Manuscript>();
     public DbSet<PageTask> PageTasks => Set<PageTask>();
+    public DbSet<PageTaskReferenceFile> PageTaskReferenceFiles => Set<PageTaskReferenceFile>();
     public DbSet<PageTaskSubmission> PageTaskSubmissions => Set<PageTaskSubmission>();
     public DbSet<Annotation> Annotations => Set<Annotation>();
     public DbSet<VoteRecord> VoteRecords => Set<VoteRecord>();
@@ -60,6 +61,7 @@ public class MangaDbContext : DbContext
         ConfigureChapterPages(modelBuilder);
         ConfigureManuscripts(modelBuilder);
         ConfigurePageTasks(modelBuilder);
+        ConfigurePageTaskReferenceFiles(modelBuilder);
         ConfigurePageTaskSubmissions(modelBuilder);
         ConfigureAnnotations(modelBuilder);
         ConfigureVoteRecords(modelBuilder);
@@ -518,6 +520,33 @@ public class MangaDbContext : DbContext
                 .WithMany(x => x.PageTasks)
                 .HasForeignKey(x => x.ManuscriptId)
                 .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigurePageTaskReferenceFiles(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PageTaskReferenceFile>(entity =>
+        {
+            entity.ToTable("PageTaskReferenceFiles");
+            entity.HasKey(x => x.PageTaskReferenceFileId);
+
+            entity.Property(x => x.PageTaskReferenceFileId).HasDefaultValueSql(NewGuidSql);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+
+            entity.HasIndex(x => new { x.PageTaskId, x.FileAssetId })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasOne(x => x.PageTask)
+                .WithMany(x => x.ReferenceFiles)
+                .HasForeignKey(x => x.PageTaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.FileAsset)
+                .WithMany(x => x.PageTaskReferenceFiles)
+                .HasForeignKey(x => x.FileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

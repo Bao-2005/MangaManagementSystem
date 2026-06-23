@@ -75,6 +75,25 @@ namespace MangaManagementSystem.API.Controllers;
         return Ok(new BaseResponse { Data = tasks, Message = "Success" });
         }
 
+    [HttpPost("{pageTaskId:guid}/reference-files")]
+    [Authorize(Policy = "MangakaOnly")]
+    [SwaggerOperation(
+        Summary = "Attach reference files to a page task",
+        Description = "Mangaka-only. Attaches reusable file assets as references for the assistant assigned to a page task.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddReferenceFiles(Guid pageTaskId, [FromBody] AttachPageTaskReferenceFilesRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+        var task = await _pageTaskService.AddReferenceFilesAsync(userId.Value, pageTaskId, request);
+        return Ok(new BaseResponse { Data = task, Message = "Reference files attached." });
+    }
+
     [HttpPost("{pageTaskId:guid}/submissions")]
     [Authorize(Policy = "AssistantOnly")]
     [SwaggerOperation(

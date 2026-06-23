@@ -24,5 +24,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks
         public string? Description { get; set; }
 
         public DateTime? DueDate { get; set; }
+
+        public IReadOnlyCollection<Guid> ReferenceFileAssetIds { get; set; } = Array.Empty<Guid>();
     }
 }
