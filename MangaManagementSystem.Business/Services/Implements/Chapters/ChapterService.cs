@@ -6,6 +6,7 @@ using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using SeriesEntity = MangaManagementSystem.DataAccess.Entities.Models.Series;
 
 namespace MangaManagementSystem.Business.Services.Implements.Chapters
@@ -18,6 +19,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
         private readonly IRepository<PageTask> _pageTaskRepo;
         private readonly IRepository<FileAsset> _fileAssetRepo;
         private readonly IRepository<ChapterReferenceFile> _chapterReferenceFileRepo;
+        private readonly string _supabaseUrl;
 
         public ChapterService(
             IRepository<Chapter> repo,
@@ -25,7 +27,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             IRepository<Manuscript> manuscriptRepo,
             IRepository<PageTask> pageTaskRepo,
             IRepository<FileAsset> fileAssetRepo,
-            IRepository<ChapterReferenceFile> chapterReferenceFileRepo)
+            IRepository<ChapterReferenceFile> chapterReferenceFileRepo,
+            IConfiguration configuration)
         {
             _repo = repo;
             _seriesRepo = seriesRepo;
@@ -33,6 +36,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             _pageTaskRepo = pageTaskRepo;
             _fileAssetRepo = fileAssetRepo;
             _chapterReferenceFileRepo = chapterReferenceFileRepo;
+            _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
         }
 
         public async Task<IEnumerable<ChapterResponse>> GetAllAsync()
@@ -241,7 +245,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
                 .Distinct()
                 .ToList();
 
-        private static ChapterResponse Map(Chapter c) => new()
+        private ChapterResponse Map(Chapter c) => new()
         {
             ChapterId = c.ChapterId, SeriesId = c.SeriesId, ChapterNo = c.ChapterNo, Title = c.Title,
             TotalPages = c.TotalPages, Status = c.Status, PublicationDate = c.PublicationDate,
@@ -253,7 +257,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
                 .ToList()
         };
 
-        private static FileAssetResponse MapFileAsset(FileAsset fileAsset) => new()
+        private FileAssetResponse MapFileAsset(FileAsset fileAsset) => new()
         {
             FileAssetId = fileAsset.FileAssetId,
             BucketName = fileAsset.BucketName,
@@ -262,7 +266,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             StoredFileName = fileAsset.StoredFileName,
             Extension = fileAsset.Extension,
             FileSizeBytes = fileAsset.FileSizeBytes,
-            MimeType = fileAsset.MimeType
+            MimeType = fileAsset.MimeType,
+            PublicUrl = string.IsNullOrEmpty(_supabaseUrl)
+                ? null
+                : $"{_supabaseUrl}/storage/v1/object/public/{fileAsset.BucketName}/{fileAsset.ObjectPath}"
         };
     }
 }
