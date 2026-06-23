@@ -12,7 +12,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 {
     public class SeriesService : ISeriesService
     {
-        private const int MinimumSamplePageCount = 5;
+        //private const int MinimumSamplePageCount = 5;
 
         private static readonly string[] ValidPublicationTypes =
         {
@@ -320,8 +320,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private async Task<List<Guid>> ValidateSamplePagesAsync(IEnumerable<Guid>? samplePageFileAssetIds)
         {
             var distinctFileAssetIds = samplePageFileAssetIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? new List<Guid>();
-            if (distinctFileAssetIds.Count < MinimumSamplePageCount)
-                throw new ArgumentException("At least 5 sample pages are required.");
+            //if (distinctFileAssetIds.Count < MinimumSamplePageCount)
+            //    throw new ArgumentException("At least 5 sample pages are required.");
 
             var existingFileAssets = await _fileAssetRepo.GetAll()
                 .Where(f => distinctFileAssetIds.Contains(f.FileAssetId) && f.DeletedAt == null)
