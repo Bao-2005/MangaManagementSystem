@@ -92,7 +92,7 @@ namespace MangaManagementSystem.API.Controllers
         [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> UpdateMyAvatar([FromForm] IFormFile file, CancellationToken cancellationToken)
+        public async Task<IActionResult> UpdateMyAvatar(IFormFile file, CancellationToken cancellationToken)
         {
             if (file is null)
                 throw new ArgumentException("Avatar file is required.");

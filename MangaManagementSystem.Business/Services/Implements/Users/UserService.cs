@@ -47,20 +47,20 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
 
         public async Task<IEnumerable<UserProfileResponse>> GetAllAsync()
         {
-            return await UserProfileQuery()
+            var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null)
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
+            return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }
 
         public async Task<IEnumerable<UserProfileResponse>> GetAssistantsAsync()
         {
-            return await UserProfileQuery()
+            var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null
                     && x.User.Role.RoleName == UserRole.Assistant.ToString())
                 .OrderBy(x => x.User.DisplayName)
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
+            return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }
 
         public async Task<UserProfileResponse> AdminUpdateAsync(Guid userId, AdminUpdateUserRequest request)
@@ -205,22 +205,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
 
         public async Task<IEnumerable<UserProfileResponse>> GetAssignedMangakasAsync(Guid editorId)
         {
-            return await UserProfileQuery()
+            var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null
                     && x.User.AssignmentsToUser.Any(a =>
                         a.FromUserId == editorId
                         && a.DeletedAt == null
                         && a.UnassignedAt == null))
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .ToListAsync();
+            return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }
 
         private async Task<UserProfileResponse> GetByIdForAdminAsync(Guid userId)
         {
-            return await UserProfileQuery()
+            var projection = await UserProfileQuery()
                 .Where(x => x.User.UserId == userId && x.User.DeletedAt == null)
-                .Select(x => MapProfile(x.User, x.AssignedEditor))
                 .FirstAsync();
+            return MapProfile(projection.User, projection.AssignedEditor, _supabaseUrl);
         }
 
         public async Task<UserProfileResponse> UpdateMyAvatarAsync(
@@ -286,9 +286,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                 });
         }
 
-        private UserProfileResponse MapProfile(
+        private static UserProfileResponse MapProfile(
             User user,
-            AssignedEditorProjection? assignedEditor)
+            AssignedEditorProjection? assignedEditor,
+            string supabaseUrl)
         {
             return new UserProfileResponse
             {
@@ -303,16 +304,16 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                 LastLoginAt = user.LastLoginAt,
                 DeletedAt = user.DeletedAt,
                 AvatarFileAssetId = user.AvatarFileAssetId,
-                AvatarUrl = BuildAvatarUrl(user.AvatarFileAsset),
+                AvatarUrl = BuildAvatarUrl(user.AvatarFileAsset, supabaseUrl),
             };
         }
 
-        private string? BuildAvatarUrl(FileAsset? avatarFileAsset)
+        private static string? BuildAvatarUrl(FileAsset? avatarFileAsset, string supabaseUrl)
         {
-            if (avatarFileAsset is null || avatarFileAsset.DeletedAt != null || string.IsNullOrEmpty(_supabaseUrl))
+            if (avatarFileAsset is null || avatarFileAsset.DeletedAt != null || string.IsNullOrEmpty(supabaseUrl))
                 return null;
 
-            return $"{_supabaseUrl}/storage/v1/object/public/{avatarFileAsset.BucketName}/{avatarFileAsset.ObjectPath}";
+            return $"{supabaseUrl}/storage/v1/object/public/{avatarFileAsset.BucketName}/{avatarFileAsset.ObjectPath}";
         }
 
         private static string RequireText(string? value, string fieldName)
