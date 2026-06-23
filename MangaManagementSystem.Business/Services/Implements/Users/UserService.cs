@@ -49,6 +49,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
         {
             var projections = await UserProfileQuery()
                 .Where(x => x.User.DeletedAt == null)
+                .OrderByDescending(x => x.User.CreatedAt)
                 .ToListAsync();
             return projections.Select(x => MapProfile(x.User, x.AssignedEditor, _supabaseUrl));
         }

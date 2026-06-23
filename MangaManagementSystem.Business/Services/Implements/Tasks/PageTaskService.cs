@@ -21,6 +21,7 @@ public class PageTaskService : IPageTaskService
     private readonly IRepository<Chapter> _chapterRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<FileAsset> _fileAssetRepository;
+    private readonly IRepository<PageTaskReferenceFile> _pageTaskReferenceFileRepository;
     private readonly IMapper _mapper;
 
     public PageTaskService(
@@ -29,6 +30,7 @@ public class PageTaskService : IPageTaskService
         IRepository<Chapter> chapterRepository,
         IRepository<User> userRepository,
         IRepository<FileAsset> fileAssetRepository,
+        IRepository<PageTaskReferenceFile> pageTaskReferenceFileRepository,
         IMapper mapper)
     {
         _pageTaskRepository = pageTaskRepository;
@@ -36,6 +38,7 @@ public class PageTaskService : IPageTaskService
         _chapterRepository = chapterRepository;
         _userRepository = userRepository;
         _fileAssetRepository = fileAssetRepository;
+        _pageTaskReferenceFileRepository = pageTaskReferenceFileRepository;
         _mapper = mapper;
     }
 
@@ -91,6 +94,21 @@ public class PageTaskService : IPageTaskService
             CreatedAt = DateTime.UtcNow
         };
 
+        var fileAssetIds = NormalizeFileAssetIds(request.ReferenceFileAssetIds);
+        if (fileAssetIds.Count > 0)
+        {
+            await EnsureFileAssetsExistAsync(fileAssetIds);
+
+            foreach (var fileAssetId in fileAssetIds)
+            {
+                task.ReferenceFiles.Add(new PageTaskReferenceFile
+                {
+                    FileAssetId = fileAssetId,
+                    CreatedAt = task.CreatedAt
+                });
+            }
+        }
+
         await _pageTaskRepository.AddAsync(task);
         await _pageTaskRepository.SaveChangeAsync();
 
@@ -115,6 +133,52 @@ public class PageTaskService : IPageTaskService
             .ToListAsync();
 
         return _mapper.Map<IEnumerable<PageTaskResponse>>(tasks);
+    }
+
+    public async Task<PageTaskResponse> AddReferenceFilesAsync(Guid mangakaId, Guid pageTaskId, AttachPageTaskReferenceFilesRequest request)
+    {
+        var task = await _pageTaskRepository.GetAll()
+            .Include(x => x.Chapter)
+                .ThenInclude(x => x.Series)
+            .FirstOrDefaultAsync(x => x.PageTaskId == pageTaskId && x.DeletedAt == null);
+
+        if (task == null)
+            throw new KeyNotFoundException("Page task not found.");
+
+        if (task.Chapter.Series.MangakaId != mangakaId)
+            throw new UnauthorizedAccessException("You can only attach reference files to tasks for your own series.");
+
+        var fileAssetIds = NormalizeFileAssetIds(request.FileAssetIds);
+        if (fileAssetIds.Count == 0)
+            throw new ArgumentException("At least one file asset is required.");
+
+        await EnsureFileAssetsExistAsync(fileAssetIds);
+
+        var existingFileAssetIds = await _pageTaskReferenceFileRepository.GetAll()
+            .Where(x => x.PageTaskId == pageTaskId
+                && x.DeletedAt == null
+                && fileAssetIds.Contains(x.FileAssetId))
+            .Select(x => x.FileAssetId)
+            .ToListAsync();
+
+        var existingSet = existingFileAssetIds.ToHashSet();
+        var newReferenceFiles = fileAssetIds
+            .Where(fileAssetId => !existingSet.Contains(fileAssetId))
+            .Select(fileAssetId => new PageTaskReferenceFile
+            {
+                PageTaskId = pageTaskId,
+                FileAssetId = fileAssetId,
+                CreatedAt = DateTime.UtcNow
+            })
+            .ToList();
+
+        if (newReferenceFiles.Count > 0)
+        {
+            await _pageTaskReferenceFileRepository.AddRangeAsync(newReferenceFiles);
+            await _pageTaskReferenceFileRepository.SaveChangeAsync();
+        }
+
+        return await GetTaskResponseForMangakaAsync(mangakaId, pageTaskId);
     }
 
     public async Task<PageTaskResponse> SubmitAsync(Guid assistantId, Guid pageTaskId, SubmitPageTaskRequest request)
@@ -263,5 +327,25 @@ public class PageTaskService : IPageTaskService
                 .ThenInclude(x => x.SubmittedFileAsset)
             .Where(x => x.DeletedAt == null);
     }
+
+    private async Task EnsureFileAssetsExistAsync(IReadOnlyCollection<Guid> fileAssetIds)
+    {
+        var existingFileAssetIds = await _fileAssetRepository.GetAll()
+            .Where(fileAsset => fileAssetIds.Contains(fileAsset.FileAssetId) && fileAsset.DeletedAt == null)
+            .Select(fileAsset => fileAsset.FileAssetId)
+            .ToListAsync();
+
+        if (existingFileAssetIds.Count != fileAssetIds.Count)
+        {
+            var missingFileAssetIds = fileAssetIds.Except(existingFileAssetIds).ToList();
+            throw new KeyNotFoundException($"File asset not found: {string.Join(", ", missingFileAssetIds)}.");
+        }
+    }
+
+    private static IReadOnlyCollection<Guid> NormalizeFileAssetIds(IEnumerable<Guid>? fileAssetIds)
+        => (fileAssetIds ?? Array.Empty<Guid>())
+            .Where(fileAssetId => fileAssetId != Guid.Empty)
+            .Distinct()
+            .ToList();
 
 }

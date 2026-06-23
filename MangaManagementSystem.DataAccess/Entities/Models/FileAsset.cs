@@ -25,5 +25,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public User? AvatarUser { get; set; }
         public ICollection<PageTaskSubmission> PageTaskSubmissions { get; set; } = new List<PageTaskSubmission>();
         public ICollection<ChapterReferenceFile> ChapterReferenceFiles { get; set; } = new List<ChapterReferenceFile>();
+        public ICollection<PageTaskReferenceFile> PageTaskReferenceFiles { get; set; } = new List<PageTaskReferenceFile>();
     }
 }

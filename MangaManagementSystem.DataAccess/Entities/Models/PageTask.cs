@@ -44,5 +44,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public User Assistant { get; set; } = null!;
 
         public ICollection<PageTaskSubmission> Submissions { get; set; } = new List<PageTaskSubmission>();
+        public ICollection<PageTaskReferenceFile> ReferenceFiles { get; set; } = new List<PageTaskReferenceFile>();
     }
 }
