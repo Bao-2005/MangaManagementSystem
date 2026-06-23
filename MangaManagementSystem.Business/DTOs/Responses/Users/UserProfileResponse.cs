@@ -12,5 +12,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Users
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public DateTime? DeletedAt { get; set; }
+        public Guid? AvatarFileAssetId { get; set; }
+        public string? AvatarUrl { get; set; }
     }
 }

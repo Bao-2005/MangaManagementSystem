@@ -11,5 +11,6 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Users
         Task<UserProfileResponse> UpdateMyProfileAsync(Guid userId, UpdateMyProfileRequest request);
         Task SoftDeleteAsync(Guid userId);
         Task<IEnumerable<UserProfileResponse>> GetAssignedMangakasAsync(Guid editorId);
+        Task<UserProfileResponse> UpdateMyAvatarAsync(Guid userId, UpdateMyAvatarRequest request, CancellationToken cancellationToken = default);
     }
 }

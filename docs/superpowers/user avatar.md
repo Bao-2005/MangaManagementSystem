@@ -4,7 +4,7 @@
 
 **Goal:** Add authenticated user avatar upload, persist the avatar as a `FileAsset`, store it in the existing general/default Supabase bucket, and expose the avatar URL on user profile responses.
 
-**Architecture:** Keep the existing Controller -> Business service -> Repository / DataAccess layering. Reuse `IStorageService`, `IFileUploadService`, and `FileAsset`; add a nullable `Users.AvatarFileAssetId` relationship for the selected avatar. Do not add a separate avatar table or dedicated avatar bucket.
+**Architecture:** Keep the existing Controller -> Business service -> Repository / DataAccess layering. Reuse `IStorageService`, `IFileUploadService`, and `FileAsset`; add a nullable one-to-one `Users.AvatarFileAssetId` relationship for the selected avatar, where one user has at most one avatar and one `FileAsset` can be the avatar for at most one user. Do not add a separate avatar table or dedicated avatar bucket.
 
 **Tech Stack:** .NET 8, ASP.NET Core Web API multipart upload, EF Core 8 migrations, PostgreSQL via Npgsql, Supabase Storage.
 
@@ -15,11 +15,11 @@
 - Modify: `MangaManagementSystem.DataAccess/Entities/Models/User.cs`
   - Add nullable `AvatarFileAssetId` and `AvatarFileAsset` navigation.
 - Modify: `MangaManagementSystem.DataAccess/Entities/Models/FileAsset.cs`
-  - Add inverse `AvatarUsers` navigation.
+  - Add inverse `AvatarUser` navigation for the one-to-one relationship.
 - Modify: `MangaManagementSystem.DataAccess/DbContext/MangaDbContext.cs`
-  - Configure optional User -> FileAsset avatar relationship.
+  - Configure optional one-to-one User -> FileAsset avatar relationship.
 - Generate: `MangaManagementSystem.DataAccess/Migrations/*_AddUserAvatar.cs`
-  - Add `Users.AvatarFileAssetId`, index, and FK.
+  - Add `Users.AvatarFileAssetId`, unique filtered index, and FK.
 - Modify: `MangaManagementSystem.Business/DTOs/Requests/Files/FileUploadCategory.cs`
   - Add `UserAvatar`.
 - Modify: `MangaManagementSystem.Business/Services/Implements/Files/FileUploadService.cs`
@@ -61,12 +61,12 @@ Add this navigation after `Role`:
 public FileAsset? AvatarFileAsset { get; set; }
 ```
 
-- [ ] **Step 2: Add inverse navigation to `FileAsset`**
+- [ ] **Step 2: Add inverse one-to-one navigation to `FileAsset`**
 
-Add this collection beside the other navigations:
+Add this navigation beside the other navigations:
 
 ```csharp
-public ICollection<User> AvatarUsers { get; set; } = new List<User>();
+public User? AvatarUser { get; set; }
 ```
 
 - [ ] **Step 3: Configure the EF relationship**
@@ -75,6 +75,7 @@ In `ConfigureUsers` in `MangaDbContext.cs`, after the email index, add:
 
 ```csharp
 entity.HasIndex(x => x.AvatarFileAssetId)
+    .IsUnique()
     .HasFilter("\"AvatarFileAssetId\" IS NOT NULL");
 ```
 
@@ -82,8 +83,8 @@ After the `Role` relationship, add:
 
 ```csharp
 entity.HasOne(x => x.AvatarFileAsset)
-    .WithMany(x => x.AvatarUsers)
-    .HasForeignKey(x => x.AvatarFileAssetId)
+    .WithOne(x => x.AvatarUser)
+    .HasForeignKey<User>(x => x.AvatarFileAssetId)
     .OnDelete(DeleteBehavior.Restrict);
 ```
 
@@ -122,6 +123,7 @@ migrationBuilder.CreateIndex(
     name: "IX_Users_AvatarFileAssetId",
     table: "Users",
     column: "AvatarFileAssetId",
+    unique: true,
     filter: "\"AvatarFileAssetId\" IS NOT NULL");
 
 migrationBuilder.AddForeignKey(
@@ -450,7 +452,7 @@ Run:
 dotnet ef database update --project MangaManagementSystem.DataAccess --startup-project MangaManagementSystem.WebApi
 ```
 
-Expected: database update succeeds and `Users.AvatarFileAssetId` exists.
+Expected: database update succeeds, `Users.AvatarFileAssetId` exists, and `IX_Users_AvatarFileAssetId` is unique for non-null values.
 
 - [ ] **Step 2: Start API**
 
@@ -484,7 +486,7 @@ Run with a valid PNG at `D:/tmp/avatar.png`:
 Invoke-RestMethod -Method Post -Uri "http://localhost:5151/api/users/me/avatar" -Headers @{ Authorization = "Bearer $accessToken" } -Form @{ file = Get-Item "D:/tmp/avatar.png" }
 ```
 
-Expected: HTTP 200; response has non-null `data.avatarFileAssetId` and `data.avatarUrl`; stored `FileAssets.BucketName` equals `Supabase:Storage:DefaultBucket`.
+Expected: HTTP 200; response has non-null `data.avatarFileAssetId` and `data.avatarUrl`; stored `FileAssets.BucketName` equals `Supabase:Storage:DefaultBucket`; no other user can reference the same avatar `FileAssetId`.
 
 - [ ] **Step 5: Reject unsupported file**
 
@@ -516,8 +518,8 @@ Expected: each user includes `avatarFileAssetId` and `avatarUrl`; users without 
 In `Current Domain Model`, update the user/upload bullets to include:
 
 ```markdown
-- Users and roles: `User`, `Role`; users may reference one current avatar through `User.AvatarFileAssetId`.
-- Production artifacts and uploads: `Manuscript`, `FileAsset`; `FileAsset` also tracks reusable uploads such as avatars.
+- Users and roles: `User`, `Role`; users may reference one current avatar through the one-to-one `User.AvatarFileAssetId` relationship.
+- Production artifacts and uploads: `Manuscript`, `FileAsset`; a `FileAsset` can be the current avatar for at most one user.
 ```
 
 - [ ] **Step 2: Update API notes**
@@ -550,6 +552,6 @@ Expected: build succeeds before commit.
 
 ## Self-Review
 
-- Spec coverage: The plan adds avatar upload, persists the current avatar on `User`, stores avatar files through the existing Supabase storage service, relies on the default/general bucket, and exposes avatar data in profile responses.
+- Spec coverage: The plan adds avatar upload, persists the current avatar on `User` as a one-to-one `FileAsset` relationship, stores avatar files through the existing Supabase storage service, relies on the default/general bucket, and exposes avatar data in profile responses.
 - Placeholder scan: No implementation step uses prohibited placeholder phrasing or unspecified error handling.
-- Type consistency: `AvatarFileAssetId`, `AvatarFileAsset`, `AvatarUsers`, `UserAvatar`, `UpdateMyAvatarRequest`, `UpdateMyAvatarAsync`, and `AvatarUrl` are used consistently across the plan.
+- Type consistency: `AvatarFileAssetId`, `AvatarFileAsset`, `AvatarUser`, `UserAvatar`, `UpdateMyAvatarRequest`, `UpdateMyAvatarAsync`, and `AvatarUrl` are used consistently across the plan.
