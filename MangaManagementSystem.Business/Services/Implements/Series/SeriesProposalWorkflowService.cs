@@ -15,7 +15,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 {
     public class SeriesProposalWorkflowService : ISeriesProposalWorkflowService
     {
-        private const int MinimumProposalPageCount = 5;
+        // private const int MinimumProposalPageCount = 5; // Rule disabled: minimum 5 pages not required
 
         private const string SeriesProposalDecisionType = "SeriesProposal";
         private const string OpenDecisionStatus = "Open";
@@ -59,7 +59,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             if (series.Status != SeriesStatus.Draft && series.Status != SeriesStatus.RevisionRequired)
                 throw new InvalidOperationException("Only draft or revision-required proposals can be submitted for review.");
 
-            await EnsureMinimumProposalPagesAsync(seriesId);
+            // await EnsureMinimumProposalPagesAsync(seriesId); // Rule disabled: minimum 5 pages not required
 
             series.Status = SeriesStatus.UnderReview;
             series.RejectReason = null;
@@ -210,13 +210,14 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 ?? throw new KeyNotFoundException("Series not found.");
         }
 
-        private async Task EnsureMinimumProposalPagesAsync(Guid seriesId)
-        {
-            var proposalPageCount = await _proposalPageRepo.GetAll()
-                .CountAsync(p => p.SeriesId == seriesId && p.DeletedAt == null);
-            if (proposalPageCount < MinimumProposalPageCount)
-                throw new InvalidOperationException("At least 5 non-deleted proposal pages are required.");
-        }
+        // Rule disabled: minimum 5 pages not required
+        // private async Task EnsureMinimumProposalPagesAsync(Guid seriesId)
+        // {
+        //     var proposalPageCount = await _proposalPageRepo.GetAll()
+        //         .CountAsync(p => p.SeriesId == seriesId && p.DeletedAt == null);
+        //     if (proposalPageCount < MinimumProposalPageCount)
+        //         throw new InvalidOperationException("At least 5 non-deleted proposal pages are required.");
+        // }
 
         private async Task EnsureProposalCompletenessAsync(MangaManagementSystem.DataAccess.Entities.Models.Series series)
         {
@@ -224,7 +225,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             ValidateSynopsis(series.Synopsis);
             ValidatePublicationType(series.PublicationType);
             await EnsureAtLeastOneGenreAsync(series.SeriesId);
-            await EnsureMinimumProposalPagesAsync(series.SeriesId);
+            // await EnsureMinimumProposalPagesAsync(series.SeriesId); // Rule disabled: minimum 5 pages not required
         }
 
         private async Task EnsureAtLeastOneGenreAsync(Guid seriesId)
