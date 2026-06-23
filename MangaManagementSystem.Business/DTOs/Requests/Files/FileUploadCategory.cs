@@ -7,6 +7,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Files
         ProposalSamplePage,
         ChapterReference,
         TaskSubmission,
-        UserAvatar
+        UserAvatar,
+        TaskReference
     }
 }
