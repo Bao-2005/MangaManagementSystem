@@ -5,12 +5,14 @@ using System.Text;
 using System.Threading.Tasks;
 using AutoMapper;
 using MangaManagementSystem.Business.DTOs.Requests.Tasks;
+using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.Business.DTOs.Responses.Tasks;
 using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
@@ -23,6 +25,7 @@ public class PageTaskService : IPageTaskService
     private readonly IRepository<FileAsset> _fileAssetRepository;
     private readonly IRepository<PageTaskReferenceFile> _pageTaskReferenceFileRepository;
     private readonly IMapper _mapper;
+    private readonly string _supabaseUrl;
 
     public PageTaskService(
         IRepository<PageTask> pageTaskRepository,
@@ -31,6 +34,7 @@ public class PageTaskService : IPageTaskService
         IRepository<User> userRepository,
         IRepository<FileAsset> fileAssetRepository,
         IRepository<PageTaskReferenceFile> pageTaskReferenceFileRepository,
+        IConfiguration configuration,
         IMapper mapper)
     {
         _pageTaskRepository = pageTaskRepository;
@@ -40,6 +44,7 @@ public class PageTaskService : IPageTaskService
         _fileAssetRepository = fileAssetRepository;
         _pageTaskReferenceFileRepository = pageTaskReferenceFileRepository;
         _mapper = mapper;
+        _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
     }
 
     public async Task<PageTaskResponse> CreateAsync(Guid mangakaId, CreatePageTaskRequest request)
@@ -122,7 +127,7 @@ public class PageTaskService : IPageTaskService
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
 
-        return _mapper.Map<IEnumerable<PageTaskResponse>>(tasks);
+        return tasks.Select(MapTask);
     }
 
     public async Task<IEnumerable<PageTaskResponse>> GetAssistantTasksAsync(Guid assistantId)
@@ -132,7 +137,7 @@ public class PageTaskService : IPageTaskService
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
 
-        return _mapper.Map<IEnumerable<PageTaskResponse>>(tasks);
+        return tasks.Select(MapTask);
     }
 
     public async Task<PageTaskResponse> AddReferenceFilesAsync(Guid mangakaId, Guid pageTaskId, AttachPageTaskReferenceFilesRequest request)
@@ -302,7 +307,7 @@ public class PageTaskService : IPageTaskService
         if (task == null)
             throw new KeyNotFoundException("Page task not found.");
 
-        return _mapper.Map<PageTaskResponse>(task);
+        return MapTask(task);
     }
 
     private async Task<PageTaskResponse> GetTaskResponseForAssistantAsync(Guid assistantId, Guid pageTaskId)
@@ -313,7 +318,7 @@ public class PageTaskService : IPageTaskService
         if (task == null)
             throw new KeyNotFoundException("Page task not found.");
 
-        return _mapper.Map<PageTaskResponse>(task);
+        return MapTask(task);
     }
 
     private IQueryable<PageTask> BaseTaskQuery()
@@ -325,8 +330,37 @@ public class PageTaskService : IPageTaskService
                 .ThenInclude(x => x.Series)
             .Include(x => x.Submissions.Where(s => s.DeletedAt == null))
                 .ThenInclude(x => x.SubmittedFileAsset)
+            .Include(x => x.ReferenceFiles.Where(rf => rf.DeletedAt == null))
+                .ThenInclude(x => x.FileAsset)
             .Where(x => x.DeletedAt == null);
     }
+
+    private PageTaskResponse MapTask(PageTask task)
+    {
+        var response = _mapper.Map<PageTaskResponse>(task);
+        response.ReferenceFiles = task.ReferenceFiles
+            .Where(rf => rf.DeletedAt == null && rf.FileAsset.DeletedAt == null)
+            .OrderBy(rf => rf.CreatedAt)
+            .Select(rf => MapFileAsset(rf.FileAsset))
+            .ToList();
+
+        return response;
+    }
+
+    private FileAssetResponse MapFileAsset(FileAsset fileAsset) => new()
+    {
+        FileAssetId = fileAsset.FileAssetId,
+        BucketName = fileAsset.BucketName,
+        ObjectPath = fileAsset.ObjectPath,
+        OriginalFileName = fileAsset.OriginalFileName,
+        StoredFileName = fileAsset.StoredFileName,
+        Extension = fileAsset.Extension,
+        FileSizeBytes = fileAsset.FileSizeBytes,
+        MimeType = fileAsset.MimeType,
+        PublicUrl = string.IsNullOrEmpty(_supabaseUrl)
+            ? null
+            : $"{_supabaseUrl}/storage/v1/object/public/{fileAsset.BucketName}/{fileAsset.ObjectPath}"
+    };
 
     private async Task EnsureFileAssetsExistAsync(IReadOnlyCollection<Guid> fileAssetIds)
     {

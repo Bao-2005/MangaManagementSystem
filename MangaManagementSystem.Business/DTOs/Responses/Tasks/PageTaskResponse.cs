@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 
 namespace MangaManagementSystem.Business.DTOs.Responses.Tasks;
@@ -24,5 +25,6 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Tasks;
         public DateTime? ApprovedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public IReadOnlyCollection<PageTaskSubmissionResponse> Submissions { get; set; } = Array.Empty<PageTaskSubmissionResponse>();
+        public IReadOnlyCollection<FileAssetResponse> ReferenceFiles { get; set; } = Array.Empty<FileAssetResponse>();
 }
 
