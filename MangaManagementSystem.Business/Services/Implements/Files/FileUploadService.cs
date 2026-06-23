@@ -56,6 +56,16 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                     [".pdf"] = new[] { "application/pdf" },
                     [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
                 }),
+            [FileUploadCategory.UserAvatar] = new(
+                5 * 1024 * 1024,
+                RequireContentSignature: true,
+                new Dictionary<string, string[]>
+                {
+                    [".jpg"] = new[] { "image/jpeg" },
+                    [".jpeg"] = new[] { "image/jpeg" },
+                    [".png"] = new[] { "image/png" },
+                    [".webp"] = new[] { "image/webp" }
+                }),
             [FileUploadCategory.Generic] = new(
                 25 * 1024 * 1024,
                 RequireContentSignature: false,
