@@ -1,5 +1,6 @@
 using MangaManagementSystem.Business.DTOs.Requests.Auth;
 using MangaManagementSystem.Business.DTOs.Responses.Auth;
+using MangaManagementSystem.Business.DTOs.Responses.Users;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +19,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Auth
 
         Task LogoutAsync(Guid userId);
 
-        Task<AuthResponse> GetCurrentUserAsync(Guid userId);
+        Task<UserProfileResponse> GetCurrentUserAsync(Guid userId);
 
         Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
     }

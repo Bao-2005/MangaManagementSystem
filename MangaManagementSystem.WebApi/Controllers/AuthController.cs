@@ -87,15 +87,15 @@ namespace MangaManagementSystem.API.Controllers
 
             var authResponse = await _authService.GetCurrentUserAsync(userId.Value);
 
-            var data = new UserDto
-            {
-                Id = authResponse.UserId.ToString(),
-                Email = authResponse.Email,
-                Name = authResponse.DisplayName,
-                Role = authResponse.RoleName
-            };
+            //var data = new UserDto
+            //{
+            //    Id = authResponse.UserId.ToString(),
+            //    Email = authResponse.Email,
+            //    Name = authResponse.DisplayName,
+            //    Role = authResponse.RoleName
+            //};
 
-            return Ok(new BaseResponse { Data = data, Message = "Success" });
+            return Ok(new BaseResponse { Data = authResponse, Message = "Success" });
         }
 
         [HttpPost("refresh")]
