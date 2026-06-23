@@ -5,6 +5,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Files
         Generic,
         ProposalSource,
         ProposalSamplePage,
+        ChapterReference,
         TaskSubmission
     }
 }
