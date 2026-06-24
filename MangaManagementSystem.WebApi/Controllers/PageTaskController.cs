@@ -75,6 +75,26 @@ namespace MangaManagementSystem.API.Controllers;
         return Ok(new BaseResponse { Data = tasks, Message = "Success" });
         }
 
+    [HttpPut("{pageTaskId:guid}")]
+    [Authorize(Policy = "MangakaOnly")]
+    [SwaggerOperation(
+        Summary = "Update an assigned page task",
+        Description = "Mangaka-only. Updates assistant, page range, description, and due date before the task is submitted or reviewed.")]
+    [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Update(Guid pageTaskId, [FromBody] UpdatePageTaskRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+        var task = await _pageTaskService.UpdateAsync(userId.Value, pageTaskId, request);
+        return Ok(new BaseResponse { Data = task, Message = "Task updated successfully." });
+    }
+
     [HttpPost("{pageTaskId:guid}/reference-files")]
     [Authorize(Policy = "MangakaOnly")]
     [SwaggerOperation(

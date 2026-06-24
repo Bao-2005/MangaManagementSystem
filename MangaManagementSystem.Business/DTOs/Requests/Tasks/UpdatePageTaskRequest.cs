@@ -4,8 +4,13 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks
 {
     public class UpdatePageTaskRequest
     {
-        [MaxLength(50)]
-        public string? Status { get; set; }
+        public Guid? AssistantId { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int? PageStart { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int? PageEnd { get; set; }
 
         [MaxLength(1000)]
         public string? Description { get; set; }

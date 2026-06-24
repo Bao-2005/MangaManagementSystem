@@ -15,6 +15,7 @@ public class PageTaskSubmissionResponse
     public Guid SubmittedFileAssetId { get; set; }
     public string? OriginalFileName { get; set; }
     public string? ObjectPath { get; set; }
+    public string? PublicUrl { get; set; }
     public PageTaskSubmissionStatus Status { get; set; }
     public string? Note { get; set; }
     public string? RejectReason { get; set; }
