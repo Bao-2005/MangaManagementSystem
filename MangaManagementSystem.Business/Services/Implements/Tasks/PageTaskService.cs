@@ -411,6 +411,12 @@ public class PageTaskService : IPageTaskService
     private PageTaskResponse MapTask(PageTask task)
     {
         var response = _mapper.Map<PageTaskResponse>(task);
+        response.Submissions = task.Submissions
+            .Where(submission => submission.DeletedAt == null && submission.SubmittedFileAsset.DeletedAt == null)
+            .OrderByDescending(submission => submission.VersionNo)
+            .Select(MapSubmission)
+            .ToList();
+
         response.ReferenceFiles = task.ReferenceFiles
             .Where(rf => rf.DeletedAt == null && rf.FileAsset.DeletedAt == null)
             .OrderBy(rf => rf.CreatedAt)
@@ -419,6 +425,22 @@ public class PageTaskService : IPageTaskService
 
         return response;
     }
+
+    private PageTaskSubmissionResponse MapSubmission(PageTaskSubmission submission) => new()
+    {
+        SubmissionId = submission.SubmissionId,
+        PageTaskId = submission.PageTaskId,
+        VersionNo = submission.VersionNo,
+        SubmittedFileAssetId = submission.SubmittedFileAssetId,
+        OriginalFileName = submission.SubmittedFileAsset.OriginalFileName,
+        ObjectPath = submission.SubmittedFileAsset.ObjectPath,
+        PublicUrl = BuildPublicUrl(submission.SubmittedFileAsset),
+        Status = submission.Status,
+        Note = submission.Note,
+        RejectReason = submission.RejectReason,
+        SubmittedAt = submission.SubmittedAt,
+        ReviewedAt = submission.ReviewedAt
+    };
 
     private FileAssetResponse MapFileAsset(FileAsset fileAsset) => new()
     {
@@ -430,10 +452,13 @@ public class PageTaskService : IPageTaskService
         Extension = fileAsset.Extension,
         FileSizeBytes = fileAsset.FileSizeBytes,
         MimeType = fileAsset.MimeType,
-        PublicUrl = string.IsNullOrEmpty(_supabaseUrl)
-            ? null
-            : $"{_supabaseUrl}/storage/v1/object/public/{fileAsset.BucketName}/{fileAsset.ObjectPath}"
+        PublicUrl = BuildPublicUrl(fileAsset)
     };
+
+    private string? BuildPublicUrl(FileAsset fileAsset)
+        => string.IsNullOrEmpty(_supabaseUrl)
+            ? null
+            : $"{_supabaseUrl}/storage/v1/object/public/{fileAsset.BucketName}/{fileAsset.ObjectPath}";
 
     private async Task EnsureFileAssetsExistAsync(IReadOnlyCollection<Guid> fileAssetIds)
     {
