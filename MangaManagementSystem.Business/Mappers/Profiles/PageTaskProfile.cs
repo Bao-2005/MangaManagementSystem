@@ -10,7 +10,8 @@ namespace MangaManagementSystem.Business.Mappers.Profiles;
         {
             CreateMap<PageTask, PageTaskResponse>()
             .ForMember(dest => dest.AssistantName, opt => opt.MapFrom(src => src.Assistant.DisplayName))
-            .ForMember(dest => dest.Submissions, opt => opt.MapFrom(src => src.Submissions.OrderByDescending(x => x.VersionNo)));
+            .ForMember(dest => dest.Submissions, opt => opt.MapFrom(src => src.Submissions.OrderByDescending(x => x.VersionNo)))
+            .ForMember(dest => dest.ReferenceFiles, opt => opt.Ignore());
 
             CreateMap<PageTaskSubmission, PageTaskSubmissionResponse>()
             .ForMember(dest => dest.OriginalFileName, opt => opt.MapFrom(src => src.SubmittedFileAsset.OriginalFileName))
