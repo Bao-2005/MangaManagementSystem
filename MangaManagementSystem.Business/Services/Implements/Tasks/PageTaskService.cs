@@ -140,6 +140,79 @@ public class PageTaskService : IPageTaskService
         return tasks.Select(MapTask);
     }
 
+    public async Task<PageTaskResponse> UpdateAsync(Guid mangakaId, Guid pageTaskId, UpdatePageTaskRequest request)
+    {
+        var task = await _pageTaskRepository.GetAll()
+            .Include(x => x.Chapter)
+                .ThenInclude(x => x.Series)
+            .Include(x => x.Submissions.Where(s => s.DeletedAt == null))
+            .FirstOrDefaultAsync(x => x.PageTaskId == pageTaskId && x.DeletedAt == null);
+
+        if (task == null)
+            throw new KeyNotFoundException("Page task not found.");
+
+        if (task.Chapter.Series.MangakaId != mangakaId)
+            throw new UnauthorizedAccessException("You can only update tasks for your own series.");
+
+        if (task.Submissions.Any() || task.Status == PageTaskStatus.Completed || task.Status == PageTaskStatus.Approved)
+            throw new InvalidOperationException("Page task cannot be updated after it has been submitted or reviewed.");
+
+        if (request.AssistantId.HasValue && request.AssistantId.Value != task.AssistantId)
+        {
+            var assistant = await _userRepository.GetAll()
+                .Include(x => x.Role)
+                .FirstOrDefaultAsync(x => x.UserId == request.AssistantId.Value && x.DeletedAt == null);
+
+            if (assistant == null)
+                throw new KeyNotFoundException("Assistant not found.");
+
+            if (assistant.Role.RoleName != UserRole.Assistant.ToString())
+                throw new ArgumentException("Assigned user must have Assistant role.");
+
+            task.AssistantId = request.AssistantId.Value;
+        }
+
+        var pageStart = request.PageStart ?? task.PageStart;
+        var pageEnd = request.PageEnd ?? task.PageEnd;
+
+        if (pageStart > pageEnd)
+            throw new ArgumentException("PageStart must be less than or equal to PageEnd.");
+
+        if (pageEnd > task.Chapter.TotalPages)
+            throw new ArgumentException("Page range exceeds chapter total pages.");
+
+        var pageRangeChanged = pageStart != task.PageStart || pageEnd != task.PageEnd;
+        if (pageRangeChanged)
+        {
+            var hasOverlappingActiveTask = await _pageTaskRepository.GetAll()
+                .AnyAsync(x => x.PageTaskId != pageTaskId
+                    && x.ChapterId == task.ChapterId
+                    && x.DeletedAt == null
+                    && x.Status != PageTaskStatus.Approved
+                    && x.PageStart <= pageEnd
+                    && x.PageEnd >= pageStart);
+
+            if (hasOverlappingActiveTask)
+                throw new InvalidOperationException("Page range overlaps with an active page task in this chapter.");
+
+            task.PageStart = pageStart;
+            task.PageEnd = pageEnd;
+        }
+
+        if (request.Description != null)
+            task.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+
+        if (request.DueDate.HasValue)
+            task.DueDate = request.DueDate;
+
+        task.UpdatedAt = DateTime.UtcNow;
+
+        _pageTaskRepository.Update(task);
+        await _pageTaskRepository.SaveChangeAsync();
+
+        return await GetTaskResponseForMangakaAsync(mangakaId, pageTaskId);
+    }
+
     public async Task<PageTaskResponse> AddReferenceFilesAsync(Guid mangakaId, Guid pageTaskId, AttachPageTaskReferenceFilesRequest request)
     {
         var task = await _pageTaskRepository.GetAll()
