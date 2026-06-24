@@ -17,7 +17,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Tasks;
         public string? AssistantName { get; set; }
         public int PageStart { get; set; }
         public int PageEnd { get; set; }
-        public string TaskType { get; set; } = null!;
+        public string? TaskType { get; set; }
         public string? Description { get; set; }
         public DateTime? DueDate { get; set; }
         public PageTaskStatus Status { get; set; }

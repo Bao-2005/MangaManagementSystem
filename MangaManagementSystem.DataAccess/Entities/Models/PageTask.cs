@@ -21,7 +21,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public int PageEnd { get; set; }
 
-        public string TaskType { get; set; } = null!;
+        public string? TaskType { get; set; }
 
         public string? Description { get; set; }
 

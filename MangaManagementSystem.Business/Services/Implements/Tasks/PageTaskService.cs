@@ -92,7 +92,7 @@ public class PageTaskService : IPageTaskService
             AssistantId = request.AssistantId,
             PageStart = request.PageStart,
             PageEnd = request.PageEnd,
-            TaskType = request.TaskType.Trim(),
+            TaskType = string.IsNullOrWhiteSpace(request.TaskType) ? null : request.TaskType.Trim(),
             Description = request.Description?.Trim(),
             DueDate = request.DueDate,
             Status = PageTaskStatus.Assigned,
