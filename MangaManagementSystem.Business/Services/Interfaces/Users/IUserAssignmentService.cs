@@ -11,6 +11,6 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Users
         Task UnassignAsync(Guid assignmentId);
         Task SoftDeleteAsync(Guid assignmentId);
         Task ReassignUserAsync(ReassignRequest request);
-        Task<UserAssignmentResponse> GetByIdAsync(Guid userId);
+        Task<List<UserAssignmentResponse>> GetByUserIdAsync(Guid userId);
     }
 }

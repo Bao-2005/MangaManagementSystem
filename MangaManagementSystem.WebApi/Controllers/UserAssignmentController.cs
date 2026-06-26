@@ -34,13 +34,13 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = await _service.GetByTantouEditorAsync(userId), Message = "Success" });
         }
 
-        [HttpGet("api/user-assignments/me")]
+        [HttpGet("api/user-assignments/{id}")]
         [Authorize]
         [SwaggerOperation(Summary = "Get user assignment by id")]
-        public async Task<IActionResult> GetUserAssignmentById()
+        public async Task<IActionResult> GetUserAssignmentByUserId([FromRoute] Guid id)
         {
-            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _service.GetByIdAsync(userId), Message = "Success" });
+            //var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetByUserIdAsync(id), Message = "Success" });
         }
 
         [HttpPost("api/user-assignments")]

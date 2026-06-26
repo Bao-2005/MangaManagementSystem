@@ -45,10 +45,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                 .Select(a => Map(a)).FirstAsync();
         }
 
-        public async Task<UserAssignmentResponse> GetByIdAsync(Guid userId)
+        public async Task<List<UserAssignmentResponse>> GetByUserIdAsync(Guid userId)
         {
-            var assignment = await _repo.GetAll().Include(x => x.FromUser).Include(x => x.ToUser).FirstOrDefaultAsync(a => a.FromUserId == userId || a.ToUserId == userId) ?? throw new KeyNotFoundException("No assignment found for this user");
-            return Map(assignment);
+            var assignment = await _repo.GetAll().Include(x => x.FromUser).Include(x => x.ToUser).Where(a => a.FromUserId == userId || a.ToUserId == userId).ToListAsync() ?? throw new KeyNotFoundException("No assignment found for this user");
+            return assignment.Select(x => Map(x)).ToList();
         }
 
         public async Task UnassignAsync(Guid assignmentId)
