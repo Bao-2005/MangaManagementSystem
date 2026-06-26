@@ -153,8 +153,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             //BR-11: Single Active Proposal Limit
             var hasPending = await _seriesRepo.GetAll()
                 .AnyAsync(s => s.MangakaId == mangakaId
-                    && (s.Status == SeriesStatus.Draft
-                        || s.Status == SeriesStatus.UnderReview
+                    && (//s.Status == SeriesStatus.Draft ||
+                        s.Status == SeriesStatus.UnderReview
                         || s.Status == SeriesStatus.RevisionRequired
                         || s.Status == SeriesStatus.BoardVoting)
                     && s.DeletedAt == null);
