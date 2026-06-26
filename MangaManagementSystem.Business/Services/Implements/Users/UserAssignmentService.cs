@@ -45,6 +45,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                 .Select(a => Map(a)).FirstAsync();
         }
 
+        public async Task<UserAssignmentResponse> GetByIdAsync(Guid userId)
+        {
+            var assignment = await _repo.GetAll().Include(x => x.FromUser).Include(x => x.ToUser).FirstOrDefaultAsync(a => a.FromUserId == userId || a.ToUserId == userId) ?? throw new KeyNotFoundException("No assignment found for this user");
+            return Map(assignment);
+        }
+
         public async Task UnassignAsync(Guid assignmentId)
         {
             var a = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == assignmentId && x.DeletedAt == null)
@@ -60,8 +66,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             //        ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
             var fromUser = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == request.FromUserId) ?? throw new KeyNotFoundException("Người dùng không tồn tại");
             var mangaka = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == request.MangakaId) ?? throw new KeyNotFoundException("Người dùng không tồn tại");
-            var assignment = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == request.AssignmentId) ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
+            var assignment = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == request.AssignmentId && x.DeletedAt != null) ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
             assignment.UnassignedAt = DateTime.UtcNow;
+            assignment.DeletedAt = DateTime.UtcNow;
             var newAssignment = new UserAssignment()
             {
                 FromUserId = request.FromUserId,

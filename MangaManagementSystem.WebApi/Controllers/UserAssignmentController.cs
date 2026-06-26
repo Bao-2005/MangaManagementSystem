@@ -34,6 +34,15 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = await _service.GetByTantouEditorAsync(userId), Message = "Success" });
         }
 
+        [HttpGet("api/user-assignments/me")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Get user assignment by id")]
+        public async Task<IActionResult> GetUserAssignmentById()
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetByIdAsync(userId), Message = "Success" });
+        }
+
         [HttpPost("api/user-assignments")]
         [Authorize(Policy = "MangakaOnly")]
         [SwaggerOperation(Summary = "Assign an assistant (Mangaka only)")]
