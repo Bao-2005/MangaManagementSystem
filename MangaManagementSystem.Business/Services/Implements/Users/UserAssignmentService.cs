@@ -1,6 +1,7 @@
-using MangaManagementSystem.Business.DTOs.Requests.Users;
+﻿using MangaManagementSystem.Business.DTOs.Requests.Users;
 using MangaManagementSystem.Business.DTOs.Responses.Users;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,14 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
     public class UserAssignmentService : IUserAssignmentService
     {
         private readonly IRepository<UserAssignment> _repo;
+        private readonly IRepository<User> _userRepository;
 
-        public UserAssignmentService(IRepository<UserAssignment> repo) => _repo = repo;
+        public UserAssignmentService(IRepository<UserAssignment> repo,
+            IRepository<User> userRepository) 
+        {
+            _repo = repo;
+            _userRepository = userRepository;
+        }
 
         public async Task<IEnumerable<UserAssignmentResponse>> GetByMangakaAsync(Guid mangakaId)
             => await _repo.GetAll().Include(a => a.FromUser).Include(a => a.ToUser)
@@ -44,6 +51,25 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                     ?? throw new KeyNotFoundException("Assignment not found.");
             a.UnassignedAt = DateTime.UtcNow;
             _repo.Update(a);
+            await _repo.SaveChangeAsync();
+        }
+
+        public async Task ReassignUserAsync(ReassignRequest request)
+        {
+            //var user = await _repo.GetAll().FirstOrDefaultAsync(x => x.ToUserId == request.MangakaId && x.FromUserId == request.FromUserId && x.DeletedAt == null)
+            //        ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
+            var fromUser = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == request.FromUserId) ?? throw new KeyNotFoundException("Người dùng không tồn tại");
+            var mangaka = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == request.MangakaId) ?? throw new KeyNotFoundException("Người dùng không tồn tại");
+            var assignment = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == request.AssignmentId) ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
+            assignment.UnassignedAt = DateTime.UtcNow;
+            var newAssignment = new UserAssignment()
+            {
+                FromUserId = request.FromUserId,
+                ToUserId = request.MangakaId,
+                AssignedAt = DateTime.UtcNow
+            };
+
+            await _repo.AddAsync(newAssignment);
             await _repo.SaveChangeAsync();
         }
 

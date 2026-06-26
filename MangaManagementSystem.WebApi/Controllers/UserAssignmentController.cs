@@ -1,4 +1,4 @@
-using MangaManagementSystem.Business.DTOs.Requests.Users;
+﻿using MangaManagementSystem.Business.DTOs.Requests.Users;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,6 +42,15 @@ namespace MangaManagementSystem.API.Controllers
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
             var result = await _service.CreateAsync(userId, request);
             return Ok(new BaseResponse { Data = result, Message = "Assignment created." });
+        }
+
+        [HttpPost("api/reassign")]
+        [Authorize(Policy = "AdminOnly")]
+        [SwaggerOperation(Summary = "Reassign for mangaka")]
+        public async Task<IActionResult> Reassign([FromBody] ReassignRequest request)
+        {
+            await _service.ReassignUserAsync(request);
+            return Ok(new BaseResponse { Message = "Thay đổi thành công." });
         }
 
         [HttpPut("api/user-assignments/{id:guid}/unassign")]
