@@ -13,6 +13,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Tasks;
     Task<PageTaskResponse> CreateAsync(Guid mangakaId, CreatePageTaskRequest request);
     Task<IEnumerable<PageTaskResponse>> GetMangakaTasksAsync(Guid mangakaId);
     Task<IEnumerable<PageTaskResponse>> GetAssistantTasksAsync(Guid assistantId);
+    Task<PageTaskResponse> UpdateAsync(Guid mangakaId, Guid pageTaskId, UpdatePageTaskRequest request);
     Task<PageTaskResponse> AddReferenceFilesAsync(Guid mangakaId, Guid pageTaskId, AttachPageTaskReferenceFilesRequest request);
     Task<PageTaskResponse> SubmitAsync(Guid assistantId, Guid pageTaskId, SubmitPageTaskRequest request);
     Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid submissionId);
