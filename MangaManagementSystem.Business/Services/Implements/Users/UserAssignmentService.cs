@@ -66,9 +66,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             //        ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
             var fromUser = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == request.FromUserId) ?? throw new KeyNotFoundException("Người dùng không tồn tại");
             var mangaka = await _userRepository.GetAll().FirstOrDefaultAsync(x => x.UserId == request.MangakaId) ?? throw new KeyNotFoundException("Người dùng không tồn tại");
-            var assignment = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == request.AssignmentId && x.DeletedAt == null) ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
+            var assignment = await _repo.GetAll().FirstOrDefaultAsync(x => x.AssignmentId == request.AssignmentId && x.ToUserId == request.MangakaId && x.DeletedAt == null && x.UnassignedAt == null) ?? throw new KeyNotFoundException("Không tồn tại quan hệ này");
             assignment.UnassignedAt = DateTime.UtcNow;
-            assignment.DeletedAt = DateTime.UtcNow;
+            //assignment.DeletedAt = DateTime.UtcNow;
             var newAssignment = new UserAssignment()
             {
                 FromUserId = request.FromUserId,
