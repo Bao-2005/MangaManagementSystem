@@ -71,6 +71,15 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateChapterRequest request)
             => Ok(new BaseResponse { Data = await _service.UpdateAsync(id, request), Message = "Updated." });
 
+        [HttpPost("api/chapters/{id:guid}/publish")]
+        [Authorize(Policy = "TantouEditorOnly")]
+        [SwaggerOperation(Summary = "Publish a chapter (assigned Tantou Editor only)")]
+        public async Task<IActionResult> Publish(Guid id)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.PublishAsync(userId, id), Message = "Chapter published." });
+        }
+
         [HttpDelete("api/chapters/{id:guid}/soft-delete")]
         [Authorize(Policy = "MangakaOnly")]
         [SwaggerOperation(Summary = "Soft-delete a chapter")]
