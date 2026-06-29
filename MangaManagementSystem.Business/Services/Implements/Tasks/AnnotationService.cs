@@ -56,7 +56,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         public async Task<AnnotationResponse> CreateAsync(Guid authorId, Guid manuscriptId, CreateAnnotationRequest request)
         {
             ValidateAnnotationPayload(request.PageNo, request.PositionX, request.PositionY, request.Content);
-            await EnsureCanAnnotateManuscriptAsync(authorId, manuscriptId);
+            var manuscript = await EnsureCanAnnotateManuscriptAsync(authorId, manuscriptId);
+            EnsurePageNoWithinChapter(request.PageNo, manuscript.Chapter.TotalPages);
 
             var annotation = new Annotation
             {
@@ -93,6 +94,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 throw new InvalidOperationException("This page task is not linked to a manuscript yet.");
 
             ValidateAnnotationPayload(request.PageNo, request.PositionX, request.PositionY, request.Content);
+            EnsurePageNoWithinTaskRange(request.PageNo, submission.PageTask.PageStart, submission.PageTask.PageEnd);
 
             var annotation = new Annotation
             {
@@ -209,6 +211,21 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 throw new ArgumentException("Annotation content must not exceed 2000 characters.");
         }
 
+        private static void EnsurePageNoWithinChapter(int pageNo, int totalPages)
+        {
+            if (totalPages <= 0)
+                throw new InvalidOperationException("Chapter total pages is not configured.");
+
+            if (pageNo > totalPages)
+                throw new ArgumentException("Page number must not exceed chapter total pages.");
+        }
+
+        private static void EnsurePageNoWithinTaskRange(int pageNo, int pageStart, int pageEnd)
+        {
+            if (pageNo < pageStart || pageNo > pageEnd)
+                throw new ArgumentException("Page number must be within the assigned page task range.");
+        }
+
         private async Task<PageTaskSubmission> EnsureOwnSubmissionAsync(Guid submissionId, Guid assistantId)
         {
             var submission = await _submissionRepo.GetAll()
@@ -225,7 +242,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             return submission;
         }
 
-        private async Task EnsureCanAnnotateManuscriptAsync(Guid authorId, Guid manuscriptId)
+        private async Task<Manuscript> EnsureCanAnnotateManuscriptAsync(Guid authorId, Guid manuscriptId)
         {
             var manuscript = await _manuscriptRepo.GetAll()
                 .Include(m => m.Chapter)
@@ -244,7 +261,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             if (string.Equals(user.Role.RoleName, UserRole.Mangaka.ToString(), StringComparison.OrdinalIgnoreCase))
             {
                 if (manuscript.Chapter.Series.MangakaId == authorId)
-                    return;
+                    return manuscript;
             }
             else if (string.Equals(user.Role.RoleName, UserRole.TantouEditor.ToString(), StringComparison.OrdinalIgnoreCase))
             {
@@ -255,7 +272,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                         && a.UnassignedAt == null);
 
                 if (isAssignedEditor)
-                    return;
+                    return manuscript;
             }
 
             throw new ForbiddenAccessException("You do not have permission to annotate this manuscript.");
