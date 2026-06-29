@@ -312,7 +312,7 @@ public class PageTaskService : IPageTaskService
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Approved;
-        submission.RejectReason = null;
+        submission.Feedback = null;
         submission.ReviewedAt = DateTime.UtcNow;
 
         task.Status = PageTaskStatus.Approved;
@@ -328,13 +328,13 @@ public class PageTaskService : IPageTaskService
 
     public async Task<PageTaskResponse> RejectSubmissionAsync(Guid mangakaId, Guid submissionId, ReviewPageTaskSubmissionRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.RejectReason))
-            throw new ArgumentException("RejectReason is required when rejecting a submission.");
+        if (string.IsNullOrWhiteSpace(request.Feedback))
+            throw new ArgumentException("Feedback is required when rejecting a submission.");
 
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Rejected;
-        submission.RejectReason = request.RejectReason.Trim();
+        submission.Feedback = request.Feedback.Trim();
         submission.ReviewedAt = DateTime.UtcNow;
 
         task.Status = PageTaskStatus.InProgress;

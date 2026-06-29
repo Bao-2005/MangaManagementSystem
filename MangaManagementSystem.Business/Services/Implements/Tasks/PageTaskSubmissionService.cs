@@ -45,7 +45,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             var s = await _repo.GetAll().FirstOrDefaultAsync(x => x.SubmissionId == id && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Submission not found.");
             if (Enum.TryParse<PageTaskSubmissionStatus>(request.Status, out var status)) s.Status = status;
-            s.RejectReason = request.RejectReason;
+            s.Feedback = request.Feedback;
             s.ReviewedAt = DateTime.UtcNow;
             _repo.Update(s);
             await _repo.SaveChangeAsync();
@@ -65,7 +65,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         {
             SubmissionId = s.SubmissionId, PageTaskId = s.PageTaskId, VersionNo = s.VersionNo,
             SubmittedFileAssetId = s.SubmittedFileAssetId, Status = s.Status.ToString(),
-            Note = s.Note, RejectReason = s.RejectReason, SubmittedAt = s.SubmittedAt, ReviewedAt = s.ReviewedAt
+            Note = s.Note, Feedback = s.Feedback, SubmittedAt = s.SubmittedAt, ReviewedAt = s.ReviewedAt
         };
     }
 }
