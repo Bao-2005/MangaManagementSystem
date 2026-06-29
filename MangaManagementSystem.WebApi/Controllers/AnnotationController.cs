@@ -35,8 +35,7 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> Create(Guid manuscriptId, [FromBody] CreateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            request.ManuscriptId = manuscriptId;
-            var result = await _service.CreateAsync(userId, request);
+            var result = await _service.CreateAsync(userId, manuscriptId, request);
             return CreatedAtAction(nameof(GetById), new { manuscriptId, id = result.AnnotationId }, new BaseResponse { Data = result, Message = "Annotation added." });
         }
 

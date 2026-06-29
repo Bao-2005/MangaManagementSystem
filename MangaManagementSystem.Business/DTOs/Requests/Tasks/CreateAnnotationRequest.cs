@@ -5,9 +5,6 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks
     public class CreateAnnotationRequest
     {
         [Required]
-        public Guid ManuscriptId { get; set; }
-
-        [Required]
         public int PageNo { get; set; }
 
         [Required]

@@ -53,14 +53,14 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             return Map(a);
         }
 
-        public async Task<AnnotationResponse> CreateAsync(Guid authorId, CreateAnnotationRequest request)
+        public async Task<AnnotationResponse> CreateAsync(Guid authorId, Guid manuscriptId, CreateAnnotationRequest request)
         {
             ValidateAnnotationPayload(request.PageNo, request.Content);
-            await EnsureCanAnnotateManuscriptAsync(authorId, request.ManuscriptId);
+            await EnsureCanAnnotateManuscriptAsync(authorId, manuscriptId);
 
             var annotation = new Annotation
             {
-                ManuscriptId = request.ManuscriptId,
+                ManuscriptId = manuscriptId,
                 AuthorId = authorId,
                 PageNo = request.PageNo,
                 PositionX = request.PositionX,
