@@ -1,6 +1,8 @@
 using MangaManagementSystem.Business.DTOs.Requests.Tasks;
 using MangaManagementSystem.Business.DTOs.Responses.Tasks;
 using MangaManagementSystem.Business.Services.Interfaces.Tasks;
+using MangaManagementSystem.Business.Exceptions;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +13,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
     {
         private readonly IRepository<Annotation> _repo;
         private readonly IRepository<PageTaskSubmission> _submissionRepo;
+        private readonly IRepository<Manuscript> _manuscriptRepo;
+        private readonly IRepository<User> _userRepo;
+        private readonly IRepository<UserAssignment> _assignmentRepo;
 
-        public AnnotationService(IRepository<Annotation> repo, IRepository<PageTaskSubmission> submissionRepo)
+        public AnnotationService(
+            IRepository<Annotation> repo,
+            IRepository<PageTaskSubmission> submissionRepo,
+            IRepository<Manuscript> manuscriptRepo,
+            IRepository<User> userRepo,
+            IRepository<UserAssignment> assignmentRepo)
         {
             _repo = repo;
             _submissionRepo = submissionRepo;
+            _manuscriptRepo = manuscriptRepo;
+            _userRepo = userRepo;
+            _assignmentRepo = assignmentRepo;
         }
 
         public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId)
@@ -43,6 +56,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         public async Task<AnnotationResponse> CreateAsync(Guid authorId, CreateAnnotationRequest request)
         {
             ValidateAnnotationPayload(request.PageNo, request.Content);
+            await EnsureCanAnnotateManuscriptAsync(authorId, request.ManuscriptId);
 
             var annotation = new Annotation
             {
@@ -203,6 +217,42 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 throw new UnauthorizedAccessException("Assistant can only annotate their own submissions.");
 
             return submission;
+        }
+
+        private async Task EnsureCanAnnotateManuscriptAsync(Guid authorId, Guid manuscriptId)
+        {
+            var manuscript = await _manuscriptRepo.GetAll()
+                .Include(m => m.Chapter)
+                    .ThenInclude(c => c.Series)
+                .FirstOrDefaultAsync(m => m.ManuscriptId == manuscriptId && m.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Manuscript not found.");
+
+            if (manuscript.Chapter.DeletedAt != null || manuscript.Chapter.Series.DeletedAt != null)
+                throw new KeyNotFoundException("Manuscript not found.");
+
+            var user = await _userRepo.GetAll()
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.UserId == authorId && u.DeletedAt == null)
+                ?? throw new UnauthorizedAccessException("User not found or inactive.");
+
+            if (string.Equals(user.Role.RoleName, UserRole.Mangaka.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                if (manuscript.Chapter.Series.MangakaId == authorId)
+                    return;
+            }
+            else if (string.Equals(user.Role.RoleName, UserRole.TantouEditor.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                var isAssignedEditor = await _assignmentRepo.GetAll()
+                    .AnyAsync(a => a.FromUserId == authorId
+                        && a.ToUserId == manuscript.Chapter.Series.MangakaId
+                        && a.DeletedAt == null
+                        && a.UnassignedAt == null);
+
+                if (isAssignedEditor)
+                    return;
+            }
+
+            throw new ForbiddenAccessException("You do not have permission to annotate this manuscript.");
         }
     }
 }

@@ -30,8 +30,8 @@ namespace MangaManagementSystem.API.Controllers
             => Ok(new BaseResponse { Data = await _service.GetByIdAsync(id), Message = "Success" });
 
         [HttpPost]
-        [Authorize(Policy = "TantouEditorOnly")]
-        [SwaggerOperation(Summary = "Add annotation to a manuscript page (TantouEditor only)")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Add annotation to a manuscript page")]
         public async Task<IActionResult> Create(Guid manuscriptId, [FromBody] CreateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
