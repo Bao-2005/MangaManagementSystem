@@ -20,8 +20,8 @@ namespace MangaManagementSystem.API.Controllers
         [HttpGet]
         [Authorize]
         [SwaggerOperation(Summary = "Get all annotations for a manuscript")]
-        public async Task<IActionResult> GetByManuscript(Guid manuscriptId)
-            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId), Message = "Success" });
+        public async Task<IActionResult> GetByManuscript(Guid manuscriptId, [FromQuery] int? pageNo)
+            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId, pageNo), Message = "Success" });
 
         [HttpGet("{id:guid}")]
         [Authorize]

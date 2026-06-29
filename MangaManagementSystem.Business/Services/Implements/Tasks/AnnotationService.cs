@@ -31,13 +31,20 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             _assignmentRepo = assignmentRepo;
         }
 
-        public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId)
-            => await _repo.GetAll()
+        public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId, int? pageNo = null)
+        {
+            if (pageNo <= 0)
+                throw new ArgumentException("Page number must be greater than 0.");
+
+            return await _repo.GetAll()
                 .Include(a => a.Author)
                     .ThenInclude(u => u.Role)
                 .Include(a => a.Manuscript)
-                .Where(a => a.ManuscriptId == manuscriptId && a.DeletedAt == null)
+                .Where(a => a.ManuscriptId == manuscriptId
+                    && a.DeletedAt == null
+                    && (!pageNo.HasValue || a.PageNo == pageNo.Value))
                 .Select(a => Map(a)).ToListAsync();
+        }
 
         public async Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(Guid submissionId)
             => await _repo.GetAll()

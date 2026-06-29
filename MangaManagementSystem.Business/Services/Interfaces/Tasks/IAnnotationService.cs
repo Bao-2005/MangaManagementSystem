@@ -5,7 +5,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Tasks
 {
     public interface IAnnotationService
     {
-        Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId);
+        Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId, int? pageNo = null);
         Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(Guid submissionId);
         Task<AnnotationResponse> GetByIdAsync(Guid id);
         Task<AnnotationResponse> CreateAsync(Guid authorId, Guid manuscriptId, CreateAnnotationRequest request);
