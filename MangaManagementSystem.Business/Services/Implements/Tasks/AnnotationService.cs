@@ -55,7 +55,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
 
         public async Task<AnnotationResponse> CreateAsync(Guid authorId, Guid manuscriptId, CreateAnnotationRequest request)
         {
-            ValidateAnnotationPayload(request.PageNo, request.Content);
+            ValidateAnnotationPayload(request.PageNo, request.PositionX, request.PositionY, request.Content);
             await EnsureCanAnnotateManuscriptAsync(authorId, manuscriptId);
 
             var annotation = new Annotation
@@ -92,7 +92,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             if (!submission.PageTask.ManuscriptId.HasValue)
                 throw new InvalidOperationException("This page task is not linked to a manuscript yet.");
 
-            ValidateAnnotationPayload(request.PageNo, request.Content);
+            ValidateAnnotationPayload(request.PageNo, request.PositionX, request.PositionY, request.Content);
 
             var annotation = new Annotation
             {
@@ -115,7 +115,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         {
             var a = await _repo.GetAll().FirstOrDefaultAsync(x => x.AnnotationId == id && x.AuthorId == authorId && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Annotation not found or access denied.");
-            ValidateAnnotationPayload(a.PageNo, request.Content);
+            ValidateAnnotationPayload(a.PageNo, a.PositionX, a.PositionY, request.Content);
             a.Content = request.Content.Trim();
             _repo.Update(a);
             await _repo.SaveChangeAsync();
@@ -137,7 +137,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                         && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Annotation not found or access denied.");
 
-            ValidateAnnotationPayload(annotation.PageNo, request.Content);
+            ValidateAnnotationPayload(annotation.PageNo, annotation.PositionX, annotation.PositionY, request.Content);
             annotation.Content = request.Content.Trim();
             _repo.Update(annotation);
             await _repo.SaveChangeAsync();
@@ -194,13 +194,19 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             CreatedAt = a.CreatedAt
         };
 
-        private static void ValidateAnnotationPayload(int pageNo, string? content)
+        private static void ValidateAnnotationPayload(int pageNo, decimal positionX, decimal positionY, string? content)
         {
             if (pageNo <= 0)
                 throw new ArgumentException("Page number must be greater than 0.");
 
+            if (positionX < 0 || positionX > 1 || positionY < 0 || positionY > 1)
+                throw new ArgumentException("Annotation position must be between 0 and 1.");
+
             if (string.IsNullOrWhiteSpace(content))
                 throw new ArgumentException("Annotation content is required.");
+
+            if (content.Trim().Length > 2000)
+                throw new ArgumentException("Annotation content must not exceed 2000 characters.");
         }
 
         private async Task<PageTaskSubmission> EnsureOwnSubmissionAsync(Guid submissionId, Guid assistantId)
