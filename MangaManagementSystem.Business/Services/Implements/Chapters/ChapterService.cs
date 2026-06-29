@@ -1,6 +1,7 @@
 using MangaManagementSystem.Business.DTOs.Requests.Chapters;
 using MangaManagementSystem.Business.DTOs.Responses.Chapters;
 using MangaManagementSystem.Business.DTOs.Responses.Files;
+using MangaManagementSystem.Business.Exceptions;
 using MangaManagementSystem.Business.Services.Interfaces.Chapters;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
@@ -13,12 +14,15 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
 {
     public class ChapterService : IChapterService
     {
+        private static readonly string PublishedStatus = ChapterStatus.Published.ToString();
+
         private readonly IRepository<Chapter> _repo;
         private readonly IRepository<SeriesEntity> _seriesRepo;
         private readonly IRepository<Manuscript> _manuscriptRepo;
         private readonly IRepository<PageTask> _pageTaskRepo;
         private readonly IRepository<FileAsset> _fileAssetRepo;
         private readonly IRepository<ChapterReferenceFile> _chapterReferenceFileRepo;
+        private readonly IRepository<UserAssignment> _userAssignmentRepo;
         private readonly string _supabaseUrl;
 
         public ChapterService(
@@ -28,6 +32,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             IRepository<PageTask> pageTaskRepo,
             IRepository<FileAsset> fileAssetRepo,
             IRepository<ChapterReferenceFile> chapterReferenceFileRepo,
+            IRepository<UserAssignment> userAssignmentRepo,
             IConfiguration configuration)
         {
             _repo = repo;
@@ -36,6 +41,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             _pageTaskRepo = pageTaskRepo;
             _fileAssetRepo = fileAssetRepo;
             _chapterReferenceFileRepo = chapterReferenceFileRepo;
+            _userAssignmentRepo = userAssignmentRepo;
             _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
         }
 
@@ -195,10 +201,41 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             if (request.TotalPages.HasValue) c.TotalPages = request.TotalPages.Value;
             if (request.PublicationDate.HasValue) c.PublicationDate = request.PublicationDate;
             if (request.SubmissionDeadline.HasValue) c.SubmissionDeadline = request.SubmissionDeadline;
-            if (request.Status != null) c.Status = request.Status;
+            if (request.Status != null)
+                throw new InvalidOperationException("Chapter status must be changed through workflow endpoints.");
             _repo.Update(c);
             await _repo.SaveChangeAsync();
             var updatedChapter = await ChapterQuery().FirstAsync(x => x.ChapterId == id);
+            return Map(updatedChapter);
+        }
+
+        public async Task<ChapterResponse> PublishAsync(Guid tantouEditorId, Guid chapterId)
+        {
+            var chapter = await _repo.GetAll()
+                .Include(c => c.Series)
+                .FirstOrDefaultAsync(c => c.ChapterId == chapterId && c.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Chapter not found.");
+
+            if (chapter.Series.DeletedAt != null)
+                throw new KeyNotFoundException("Chapter not found.");
+
+            var isAssignedEditor = await _userAssignmentRepo.GetAll()
+                .AnyAsync(a => a.FromUserId == tantouEditorId
+                    && a.ToUserId == chapter.Series.MangakaId
+                    && a.DeletedAt == null
+                    && a.UnassignedAt == null);
+
+            if (!isAssignedEditor)
+                throw new ForbiddenAccessException("Only the assigned Tantou Editor can publish this chapter.");
+
+            if (string.Equals(chapter.Status, PublishedStatus, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Chapter is already published.");
+
+            chapter.Status = PublishedStatus;
+            _repo.Update(chapter);
+            await _repo.SaveChangeAsync();
+
+            var updatedChapter = await ChapterQuery().FirstAsync(x => x.ChapterId == chapterId);
             return Map(updatedChapter);
         }
 
