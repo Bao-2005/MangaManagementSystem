@@ -34,6 +34,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId)
             => await _repo.GetAll()
                 .Include(a => a.Author)
+                    .ThenInclude(u => u.Role)
                 .Include(a => a.Manuscript)
                 .Where(a => a.ManuscriptId == manuscriptId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
@@ -41,13 +42,17 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         public async Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(Guid submissionId)
             => await _repo.GetAll()
                 .Include(a => a.Author)
+                    .ThenInclude(u => u.Role)
                 .Include(a => a.Manuscript)
                 .Where(a => a.PageTaskSubmissionId == submissionId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
 
         public async Task<AnnotationResponse> GetByIdAsync(Guid id)
         {
-            var a = await _repo.GetAll().Include(a => a.Author).Include(a => a.Manuscript)
+            var a = await _repo.GetAll()
+                .Include(a => a.Author)
+                    .ThenInclude(u => u.Role)
+                .Include(a => a.Manuscript)
                 .FirstOrDefaultAsync(x => x.AnnotationId == id && x.DeletedAt == null)
                 ?? throw new KeyNotFoundException("Annotation not found.");
             return Map(a);
@@ -189,6 +194,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             ChapterId = a.Manuscript?.ChapterId ?? Guid.Empty,
             AuthorId = a.AuthorId,
             AuthorName = a.Author?.DisplayName ?? "",
+            AuthorRole = a.Author?.Role?.RoleName ?? "",
             PageNo = a.PageNo,
             PositionX = a.PositionX,
             PositionY = a.PositionY,

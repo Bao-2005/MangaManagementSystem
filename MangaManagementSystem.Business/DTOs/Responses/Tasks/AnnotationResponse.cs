@@ -8,6 +8,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Tasks
         public Guid ChapterId { get; set; }
         public Guid AuthorId { get; set; }
         public string AuthorName { get; set; } = null!;
+        public string AuthorRole { get; set; } = null!;
         public int PageNo { get; set; }
         public decimal PositionX { get; set; }
         public decimal PositionY { get; set; }
