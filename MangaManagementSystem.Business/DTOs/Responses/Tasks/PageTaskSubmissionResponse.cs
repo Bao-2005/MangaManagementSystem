@@ -17,7 +17,7 @@ public class PageTaskSubmissionResponse
     public string? ObjectPath { get; set; }
     public PageTaskSubmissionStatus Status { get; set; }
     public string? Note { get; set; }
-    public string? RejectReason { get; set; }
+    public string? Feedback { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public DateTime? ReviewedAt { get; set; }
 }

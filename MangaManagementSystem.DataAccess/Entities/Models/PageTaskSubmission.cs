@@ -21,7 +21,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public string? Note { get; set; }
 
-        public string? RejectReason { get; set; }
+        public string? Feedback { get; set; }
 
         public DateTime? SubmittedAt { get; set; }
 

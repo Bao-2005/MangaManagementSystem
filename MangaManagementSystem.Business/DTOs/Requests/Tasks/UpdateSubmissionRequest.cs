@@ -9,6 +9,6 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks
         public string Status { get; set; } = null!;
 
         [MaxLength(1000)]
-        public string? RejectReason { get; set; }
+        public string? Feedback { get; set; }
     }
 }
