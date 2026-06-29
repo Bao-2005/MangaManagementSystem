@@ -20,8 +20,8 @@ namespace MangaManagementSystem.API.Controllers
         [HttpGet]
         [Authorize]
         [SwaggerOperation(Summary = "Get all annotations for a manuscript")]
-        public async Task<IActionResult> GetByManuscript(Guid manuscriptId)
-            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId), Message = "Success" });
+        public async Task<IActionResult> GetByManuscript(Guid manuscriptId, [FromQuery] int? pageNo)
+            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId, pageNo), Message = "Success" });
 
         [HttpGet("{id:guid}")]
         [Authorize]
@@ -30,13 +30,12 @@ namespace MangaManagementSystem.API.Controllers
             => Ok(new BaseResponse { Data = await _service.GetByIdAsync(id), Message = "Success" });
 
         [HttpPost]
-        [Authorize(Policy = "TantouEditorOnly")]
-        [SwaggerOperation(Summary = "Add annotation to a manuscript page (TantouEditor only)")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Add annotation to a manuscript page")]
         public async Task<IActionResult> Create(Guid manuscriptId, [FromBody] CreateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            request.ManuscriptId = manuscriptId;
-            var result = await _service.CreateAsync(userId, request);
+            var result = await _service.CreateAsync(userId, manuscriptId, request);
             return CreatedAtAction(nameof(GetById), new { manuscriptId, id = result.AnnotationId }, new BaseResponse { Data = result, Message = "Annotation added." });
         }
 
