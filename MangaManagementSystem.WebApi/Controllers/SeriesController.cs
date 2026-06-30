@@ -55,7 +55,7 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpDelete("{id:guid}/soft-delete")]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize]
         [SwaggerOperation(Summary = "Soft-delete a series")]
         public async Task<IActionResult> SoftDelete(Guid id)
         {

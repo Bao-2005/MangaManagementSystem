@@ -13,11 +13,13 @@ using MangaManagementSystem.Business.Services.Interfaces.Auth;
 using MangaManagementSystem.Business.Services.Interfaces.Chapters;
 using MangaManagementSystem.Business.Services.Interfaces.Files;
 using MangaManagementSystem.Business.Services.Interfaces.Manuscripts;
+using MangaManagementSystem.Business.Services.Interfaces.Notifications;
 using MangaManagementSystem.Business.Services.Interfaces.Series;
 using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
 using MangaManagementSystem.DataAccess.Repositories.Implements;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
+using MangaManagementSystem.WebApi.Notifications;
 using Microsoft.Extensions.Configuration;
 
 namespace MangaManagementSystem.API.Extensions
@@ -70,6 +72,9 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IRoleService, RoleService>();
 
             services.AddHostedService<BoardDecisionDeadlineWorker>();
+
+            services.AddSignalR();
+            services.AddSingleton<IRealtimeNotifier, SignalRNotifier>();
 
             services.RegisterInfrastructure();
         }
