@@ -3,6 +3,7 @@ using MangaManagementSystem.API.Extensions;
 using MangaManagementSystem.API.Middleware;
 using MangaManagementSystem.Business.Mappers;
 using MangaManagementSystem.DataAccess.Entities.Enums;
+using MangaManagementSystem.WebApi.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -48,6 +49,20 @@ builder.Services.AddAuthentication(options =>
         ),
 
         ClockSkew = TimeSpan.Zero
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -115,6 +130,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.UseHttpsRedirection();
 
