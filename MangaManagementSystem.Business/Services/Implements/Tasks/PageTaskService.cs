@@ -277,6 +277,12 @@ public class PageTaskService : IPageTaskService
         if (task.Submissions.Any(x => x.Status == PageTaskSubmissionStatus.Submitted))
             throw new InvalidOperationException("This task already has a submission waiting for review.");
 
+        var notApprovedSubmissionCount = task.Submissions
+            .Count(x => x.Status != PageTaskSubmissionStatus.Approved);
+
+        if (notApprovedSubmissionCount >= 3)
+            throw new InvalidOperationException("Đã hết lượt nộp.");
+
         var fileExists = await _fileAssetRepository.GetAll()
             .AnyAsync(x => x.FileAssetId == request.SubmittedFileAssetId && x.DeletedAt == null);
 
@@ -312,7 +318,7 @@ public class PageTaskService : IPageTaskService
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Approved;
-        submission.RejectReason = null;
+        submission.Feedback = null;
         submission.ReviewedAt = DateTime.UtcNow;
 
         task.Status = PageTaskStatus.Approved;
@@ -328,13 +334,13 @@ public class PageTaskService : IPageTaskService
 
     public async Task<PageTaskResponse> RejectSubmissionAsync(Guid mangakaId, Guid submissionId, ReviewPageTaskSubmissionRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.RejectReason))
-            throw new ArgumentException("RejectReason is required when rejecting a submission.");
+        if (string.IsNullOrWhiteSpace(request.Feedback))
+            throw new ArgumentException("Feedback is required when rejecting a submission.");
 
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
 
         submission.Status = PageTaskSubmissionStatus.Rejected;
-        submission.RejectReason = request.RejectReason.Trim();
+        submission.Feedback = request.Feedback.Trim();
         submission.ReviewedAt = DateTime.UtcNow;
 
         task.Status = PageTaskStatus.InProgress;
@@ -411,6 +417,12 @@ public class PageTaskService : IPageTaskService
     private PageTaskResponse MapTask(PageTask task)
     {
         var response = _mapper.Map<PageTaskResponse>(task);
+        response.Submissions = task.Submissions
+            .Where(s => s.DeletedAt == null)
+            .OrderByDescending(s => s.SubmittedAt)
+            .Select(MapSubmission)
+            .ToList();
+
         response.ReferenceFiles = task.ReferenceFiles
             .Where(rf => rf.DeletedAt == null && rf.FileAsset.DeletedAt == null)
             .OrderBy(rf => rf.CreatedAt)
@@ -419,6 +431,22 @@ public class PageTaskService : IPageTaskService
 
         return response;
     }
+
+    private PageTaskSubmissionResponse MapSubmission(PageTaskSubmission submission) => new()
+    {
+        SubmissionId = submission.SubmissionId,
+        PageTaskId = submission.PageTaskId,
+        VersionNo = submission.VersionNo,
+        SubmittedFileAssetId = submission.SubmittedFileAssetId,
+        SubmittedFileAssetUrl = MapFileAssetUrl(submission.SubmittedFileAsset),
+        OriginalFileName = submission.SubmittedFileAsset?.OriginalFileName,
+        ObjectPath = submission.SubmittedFileAsset?.ObjectPath,
+        Status = submission.Status,
+        Note = submission.Note,
+        Feedback = submission.Feedback,
+        SubmittedAt = submission.SubmittedAt,
+        ReviewedAt = submission.ReviewedAt
+    };
 
     private FileAssetResponse MapFileAsset(FileAsset fileAsset) => new()
     {
@@ -430,10 +458,16 @@ public class PageTaskService : IPageTaskService
         Extension = fileAsset.Extension,
         FileSizeBytes = fileAsset.FileSizeBytes,
         MimeType = fileAsset.MimeType,
-        PublicUrl = string.IsNullOrEmpty(_supabaseUrl)
-            ? null
-            : $"{_supabaseUrl}/storage/v1/object/public/{fileAsset.BucketName}/{fileAsset.ObjectPath}"
+        PublicUrl = MapFileAssetUrl(fileAsset)
     };
+
+    private string? MapFileAssetUrl(FileAsset? fileAsset)
+    {
+        if (fileAsset == null || fileAsset.DeletedAt != null || string.IsNullOrEmpty(_supabaseUrl))
+            return null;
+
+        return $"{_supabaseUrl}/storage/v1/object/public/{fileAsset.BucketName}/{fileAsset.ObjectPath}";
+    }
 
     private async Task EnsureFileAssetsExistAsync(IReadOnlyCollection<Guid> fileAssetIds)
     {

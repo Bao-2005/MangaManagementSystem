@@ -560,7 +560,7 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.SubmissionId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
-            entity.Property(x => x.RejectReason).HasMaxLength(1000);
+            entity.Property(x => x.Feedback).HasMaxLength(1000);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.SubmittedAt).HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");

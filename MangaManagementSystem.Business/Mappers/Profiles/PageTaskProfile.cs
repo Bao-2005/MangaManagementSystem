@@ -15,6 +15,7 @@ namespace MangaManagementSystem.Business.Mappers.Profiles;
 
             CreateMap<PageTaskSubmission, PageTaskSubmissionResponse>()
             .ForMember(dest => dest.OriginalFileName, opt => opt.MapFrom(src => src.SubmittedFileAsset.OriginalFileName))
-            .ForMember(dest => dest.ObjectPath, opt => opt.MapFrom(src => src.SubmittedFileAsset.ObjectPath));
+            .ForMember(dest => dest.ObjectPath, opt => opt.MapFrom(src => src.SubmittedFileAsset.ObjectPath))
+            .ForMember(dest => dest.Feedback, opt => opt.MapFrom(src => src.Feedback));
     }
 }

@@ -11,6 +11,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Chapters
         Task<ChapterResponse> CreateAsync(Guid mangakaId, CreateChapterRequest request);
         Task<ChapterResponse> AddReferenceFilesAsync(Guid mangakaId, Guid chapterId, AttachChapterReferenceFilesRequest request);
         Task<ChapterResponse> UpdateAsync(Guid id, UpdateChapterRequest request);
+        Task<ChapterResponse> PublishAsync(Guid tantouEditorId, Guid chapterId);
         Task SoftDeleteAsync(Guid id);
     }
 }

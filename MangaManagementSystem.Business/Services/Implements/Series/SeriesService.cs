@@ -38,10 +38,27 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             "image/webp"
         };
 
-        private static readonly HashSet<string> ValidSourceZipMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> ValidSourceFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".zip",
+            ".rar",
+            ".psd",
+            ".clip",
+            ".ai"
+        };
+
+        private static readonly HashSet<string> ValidSourceFileMimeTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             "application/zip",
             "application/x-zip-compressed",
+            "application/vnd.rar",
+            "application/x-rar-compressed",
+            "image/vnd.adobe.photoshop",
+            "image/x-photoshop",
+            "application/photoshop",
+            "application/postscript",
+            "application/illustrator",
+            "application/pdf",
             "application/octet-stream"
         };
 
@@ -346,11 +363,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             var sourceZip = await _fileAssetRepo.GetAll()
                 .FirstOrDefaultAsync(f => f.FileAssetId == sourceZipFileAssetId.Value && f.DeletedAt == null)
-                ?? throw new ArgumentException("Source ZIP file asset must exist and not be deleted.");
+                ?? throw new ArgumentException("Source file asset must exist and not be deleted.");
 
-            if (!sourceZip.Extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
-                || !ValidSourceZipMimeTypes.Contains(NormalizeMimeType(sourceZip.MimeType)))
-                throw new ArgumentException("Source ZIP file asset must be a zip file.");
+            if (!ValidSourceFileExtensions.Contains(sourceZip.Extension)
+                || !ValidSourceFileMimeTypes.Contains(NormalizeMimeType(sourceZip.MimeType)))
+                throw new ArgumentException("Source file asset must be a zip, rar, psd, clip, or ai file.");
         }
 
         private static bool IsSamplePageFile(FileAsset fileAsset)

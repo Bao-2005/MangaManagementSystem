@@ -8,7 +8,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Tasks
         public Guid SubmittedFileAssetId { get; set; }
         public string Status { get; set; } = null!;
         public string? Note { get; set; }
-        public string? RejectReason { get; set; }
+        public string? Feedback { get; set; }
         public DateTime? SubmittedAt { get; set; }
         public DateTime? ReviewedAt { get; set; }
     }

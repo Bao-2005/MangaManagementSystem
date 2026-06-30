@@ -13,11 +13,12 @@ public class PageTaskSubmissionResponse
     public Guid PageTaskId { get; set; }
     public int VersionNo { get; set; }
     public Guid SubmittedFileAssetId { get; set; }
+    public string? SubmittedFileAssetUrl { get; set; }
     public string? OriginalFileName { get; set; }
     public string? ObjectPath { get; set; }
     public PageTaskSubmissionStatus Status { get; set; }
     public string? Note { get; set; }
-    public string? RejectReason { get; set; }
+    public string? Feedback { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public DateTime? ReviewedAt { get; set; }
 }

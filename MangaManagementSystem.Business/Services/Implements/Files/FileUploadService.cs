@@ -10,6 +10,41 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
 {
     public class FileUploadService : IFileUploadService
     {
+        private static readonly string[] ZipMimeTypes =
+        {
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/octet-stream"
+        };
+
+        private static readonly string[] RarMimeTypes =
+        {
+            "application/vnd.rar",
+            "application/x-rar-compressed",
+            "application/octet-stream"
+        };
+
+        private static readonly string[] PsdMimeTypes =
+        {
+            "image/vnd.adobe.photoshop",
+            "image/x-photoshop",
+            "application/photoshop",
+            "application/octet-stream"
+        };
+
+        private static readonly string[] ClipMimeTypes =
+        {
+            "application/octet-stream"
+        };
+
+        private static readonly string[] AiMimeTypes =
+        {
+            "application/postscript",
+            "application/illustrator",
+            "application/pdf",
+            "application/octet-stream"
+        };
+
         private static readonly IReadOnlyDictionary<FileUploadCategory, UploadCategoryRule> Rules = new Dictionary<FileUploadCategory, UploadCategoryRule>
         {
             [FileUploadCategory.ProposalSamplePage] = new(
@@ -28,7 +63,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                 RequireContentSignature: true,
                 new Dictionary<string, string[]>
                 {
-                    [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
+                    [".zip"] = ZipMimeTypes,
+                    [".rar"] = RarMimeTypes,
+                    [".psd"] = PsdMimeTypes,
+                    [".clip"] = ClipMimeTypes,
+                    [".ai"] = AiMimeTypes
                 }),
             [FileUploadCategory.ChapterReference] = new(
                 50 * 1024 * 1024,
@@ -41,7 +80,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                     [".gif"] = new[] { "image/gif" },
                     [".webp"] = new[] { "image/webp" },
                     [".pdf"] = new[] { "application/pdf" },
-                    [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
+                    [".zip"] = ZipMimeTypes,
+                    [".rar"] = RarMimeTypes,
+                    [".psd"] = PsdMimeTypes,
+                    [".clip"] = ClipMimeTypes,
+                    [".ai"] = AiMimeTypes
                 }),
             [FileUploadCategory.TaskSubmission] = new(
                 50 * 1024 * 1024,
@@ -54,7 +97,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                     [".gif"] = new[] { "image/gif" },
                     [".webp"] = new[] { "image/webp" },
                     [".pdf"] = new[] { "application/pdf" },
-                    [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
+                    [".zip"] = ZipMimeTypes,
+                    [".rar"] = RarMimeTypes,
+                    [".psd"] = PsdMimeTypes,
+                    [".clip"] = ClipMimeTypes,
+                    [".ai"] = AiMimeTypes
                 }),
             [FileUploadCategory.TaskReference] = new(
                 50 * 1024 * 1024,
@@ -67,7 +114,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                     [".gif"] = new[] { "image/gif" },
                     [".webp"] = new[] { "image/webp" },
                     [".pdf"] = new[] { "application/pdf" },
-                    [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
+                    [".zip"] = ZipMimeTypes,
+                    [".rar"] = RarMimeTypes,
+                    [".psd"] = PsdMimeTypes,
+                    [".clip"] = ClipMimeTypes,
+                    [".ai"] = AiMimeTypes
                 }),
             [FileUploadCategory.UserAvatar] = new(
                 5 * 1024 * 1024,
@@ -90,7 +141,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                     [".gif"] = new[] { "image/gif" },
                     [".webp"] = new[] { "image/webp" },
                     [".pdf"] = new[] { "application/pdf" },
-                    [".zip"] = new[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" }
+                    [".zip"] = ZipMimeTypes,
+                    [".rar"] = RarMimeTypes,
+                    [".psd"] = PsdMimeTypes,
+                    [".clip"] = ClipMimeTypes,
+                    [".ai"] = AiMimeTypes
                 })
         };
 
@@ -255,7 +310,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
         }
 
         private static bool RequiresSignatureValidation(string extension)
-            => extension is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".pdf" or ".zip";
+            => extension is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".pdf" or ".zip" or ".rar" or ".psd";
 
         private static async Task<byte[]> ReadSignatureAsync(Stream content, CancellationToken cancellationToken)
         {
@@ -312,6 +367,19 @@ namespace MangaManagementSystem.Business.Services.Implements.Files
                     && signature[0] == 0x50
                     && signature[1] == 0x4B
                     && (signature[2], signature[3]) is (0x03, 0x04) or (0x05, 0x06) or (0x07, 0x08),
+                ".rar" => signature.Length >= 7
+                    && signature[0] == 0x52
+                    && signature[1] == 0x61
+                    && signature[2] == 0x72
+                    && signature[3] == 0x21
+                    && signature[4] == 0x1A
+                    && signature[5] == 0x07
+                    && (signature[6] == 0x00 || signature[6] == 0x01),
+                ".psd" => signature.Length >= 4
+                    && signature[0] == 0x38
+                    && signature[1] == 0x42
+                    && signature[2] == 0x50
+                    && signature[3] == 0x53,
                 _ => true
             };
 

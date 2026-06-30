@@ -10,6 +10,6 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks;
 public class ReviewPageTaskSubmissionRequest
 {
     [MaxLength(1000)]
-    public string? RejectReason { get; set; }
+    public string? Feedback { get; set; }
 }
 
