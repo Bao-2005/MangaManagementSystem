@@ -1,6 +1,7 @@
 using MangaManagementSystem.Business.DTOs.Requests.Manuscripts;
 using MangaManagementSystem.Business.DTOs.Responses.Manuscripts;
 using MangaManagementSystem.Business.Services.Interfaces.Manuscripts;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -10,12 +11,18 @@ namespace MangaManagementSystem.Business.Services.Implements.Manuscripts
     public class ManuscriptService : IManuscriptService
     {
         private readonly IRepository<Manuscript> _repo;
+        private readonly IRepository<Chapter> _chapterRepo;
         private readonly IRepository<PageTask> _pageTaskRepo;
         private readonly IRepository<Annotation> _annotationRepo;
 
-        public ManuscriptService(IRepository<Manuscript> repo, IRepository<PageTask> pageTaskRepo, IRepository<Annotation> annotationRepo)
+        public ManuscriptService(
+            IRepository<Manuscript> repo,
+            IRepository<Chapter> chapterRepo,
+            IRepository<PageTask> pageTaskRepo,
+            IRepository<Annotation> annotationRepo)
         {
             _repo = repo;
+            _chapterRepo = chapterRepo;
             _pageTaskRepo = pageTaskRepo;
             _annotationRepo = annotationRepo;
         }
@@ -36,10 +43,21 @@ namespace MangaManagementSystem.Business.Services.Implements.Manuscripts
 
         public async Task<ManuscriptResponse> CreateAsync(Guid mangakaId, CreateManuscriptRequest request)
         {
+            var chapter = await _chapterRepo.GetAll()
+                .Include(c => c.Series)
+                .FirstOrDefaultAsync(c => c.ChapterId == request.ChapterId && c.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Chapter not found.");
+
+            if (chapter.Series.DeletedAt != null)
+                throw new KeyNotFoundException("Chapter not found.");
+
+            if (chapter.Series.MangakaId != mangakaId)
+                throw new UnauthorizedAccessException("Only the owner Mangaka can submit manuscripts for this chapter.");
+
             // BR-04: all PageTasks for this chapter must be Approved
             var hasUnapproved = await _pageTaskRepo.GetAll()
                 .AnyAsync(pt => pt.ChapterId == request.ChapterId && pt.DeletedAt == null
-                                && pt.Status != DataAccess.Entities.Enums.PageTaskStatus.Approved);
+                                && pt.Status != PageTaskStatus.Approved);
             if (hasUnapproved)
                 throw new InvalidOperationException("All page tasks must be approved before submitting a manuscript.");
 
@@ -56,7 +74,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Manuscripts
                 RevisionCount = 0,
                 SubmittedAt = DateTime.UtcNow
             };
+            chapter.Status = ChapterStatus.Submitted.ToString();
+
             await _repo.AddAsync(manuscript);
+            _chapterRepo.Update(chapter);
             await _repo.SaveChangeAsync();
             return Map(manuscript);
         }
