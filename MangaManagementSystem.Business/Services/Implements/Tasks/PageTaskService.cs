@@ -154,8 +154,20 @@ public class PageTaskService : IPageTaskService
         if (task.Chapter.Series.MangakaId != mangakaId)
             throw new UnauthorizedAccessException("You can only update tasks for your own series.");
 
-        if (task.Submissions.Any() || task.Status == PageTaskStatus.Completed || task.Status == PageTaskStatus.Approved)
-            throw new InvalidOperationException("Page task cannot be updated after it has been submitted or reviewed.");
+        var assistantChanged = request.AssistantId.HasValue && request.AssistantId.Value != task.AssistantId;
+        var taskContentChanged = request.PageStart.HasValue
+            || request.PageEnd.HasValue
+            || request.Description != null
+            || request.DueDate.HasValue;
+
+        if (task.Status == PageTaskStatus.Approved)
+            throw new InvalidOperationException("Approved page task cannot be updated.");
+
+        if (taskContentChanged && task.Submissions.Any())
+            throw new InvalidOperationException("Page task details cannot be updated after it has submissions.");
+
+        if (!assistantChanged && !taskContentChanged)
+            return await GetTaskResponseForMangakaAsync(mangakaId, pageTaskId);
 
         if (request.AssistantId.HasValue && request.AssistantId.Value != task.AssistantId)
         {
