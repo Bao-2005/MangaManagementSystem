@@ -161,10 +161,11 @@ Submission: Approved      Submission: Rejected
 | 1 | `POST` | `/api/page-tasks` | Mangaka | Tạo và giao page task |
 | 2 | `GET` | `/api/page-tasks/mangaka` | Mangaka | Xem task thuộc các series của Mangaka |
 | 3 | `GET` | `/api/page-tasks/assistant` | Assistant | Xem task được giao cho Assistant |
-| 4 | `POST` | `/api/files` | Authenticated | Upload file sản phẩm |
-| 5 | `POST` | `/api/page-tasks/{pageTaskId}/submissions` | Assistant | Submit kết quả làm việc |
-| 6 | `POST` | `/api/page-tasks/submissions/{submissionId}/approve` | Mangaka | Approve submission |
-| 7 | `POST` | `/api/page-tasks/submissions/{submissionId}/reject` | Mangaka | Reject submission |
+| 4 | `PUT` | `/api/page-tasks/{pageTaskId}` | Mangaka | Update task details or reassign task to another Assistant |
+| 5 | `POST` | `/api/files` | Authenticated | Upload file sản phẩm |
+| 6 | `POST` | `/api/page-tasks/{pageTaskId}/submissions` | Assistant | Submit kết quả làm việc |
+| 7 | `POST` | `/api/page-tasks/submissions/{submissionId}/approve` | Mangaka | Approve submission |
+| 8 | `POST` | `/api/page-tasks/submissions/{submissionId}/reject` | Mangaka | Reject submission |
 
 ### 6.5. Tạo và giao page task
 
@@ -237,6 +238,80 @@ POST /api/page-tasks
 | `401` | Thiếu thông tin user hoặc chapter không thuộc Mangaka |
 | `403` | User không có role Mangaka |
 | `404` | Không tìm thấy chapter, manuscript hoặc Assistant |
+
+### 6.5.1. Update or reassign page task
+
+Update a page task owned by the authenticated Mangaka. This endpoint also supports
+reassigning a failed task to another Assistant.
+
+**Endpoint**
+
+```http
+PUT /api/page-tasks/{pageTaskId}
+```
+
+**Authorization:** `Mangaka`
+
+**Request body**
+
+```json
+{
+  "assistantId": "22222222-2222-2222-2222-222222222222",
+  "pageStart": 1,
+  "pageEnd": 5,
+  "description": "Redo line art for pages 1 to 5.",
+  "dueDate": "2026-06-20T10:00:00Z"
+}
+```
+
+All fields are optional. Sending a different `assistantId` is treated as task
+reassignment.
+
+**Task detail update rules**
+
+- Only the Mangaka owner of the series can update the task.
+- Approved tasks cannot be updated.
+- `pageStart`, `pageEnd`, `description`, and `dueDate` cannot be changed after
+  the task has active submissions.
+- Page range validation and overlap validation use the same rules as task
+  creation.
+
+**Reassignment rules**
+
+- The new `assistantId` must belong to an active user with the `Assistant` role.
+- A task cannot be reassigned while it has a submission in `Submitted` status
+  waiting for Mangaka review.
+- When `assistantId` changes, existing active submissions are soft-deleted by
+  setting `DeletedAt`. They remain in the database for audit/history, but normal
+  page task responses no longer return them.
+- After reassignment, the task status is reset to `Assigned` and `approvedAt`
+  is cleared.
+- The new Assistant starts with zero active submission attempts.
+- `versionNo` is not reset. New submissions continue after the highest historical
+  version number to avoid duplicate `(pageTaskId, versionNo)` values.
+
+**State transition for reassignment**
+
+```text
+PageTask: InProgress or Assigned -> Assigned
+Active submissions: hidden from normal workflow via DeletedAt
+Historical submissions: retained in database for audit
+```
+
+**Success response: `200 OK`**
+
+Returns the updated `PageTaskResponse`. After reassignment, `submissions` is
+usually empty because old submissions are no longer active.
+
+**Error cases**
+
+| Status | Case |
+|---|---|
+| `400` | Invalid page range or assigned user is not an Assistant |
+| `401` | Task does not belong to the authenticated Mangaka |
+| `403` | User does not have Mangaka role |
+| `404` | Page task or Assistant not found |
+| `409` | Task is Approved, details are changed after submissions exist, page range overlaps, or a submission is waiting for review |
 
 ### 6.6. Lấy danh sách task của Mangaka
 
