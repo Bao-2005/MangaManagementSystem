@@ -18,6 +18,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
 public class PageTaskService : IPageTaskService
 {
+    private const int MaxActiveSubmissionAttempts = 3;
+
     private readonly IRepository<PageTask> _pageTaskRepository;
     private readonly IRepository<PageTaskSubmission> _submissionRepository;
     private readonly IRepository<Chapter> _chapterRepository;
@@ -154,14 +156,29 @@ public class PageTaskService : IPageTaskService
         if (task.Chapter.Series.MangakaId != mangakaId)
             throw new UnauthorizedAccessException("You can only update tasks for your own series.");
 
-        if (task.Submissions.Any() || task.Status == PageTaskStatus.Completed || task.Status == PageTaskStatus.Approved)
-            throw new InvalidOperationException("Page task cannot be updated after it has been submitted or reviewed.");
+        var assistantChanged = request.AssistantId.HasValue && request.AssistantId.Value != task.AssistantId;
+        var taskContentChanged = request.PageStart.HasValue
+            || request.PageEnd.HasValue
+            || request.Description != null
+            || request.DueDate.HasValue;
 
-        if (request.AssistantId.HasValue && request.AssistantId.Value != task.AssistantId)
+        if (task.Status == PageTaskStatus.Approved)
+            throw new InvalidOperationException("Approved page task cannot be updated.");
+
+        if (taskContentChanged && task.Submissions.Any())
+            throw new InvalidOperationException("Page task details cannot be updated after it has submissions.");
+
+        if (!assistantChanged && !taskContentChanged)
+            return await GetTaskResponseForMangakaAsync(mangakaId, pageTaskId);
+
+        var now = DateTime.UtcNow;
+
+        if (assistantChanged)
         {
+            var newAssistantId = request.AssistantId!.Value;
             var assistant = await _userRepository.GetAll()
                 .Include(x => x.Role)
-                .FirstOrDefaultAsync(x => x.UserId == request.AssistantId.Value && x.DeletedAt == null);
+                .FirstOrDefaultAsync(x => x.UserId == newAssistantId && x.DeletedAt == null);
 
             if (assistant == null)
                 throw new KeyNotFoundException("Assistant not found.");
@@ -169,7 +186,18 @@ public class PageTaskService : IPageTaskService
             if (assistant.Role.RoleName != UserRole.Assistant.ToString())
                 throw new ArgumentException("Assigned user must have Assistant role.");
 
-            task.AssistantId = request.AssistantId.Value;
+            if (task.Submissions.Any(x => x.Status == PageTaskSubmissionStatus.Submitted))
+                throw new InvalidOperationException("Cannot reassign a page task while a submission is waiting for review.");
+
+            foreach (var submission in task.Submissions.Where(x => x.DeletedAt == null))
+            {
+                submission.DeletedAt = now;
+                _submissionRepository.Update(submission);
+            }
+
+            task.AssistantId = newAssistantId;
+            task.Status = PageTaskStatus.Assigned;
+            task.ApprovedAt = null;
         }
 
         var pageStart = request.PageStart ?? task.PageStart;
@@ -205,7 +233,7 @@ public class PageTaskService : IPageTaskService
         if (request.DueDate.HasValue)
             task.DueDate = request.DueDate;
 
-        task.UpdatedAt = DateTime.UtcNow;
+        task.UpdatedAt = now;
 
         _pageTaskRepository.Update(task);
         await _pageTaskRepository.SaveChangeAsync();
@@ -277,10 +305,10 @@ public class PageTaskService : IPageTaskService
         if (task.Submissions.Any(x => x.Status == PageTaskSubmissionStatus.Submitted))
             throw new InvalidOperationException("This task already has a submission waiting for review.");
 
-        var notApprovedSubmissionCount = task.Submissions
+        var activeSubmissionAttemptCount = task.Submissions
             .Count(x => x.Status != PageTaskSubmissionStatus.Approved);
 
-        if (notApprovedSubmissionCount >= 3)
+        if (activeSubmissionAttemptCount >= MaxActiveSubmissionAttempts)
             throw new InvalidOperationException("Đã hết lượt nộp.");
 
         var fileExists = await _fileAssetRepository.GetAll()
@@ -289,9 +317,9 @@ public class PageTaskService : IPageTaskService
         if (!fileExists)
             throw new KeyNotFoundException("Submitted file asset not found.");
 
-        var latestVersion = task.Submissions.Any()
-            ? task.Submissions.Max(x => x.VersionNo)
-            : 0;
+        var latestVersion = await _submissionRepository.GetAll()
+            .Where(x => x.PageTaskId == task.PageTaskId)
+            .MaxAsync(x => (int?)x.VersionNo) ?? 0;
 
         var submission = new PageTaskSubmission
         {
