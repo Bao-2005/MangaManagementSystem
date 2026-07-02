@@ -74,6 +74,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             var annotation = new Annotation
             {
                 ManuscriptId = manuscriptId,
+                PageTaskSubmissionId = null,
                 AuthorId = authorId,
                 PageNo = request.PageNo,
                 PositionX = request.PositionX,
@@ -81,6 +82,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 Content = request.Content.Trim(),
                 CreatedAt = DateTime.UtcNow
             };
+            EnsureExactlyOneAnnotationOwner(annotation.ManuscriptId, annotation.PageTaskSubmissionId);
+
             await _repo.AddAsync(annotation);
             await _repo.SaveChangeAsync();
             return await GetByIdAsync(annotation.AnnotationId);
@@ -107,7 +110,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
 
             var annotation = new Annotation
             {
-                ManuscriptId = submission.PageTask.ManuscriptId,
+                ManuscriptId = null,
                 PageTaskSubmissionId = submissionId,
                 AuthorId = assistantId,
                 PageNo = request.PageNo,
@@ -116,6 +119,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 Content = request.Content.Trim(),
                 CreatedAt = DateTime.UtcNow
             };
+            EnsureExactlyOneAnnotationOwner(annotation.ManuscriptId, annotation.PageTaskSubmissionId);
 
             await _repo.AddAsync(annotation);
             await _repo.SaveChangeAsync();
@@ -219,6 +223,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
 
             if (content.Trim().Length > 2000)
                 throw new ArgumentException("Annotation content must not exceed 2000 characters.");
+        }
+
+        private static void EnsureExactlyOneAnnotationOwner(Guid? manuscriptId, Guid? pageTaskSubmissionId)
+        {
+            if (manuscriptId.HasValue == pageTaskSubmissionId.HasValue)
+                throw new InvalidOperationException("Annotation must belong to either a manuscript or a page task submission.");
         }
 
         private static void EnsurePageNoWithinChapter(int pageNo, int totalPages)
