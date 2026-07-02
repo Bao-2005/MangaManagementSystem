@@ -90,20 +90,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         }
 
         public async Task<AnnotationResponse> CreateForSubmissionAsync(
-            Guid assistantId,
+            Guid userId,
+            string userRole,
             Guid submissionId,
             CreateSubmissionAnnotationRequest request)
         {
-            var submission = await _submissionRepo.GetAll()
-                .Include(s => s.PageTask)
-                .FirstOrDefaultAsync(s => s.SubmissionId == submissionId && s.DeletedAt == null)
-                ?? throw new KeyNotFoundException("Submission not found.");
-
-            if (submission.PageTask.DeletedAt != null)
-                throw new KeyNotFoundException("Page task not found.");
-
-            if (submission.PageTask.AssistantId != assistantId)
-                throw new UnauthorizedAccessException("Assistant can only annotate their own submissions.");
+            var submission = await EnsureCanAnnotateSubmissionAsync(submissionId, userId, userRole);
 
             ValidateAnnotationPayload(request.PageNo, request.PositionX, request.PositionY, request.Content);
             EnsurePageNoWithinTaskRange(request.PageNo, submission.PageTask.PageStart, submission.PageTask.PageEnd);
@@ -112,7 +104,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             {
                 ManuscriptId = null,
                 PageTaskSubmissionId = submissionId,
-                AuthorId = assistantId,
+                AuthorId = userId,
                 PageNo = request.PageNo,
                 PositionX = request.PositionX,
                 PositionY = request.PositionY,
@@ -140,15 +132,16 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
         public async Task<AnnotationResponse> UpdateForSubmissionAsync(
             Guid submissionId,
             Guid id,
-            Guid assistantId,
+            Guid userId,
+            string userRole,
             UpdateAnnotationRequest request)
         {
-            await EnsureOwnSubmissionAsync(submissionId, assistantId);
+            await EnsureCanAnnotateSubmissionAsync(submissionId, userId, userRole);
 
             var annotation = await _repo.GetAll()
                     .FirstOrDefaultAsync(x => x.AnnotationId == id
                         && x.PageTaskSubmissionId == submissionId
-                        && x.AuthorId == assistantId
+                        && x.AuthorId == userId
                         && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Annotation not found or access denied.");
 
@@ -178,14 +171,14 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             await _repo.SaveChangeAsync();
         }
 
-        public async Task SoftDeleteForSubmissionAsync(Guid submissionId, Guid id, Guid assistantId)
+        public async Task SoftDeleteForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole)
         {
-            await EnsureOwnSubmissionAsync(submissionId, assistantId);
+            await EnsureCanAnnotateSubmissionAsync(submissionId, userId, userRole);
 
             var annotation = await _repo.GetAll()
                     .FirstOrDefaultAsync(x => x.AnnotationId == id
                         && x.PageTaskSubmissionId == submissionId
-                        && x.AuthorId == assistantId
+                        && x.AuthorId == userId
                         && x.DeletedAt == null)
                     ?? throw new KeyNotFoundException("Annotation not found or access denied.");
 
@@ -246,20 +239,39 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 throw new ArgumentException("Page number must be within the assigned page task range.");
         }
 
-        private async Task<PageTaskSubmission> EnsureOwnSubmissionAsync(Guid submissionId, Guid assistantId)
+        private async Task<PageTaskSubmission> EnsureCanAnnotateSubmissionAsync(
+            Guid submissionId,
+            Guid userId,
+            string userRole)
         {
             var submission = await _submissionRepo.GetAll()
                 .Include(s => s.PageTask)
+                    .ThenInclude(t => t.Chapter)
+                        .ThenInclude(c => c.Series)
                 .FirstOrDefaultAsync(s => s.SubmissionId == submissionId && s.DeletedAt == null)
                 ?? throw new KeyNotFoundException("Submission not found.");
 
             if (submission.PageTask.DeletedAt != null)
                 throw new KeyNotFoundException("Page task not found.");
 
-            if (submission.PageTask.AssistantId != assistantId)
-                throw new UnauthorizedAccessException("Assistant can only annotate their own submissions.");
+            if (string.Equals(userRole, UserRole.Assistant.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                if (submission.PageTask.AssistantId == userId)
+                    return submission;
 
-            return submission;
+                throw new UnauthorizedAccessException("Assistant can only annotate their own submissions.");
+            }
+
+            if (string.Equals(userRole, UserRole.Mangaka.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                if (submission.PageTask.Chapter.Series.MangakaId == userId)
+                    return submission;
+
+                throw new UnauthorizedAccessException("Mangaka can only annotate submissions from their own series.");
+            }
+
+            throw new UnauthorizedAccessException("You are not allowed to annotate this submission.");
+
         }
 
         private async Task<Manuscript> EnsureCanAnnotateManuscriptAsync(Guid authorId, Guid manuscriptId)

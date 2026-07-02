@@ -46,36 +46,39 @@ namespace MangaManagementSystem.API.Controllers
             => Ok(new BaseResponse { Data = await _service.GetBySubmissionAsync(submissionId), Message = "Success" });
 
         [HttpPost("/api/submissions/{submissionId:guid}/annotations")]
-        [Authorize(Policy = "AssistantOnly")]
-        [SwaggerOperation(Summary = "Add annotation to the assistant's own submission")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Add annotation to a page task submission")]
         public async Task<IActionResult> CreateForSubmission(
             Guid submissionId,
             [FromBody] CreateSubmissionAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            var result = await _service.CreateForSubmissionAsync(userId, submissionId, request);
+            var userRole = GetUserRole() ?? throw new UnauthorizedAccessException();
+            var result = await _service.CreateForSubmissionAsync(userId, userRole, submissionId, request);
             return CreatedAtAction(nameof(GetById), new { manuscriptId = result.ManuscriptId, id = result.AnnotationId }, new BaseResponse { Data = result, Message = "Annotation added." });
         }
 
         [HttpPut("/api/submissions/{submissionId:guid}/annotations/{id:guid}")]
-        [Authorize(Policy = "AssistantOnly")]
-        [SwaggerOperation(Summary = "Update one of the assistant's own submission annotations")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Update one of the current user's own submission annotations")]
         public async Task<IActionResult> UpdateForSubmission(
             Guid submissionId,
             Guid id,
             [FromBody] UpdateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _service.UpdateForSubmissionAsync(submissionId, id, userId, request), Message = "Updated." });
+            var userRole = GetUserRole() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.UpdateForSubmissionAsync(submissionId, id, userId, userRole, request), Message = "Updated." });
         }
 
         [HttpDelete("/api/submissions/{submissionId:guid}/annotations/{id:guid}/soft-delete")]
-        [Authorize(Policy = "AssistantOnly")]
-        [SwaggerOperation(Summary = "Soft-delete one of the assistant's own submission annotations")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Soft-delete one of the current user's own submission annotations")]
         public async Task<IActionResult> SoftDeleteForSubmission(Guid submissionId, Guid id)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            await _service.SoftDeleteForSubmissionAsync(submissionId, id, userId);
+            var userRole = GetUserRole() ?? throw new UnauthorizedAccessException();
+            await _service.SoftDeleteForSubmissionAsync(submissionId, id, userId, userRole);
             return Ok(new BaseResponse { Message = "Deleted." });
         }
 
@@ -101,6 +104,11 @@ namespace MangaManagementSystem.API.Controllers
         {
             var str = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(str, out var id) ? id : null;
+        }
+
+        private string? GetUserRole()
+        {
+            return User.FindFirstValue(ClaimTypes.Role);
         }
     }
 }

@@ -9,11 +9,11 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Tasks
         Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(Guid submissionId);
         Task<AnnotationResponse> GetByIdAsync(Guid id);
         Task<AnnotationResponse> CreateAsync(Guid authorId, Guid manuscriptId, CreateAnnotationRequest request);
-        Task<AnnotationResponse> CreateForSubmissionAsync(Guid assistantId, Guid submissionId, CreateSubmissionAnnotationRequest request);
+        Task<AnnotationResponse> CreateForSubmissionAsync(Guid userId, string userRole, Guid submissionId, CreateSubmissionAnnotationRequest request);
         Task<AnnotationResponse> UpdateAsync(Guid id, Guid authorId, UpdateAnnotationRequest request);
-        Task<AnnotationResponse> UpdateForSubmissionAsync(Guid submissionId, Guid id, Guid assistantId, UpdateAnnotationRequest request);
+        Task<AnnotationResponse> UpdateForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole, UpdateAnnotationRequest request);
         Task SoftDeleteAsync(Guid id);
         Task SoftDeleteAsync(Guid id, Guid authorId);
-        Task SoftDeleteForSubmissionAsync(Guid submissionId, Guid id, Guid assistantId);
+        Task SoftDeleteForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole);
     }
 }
