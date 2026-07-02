@@ -26,6 +26,7 @@ public class PageTaskService : IPageTaskService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<FileAsset> _fileAssetRepository;
     private readonly IRepository<PageTaskReferenceFile> _pageTaskReferenceFileRepository;
+    private readonly IRepository<SalaryRecord> _salaryRecordRepository;
     private readonly IMapper _mapper;
     private readonly string _supabaseUrl;
 
@@ -36,6 +37,7 @@ public class PageTaskService : IPageTaskService
         IRepository<User> userRepository,
         IRepository<FileAsset> fileAssetRepository,
         IRepository<PageTaskReferenceFile> pageTaskReferenceFileRepository,
+        IRepository<SalaryRecord> salaryRecordRepository,
         IConfiguration configuration,
         IMapper mapper)
     {
@@ -45,6 +47,7 @@ public class PageTaskService : IPageTaskService
         _userRepository = userRepository;
         _fileAssetRepository = fileAssetRepository;
         _pageTaskReferenceFileRepository = pageTaskReferenceFileRepository;
+        _salaryRecordRepository = salaryRecordRepository;
         _mapper = mapper;
         _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
     }
@@ -349,14 +352,35 @@ public class PageTaskService : IPageTaskService
     public async Task<PageTaskResponse> ApproveSubmissionAsync(Guid mangakaId, Guid submissionId)
     {
         var (task, submission) = await GetReviewTargetAsync(mangakaId, submissionId);
+        var approvedAt = DateTime.UtcNow;
 
         submission.Status = PageTaskSubmissionStatus.Approved;
         submission.Feedback = null;
-        submission.ReviewedAt = DateTime.UtcNow;
+        submission.ReviewedAt = approvedAt;
 
         task.Status = PageTaskStatus.Approved;
-        task.ApprovedAt = DateTime.UtcNow;
-        task.UpdatedAt = DateTime.UtcNow;
+        task.ApprovedAt = approvedAt;
+        task.UpdatedAt = approvedAt;
+
+        var salaryExists = await _salaryRecordRepository.GetAll()
+            .AnyAsync(x => x.PageTaskId == task.PageTaskId);
+
+        if (!salaryExists)
+        {
+            var pages = task.PageEnd - task.PageStart + 1;
+            var rateAtApproval = task.RatePerPage ?? 0m;
+
+            await _salaryRecordRepository.AddAsync(new SalaryRecord
+            {
+                AssistantId = task.AssistantId,
+                PageTaskId = task.PageTaskId,
+                Pages = pages,
+                RateAtApproval = rateAtApproval,
+                Amount = pages * rateAtApproval,
+                ApprovedAt = approvedAt,
+                CreatedAt = approvedAt
+            });
+        }
 
         _submissionRepository.Update(submission);
         _pageTaskRepository.Update(task);
