@@ -615,7 +615,12 @@ public class MangaDbContext : DbContext
     {
         modelBuilder.Entity<Annotation>(entity =>
         {
-            entity.ToTable("Annotations");
+            entity.ToTable("Annotations", t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_Annotations_ExactlyOneOwner",
+                    "(\"ManuscriptId\" IS NOT NULL AND \"PageTaskSubmissionId\" IS NULL) OR (\"ManuscriptId\" IS NULL AND \"PageTaskSubmissionId\" IS NOT NULL)");
+            });
             entity.HasKey(x => x.AnnotationId);
 
             entity.Property(x => x.AnnotationId).HasDefaultValueSql(NewGuidSql);
