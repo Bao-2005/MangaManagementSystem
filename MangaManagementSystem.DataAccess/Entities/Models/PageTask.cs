@@ -23,6 +23,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public string? TaskType { get; set; }
 
+        public decimal? RatePerPage { get; set; }
+
         public string? Description { get; set; }
 
         public DateTime? DueDate { get; set; }

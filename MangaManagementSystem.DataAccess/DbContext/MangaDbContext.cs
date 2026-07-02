@@ -496,6 +496,7 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.PageTaskId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.TaskType).HasMaxLength(50);
+            entity.Property(x => x.RatePerPage).HasPrecision(18, 2);
             entity.Property(x => x.Description).HasMaxLength(1000);
             entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
