@@ -188,6 +188,7 @@ POST /api/page-tasks
   "pageStart": 1,
   "pageEnd": 5,
   "taskType": "Line Art",
+  "ratePerPage": 50000,
   "description": "Hoàn thiện line art cho trang 1 đến trang 5.",
   "dueDate": "2026-06-20T10:00:00Z"
 }
@@ -200,6 +201,7 @@ POST /api/page-tasks
 | `pageStart` | integer | Có | Lớn hơn hoặc bằng `1` |
 | `pageEnd` | integer | Có | Lớn hơn hoặc bằng `pageStart`, không vượt tổng số trang |
 | `taskType` | string | Có | Tối đa 50 ký tự |
+| `ratePerPage` | decimal | Không | Đơn giá trên mỗi trang, cho phép `null` hoặc `0`, không được âm |
 | `description` | string | Không | Tối đa 1000 ký tự |
 | `dueDate` | datetime | Không | ISO 8601 |
 
@@ -216,6 +218,7 @@ POST /api/page-tasks
     "pageStart": 1,
     "pageEnd": 5,
     "taskType": "Line Art",
+    "ratePerPage": 50000,
     "description": "Hoàn thiện line art cho trang 1 đến trang 5.",
     "dueDate": "2026-06-20T10:00:00Z",
     "status": 0,
@@ -259,6 +262,7 @@ PUT /api/page-tasks/{pageTaskId}
   "assistantId": "22222222-2222-2222-2222-222222222222",
   "pageStart": 1,
   "pageEnd": 5,
+  "ratePerPage": 50000,
   "description": "Redo line art for pages 1 to 5.",
   "dueDate": "2026-06-20T10:00:00Z"
 }
@@ -271,8 +275,11 @@ reassignment.
 
 - Only the Mangaka owner of the series can update the task.
 - Approved tasks cannot be updated.
-- `pageStart`, `pageEnd`, `description`, and `dueDate` cannot be changed after
-  the task has active submissions.
+- `pageStart`, `pageEnd`, `ratePerPage`, `description`, and `dueDate` cannot be
+  changed after the task has active submissions.
+- `ratePerPage` is optional, can be `null` or `0`, and cannot be negative. In
+  the current update API, sending `0` is the supported way to clear the payable
+  amount because omitted and `null` values are both treated as no update.
 - Page range validation and overlap validation use the same rules as task
   creation.
 
@@ -341,6 +348,7 @@ GET /api/page-tasks/mangaka
       "pageStart": 1,
       "pageEnd": 5,
       "taskType": "Line Art",
+      "ratePerPage": 50000,
       "description": "Hoàn thiện line art cho trang 1 đến trang 5.",
       "dueDate": "2026-06-20T10:00:00Z",
       "status": 2,
@@ -729,6 +737,7 @@ Sau đó Assistant có thể upload file mới và gọi lại API submit. Submi
 | `pageStart` | integer | Không | Trang bắt đầu |
 | `pageEnd` | integer | Không | Trang kết thúc |
 | `taskType` | string | Không | Loại công việc |
+| `ratePerPage` | decimal | Có | Đơn giá trên mỗi trang của task; `null` hoặc `0` đều hợp lệ |
 | `description` | string | Có | Mô tả công việc |
 | `dueDate` | datetime | Có | Hạn hoàn thành |
 | `status` | integer | Không | `PageTaskStatus` |

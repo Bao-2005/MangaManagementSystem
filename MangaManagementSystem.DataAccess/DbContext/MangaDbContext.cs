@@ -35,6 +35,7 @@ public class MangaDbContext : DbContext
     public DbSet<PageTask> PageTasks => Set<PageTask>();
     public DbSet<PageTaskReferenceFile> PageTaskReferenceFiles => Set<PageTaskReferenceFile>();
     public DbSet<PageTaskSubmission> PageTaskSubmissions => Set<PageTaskSubmission>();
+    public DbSet<SalaryRecord> SalaryRecords => Set<SalaryRecord>();
     public DbSet<Annotation> Annotations => Set<Annotation>();
     public DbSet<VoteRecord> VoteRecords => Set<VoteRecord>();
     public DbSet<RankingSnapshot> RankingSnapshots => Set<RankingSnapshot>();
@@ -63,6 +64,7 @@ public class MangaDbContext : DbContext
         ConfigurePageTasks(modelBuilder);
         ConfigurePageTaskReferenceFiles(modelBuilder);
         ConfigurePageTaskSubmissions(modelBuilder);
+        ConfigureSalaryRecords(modelBuilder);
         ConfigureAnnotations(modelBuilder);
         ConfigureVoteRecords(modelBuilder);
         ConfigureRankingSnapshots(modelBuilder);
@@ -575,6 +577,36 @@ public class MangaDbContext : DbContext
             entity.HasOne(x => x.SubmittedFileAsset)
                 .WithMany(x => x.PageTaskSubmissions)
                 .HasForeignKey(x => x.SubmittedFileAssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureSalaryRecords(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SalaryRecord>(entity =>
+        {
+            entity.ToTable("SalaryRecords");
+            entity.HasKey(x => x.SalaryRecordId);
+
+            entity.Property(x => x.SalaryRecordId).HasDefaultValueSql(NewGuidSql);
+            entity.Property(x => x.Pages).IsRequired();
+            entity.Property(x => x.RateAtApproval).IsRequired().HasPrecision(18, 2);
+            entity.Property(x => x.Amount).IsRequired().HasPrecision(18, 2);
+            entity.Property(x => x.ApprovedAt).IsRequired().HasColumnType("timestamptz");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+
+            entity.HasIndex(x => x.PageTaskId).IsUnique();
+            entity.HasIndex(x => x.AssistantId);
+
+            entity.HasOne(x => x.Assistant)
+                .WithMany()
+                .HasForeignKey(x => x.AssistantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.PageTask)
+                .WithMany()
+                .HasForeignKey(x => x.PageTaskId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

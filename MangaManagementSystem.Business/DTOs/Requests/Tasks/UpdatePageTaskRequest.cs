@@ -12,6 +12,9 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks
         [Range(1, int.MaxValue)]
         public int? PageEnd { get; set; }
 
+        [Range(0, double.MaxValue)]
+        public decimal? RatePerPage { get; set; }
+
         [MaxLength(1000)]
         public string? Description { get; set; }
 
