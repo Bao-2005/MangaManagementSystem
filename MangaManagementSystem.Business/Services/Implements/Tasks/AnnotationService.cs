@@ -102,15 +102,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             if (submission.PageTask.AssistantId != assistantId)
                 throw new UnauthorizedAccessException("Assistant can only annotate their own submissions.");
 
-            if (!submission.PageTask.ManuscriptId.HasValue)
-                throw new InvalidOperationException("This page task is not linked to a manuscript yet.");
-
             ValidateAnnotationPayload(request.PageNo, request.PositionX, request.PositionY, request.Content);
             EnsurePageNoWithinTaskRange(request.PageNo, submission.PageTask.PageStart, submission.PageTask.PageEnd);
 
             var annotation = new Annotation
             {
-                ManuscriptId = submission.PageTask.ManuscriptId.Value,
+                ManuscriptId = submission.PageTask.ManuscriptId,
                 PageTaskSubmissionId = submissionId,
                 AuthorId = assistantId,
                 PageNo = request.PageNo,
@@ -198,7 +195,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             AnnotationId = a.AnnotationId,
             ManuscriptId = a.ManuscriptId,
             PageTaskSubmissionId = a.PageTaskSubmissionId,
-            ChapterId = a.Manuscript?.ChapterId ?? Guid.Empty,
+            ChapterId = a.Manuscript?.ChapterId,
             AuthorId = a.AuthorId,
             AuthorName = a.Author?.DisplayName ?? "",
             AuthorRole = a.Author?.Role?.RoleName ?? "",

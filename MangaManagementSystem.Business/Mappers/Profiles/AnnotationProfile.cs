@@ -12,7 +12,7 @@ namespace MangaManagementSystem.Business.Mappers.Profiles
                 .ForMember(dest => dest.AuthorName,
                     opt => opt.MapFrom(src => src.Author.DisplayName))
                 .ForMember(dest => dest.ChapterId,
-                    opt => opt.MapFrom(src => src.Manuscript.ChapterId));
+                    opt => opt.MapFrom(src => src.Manuscript == null ? null : (Guid?)src.Manuscript.ChapterId));
         }
     }
 }

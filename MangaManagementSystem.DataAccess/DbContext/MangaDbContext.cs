@@ -628,6 +628,7 @@ public class MangaDbContext : DbContext
             entity.HasOne(x => x.Manuscript)
                 .WithMany(x => x.Annotations)
                 .HasForeignKey(x => x.ManuscriptId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(x => x.PageTaskSubmission)
