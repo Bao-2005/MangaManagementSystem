@@ -209,11 +209,10 @@ POST /api/page-tasks
 
 ```json
 {
-  "data": {
-    "pageTaskId": "33333333-3333-3333-3333-333333333333",
-    "chapterId": "11111111-1111-1111-1111-111111111111",
-    "manuscriptId": "44444444-4444-4444-4444-444444444444",
-    "assistantId": "22222222-2222-2222-2222-222222222222",
+    "data": {
+      "pageTaskId": "33333333-3333-3333-3333-333333333333",
+      "chapterId": "11111111-1111-1111-1111-111111111111",
+      "assistantId": "22222222-2222-2222-2222-222222222222",
     "assistantName": "Assistant Name",
     "pageStart": 1,
     "pageEnd": 5,
@@ -342,7 +341,6 @@ GET /api/page-tasks/mangaka
     {
       "pageTaskId": "33333333-3333-3333-3333-333333333333",
       "chapterId": "11111111-1111-1111-1111-111111111111",
-      "manuscriptId": "44444444-4444-4444-4444-444444444444",
       "assistantId": "22222222-2222-2222-2222-222222222222",
       "assistantName": "Assistant Name",
       "pageStart": 1,
@@ -731,7 +729,6 @@ Sau đó Assistant có thể upload file mới và gọi lại API submit. Submi
 |---|---|---|---|
 | `pageTaskId` | UUID | Không | ID của task |
 | `chapterId` | UUID | Không | Chapter chứa task |
-| `manuscriptId` | UUID | Không | Manuscript được dùng khi tạo task |
 | `assistantId` | UUID | Không | Assistant được giao |
 | `assistantName` | string | Có | Tên hiển thị của Assistant |
 | `pageStart` | integer | Không | Trang bắt đầu |

@@ -12,7 +12,6 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Tasks;
     {
         public Guid PageTaskId { get; set; }
         public Guid ChapterId { get; set; }
-        public Guid? ManuscriptId { get; set; }
         public Guid AssistantId { get; set; }
         public string? AssistantName { get; set; }
         public int PageStart { get; set; }
