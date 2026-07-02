@@ -792,17 +792,110 @@ Chưa được mô tả.
 
 Chưa được mô tả.
 
-## 9. File APIs
+## 9. Salary Record APIs
+
+### 9.1. Mục đích
+
+Nhóm API này cho phép xem lịch sử lương của Assistant dựa trên các page task đã
+được Mangaka approve. Mỗi `SalaryRecord` là một snapshot tại thời điểm approve,
+vì vậy `rateAtApproval` và `amount` không thay đổi nếu `PageTask.ratePerPage`
+được sửa sau này.
+
+Salary record được tạo tự động khi Mangaka approve một submission:
+
+```text
+pages = pageEnd - pageStart + 1
+rateAtApproval = PageTask.ratePerPage ?? 0
+amount = pages * rateAtApproval
+approvedAt = thời điểm approve task
+```
+
+Mỗi page task chỉ có tối đa một salary record.
+
+### 9.2. Lấy lịch sử lương
+
+Trả về danh sách salary records theo quyền của user đang đăng nhập.
+
+**Endpoint**
+
+```http
+GET /api/salary-records?assistantId={assistantId}
+```
+
+**Authorization:** bất kỳ user đã đăng nhập.
+
+**Query parameters**
+
+| Name | Type | Required | Mô tả |
+|---|---|---|---|
+| `assistantId` | UUID | Không | Lọc theo Assistant. Assistant chỉ được truyền chính ID của mình. |
+
+**Access rules**
+
+- `Admin` xem được tất cả salary records, có thể lọc theo `assistantId`.
+- `Mangaka` chỉ xem được salary records của các page task thuộc series của chính mình, có thể lọc theo `assistantId`.
+- `Assistant` chỉ xem được salary records của chính mình.
+- Các role khác không được xem salary records.
+
+**Success response: `200 OK`**
+
+```json
+{
+  "data": [
+    {
+      "salaryRecordId": "77777777-7777-7777-7777-777777777777",
+      "assistantId": "22222222-2222-2222-2222-222222222222",
+      "assistantName": "Assistant Name",
+      "pageTaskId": "33333333-3333-3333-3333-333333333333",
+      "taskType": "Line Art",
+      "pageStart": 1,
+      "pageEnd": 5,
+      "pages": 5,
+      "rateAtApproval": 50000,
+      "amount": 250000,
+      "approvedAt": "2026-06-14T08:00:00Z",
+      "createdAt": "2026-06-14T08:00:00Z"
+    }
+  ],
+  "message": "Success"
+}
+```
+
+**Error cases**
+
+| Status | Trường hợp |
+|---|---|
+| `401` | Thiếu token, token không hợp lệ hoặc thiếu thông tin user/role |
+| `403` | User không có quyền xem salary records được yêu cầu |
+
+### 9.3. SalaryRecordResponse
+
+| Field | Type | Nullable | Mô tả |
+|---|---|---|---|
+| `salaryRecordId` | UUID | Không | ID của salary record |
+| `assistantId` | UUID | Không | Assistant được trả lương |
+| `assistantName` | string | Có | Tên hiển thị của Assistant |
+| `pageTaskId` | UUID | Không | Page task phát sinh lương |
+| `taskType` | string | Có | Loại công việc của task tại thời điểm query |
+| `pageStart` | integer | Không | Trang bắt đầu của task |
+| `pageEnd` | integer | Không | Trang kết thúc của task |
+| `pages` | integer | Không | Số trang dùng để tính lương |
+| `rateAtApproval` | decimal | Không | Đơn giá/trang được snapshot tại thời điểm approve |
+| `amount` | decimal | Không | Tổng tiền được snapshot tại thời điểm approve |
+| `approvedAt` | datetime | Không | Thời điểm task được approve |
+| `createdAt` | datetime | Không | Thời điểm salary record được tạo |
+
+## 10. File APIs
 
 Hiện tại API upload dùng trong Page Task workflow được mô tả tại
 [`POST /api/files`](#68-upload-file-sản-phẩm). Các File API khác sẽ được bổ sung
 sau.
 
-## 10. Common Data Models
+## 11. Common Data Models
 
 Sẽ được bổ sung khi tài liệu hóa các nhóm API tiếp theo.
 
-## 11. Deprecated APIs
+## 12. Deprecated APIs
 
 Danh sách endpoint cũ hoặc không còn được khuyến nghị sử dụng sẽ được tập hợp tại
 đây. Hiện tại xem thêm
