@@ -141,8 +141,6 @@ Submission: Approved      Submission: Rejected
 
 - Mangaka chỉ được tạo task cho chapter thuộc series của chính mình.
 - Chapter phải tồn tại và chưa bị xóa.
-- Chapter phải có ít nhất một manuscript; task tự động dùng manuscript version
-  mới nhất.
 - `pageStart` phải nhỏ hơn hoặc bằng `pageEnd`.
 - `pageEnd` không được vượt quá tổng số trang của chapter.
 - Người được giao task phải có role `Assistant`.
@@ -151,8 +149,10 @@ Submission: Approved      Submission: Rejected
 - Mỗi task chỉ được có một submission ở trạng thái `Submitted` tại một thời điểm.
 - Mangaka chỉ được review submission thuộc series của chính mình.
 - Chỉ submission ở trạng thái `Submitted` mới được approve hoặc reject.
-- Reject bắt buộc phải có `rejectReason`.
+- Reject bắt buộc phải có `feedback`.
 - Mỗi lần submit lại, `versionNo` tự động tăng thêm một.
+- Mỗi task có tối đa 3 lượt nộp active chưa approved; khi hết lượt, Assistant
+  không thể submit thêm.
 
 ### 6.4. API summary
 
@@ -162,10 +162,11 @@ Submission: Approved      Submission: Rejected
 | 2 | `GET` | `/api/page-tasks/mangaka` | Mangaka | Xem task thuộc các series của Mangaka |
 | 3 | `GET` | `/api/page-tasks/assistant` | Assistant | Xem task được giao cho Assistant |
 | 4 | `PUT` | `/api/page-tasks/{pageTaskId}` | Mangaka | Update task details or reassign task to another Assistant |
-| 5 | `POST` | `/api/files` | Authenticated | Upload file sản phẩm |
-| 6 | `POST` | `/api/page-tasks/{pageTaskId}/submissions` | Assistant | Submit kết quả làm việc |
-| 7 | `POST` | `/api/page-tasks/submissions/{submissionId}/approve` | Mangaka | Approve submission |
-| 8 | `POST` | `/api/page-tasks/submissions/{submissionId}/reject` | Mangaka | Reject submission |
+| 5 | `POST` | `/api/page-tasks/{pageTaskId}/reference-files` | Mangaka | Attach thêm file tham khảo cho page task |
+| 6 | `POST` | `/api/files` | Authenticated | Upload file sản phẩm |
+| 7 | `POST` | `/api/page-tasks/{pageTaskId}/submissions` | Assistant | Submit kết quả làm việc |
+| 8 | `POST` | `/api/page-tasks/submissions/{submissionId}/approve` | Mangaka | Approve submission |
+| 9 | `POST` | `/api/page-tasks/submissions/{submissionId}/reject` | Mangaka | Reject submission |
 
 ### 6.5. Tạo và giao page task
 
@@ -189,6 +190,9 @@ POST /api/page-tasks
   "pageEnd": 5,
   "taskType": "Line Art",
   "ratePerPage": 50000,
+  "referenceFileAssetIds": [
+    "66666666-6666-6666-6666-666666666666"
+  ],
   "description": "Hoàn thiện line art cho trang 1 đến trang 5.",
   "dueDate": "2026-06-20T10:00:00Z"
 }
@@ -200,8 +204,9 @@ POST /api/page-tasks
 | `assistantId` | UUID | Có | User phải có role `Assistant` |
 | `pageStart` | integer | Có | Lớn hơn hoặc bằng `1` |
 | `pageEnd` | integer | Có | Lớn hơn hoặc bằng `pageStart`, không vượt tổng số trang |
-| `taskType` | string | Có | Tối đa 50 ký tự |
+| `taskType` | string | Không | Tối đa 50 ký tự |
 | `ratePerPage` | decimal | Không | Đơn giá trên mỗi trang, cho phép `null` hoặc `0`, không được âm |
+| `referenceFileAssetIds` | UUID array | Không | Danh sách file tham khảo đã upload |
 | `description` | string | Không | Tối đa 1000 ký tự |
 | `dueDate` | datetime | Không | ISO 8601 |
 
@@ -224,7 +229,20 @@ POST /api/page-tasks
     "createdAt": "2026-06-12T08:00:00Z",
     "approvedAt": null,
     "updatedAt": null,
-    "submissions": []
+    "submissions": [],
+    "referenceFiles": [
+      {
+        "fileAssetId": "66666666-6666-6666-6666-666666666666",
+        "bucketName": "manga-files",
+        "objectPath": "task-references/storyboard.png",
+        "originalFileName": "storyboard.png",
+        "storedFileName": "storyboard.png",
+        "extension": ".png",
+        "fileSizeBytes": 204800,
+        "mimeType": "image/png",
+        "publicUrl": "https://<storage-host>/task-references/storyboard.png"
+      }
+    ]
   },
   "message": "Task assigned successfully."
 }
@@ -239,7 +257,7 @@ POST /api/page-tasks
 | `400` | Page range không hợp lệ, vượt tổng số trang hoặc user không phải Assistant |
 | `401` | Thiếu thông tin user hoặc chapter không thuộc Mangaka |
 | `403` | User không có role Mangaka |
-| `404` | Không tìm thấy chapter, manuscript hoặc Assistant |
+| `404` | Không tìm thấy chapter, Assistant hoặc file tham khảo |
 
 ### 6.5.1. Update or reassign page task
 
@@ -319,6 +337,46 @@ usually empty because old submissions are no longer active.
 | `404` | Page task or Assistant not found |
 | `409` | Task is Approved, details are changed after submissions exist, page range overlaps, or a submission is waiting for review |
 
+### 6.5.2. Attach reference files to page task
+
+Attach thêm file tham khảo đã upload vào một page task thuộc series của Mangaka
+đang đăng nhập. Các file đã attach trước đó sẽ được bỏ qua, không tạo duplicate.
+
+**Endpoint**
+
+```http
+POST /api/page-tasks/{pageTaskId}/reference-files
+```
+
+**Authorization:** `Mangaka`
+
+**Request body**
+
+```json
+{
+  "fileAssetIds": [
+    "66666666-6666-6666-6666-666666666666"
+  ]
+}
+```
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `fileAssetIds` | UUID array | Có | Phải có ít nhất một file asset tồn tại và chưa bị xóa |
+
+**Success response: `200 OK`**
+
+Returns the updated `PageTaskResponse`, including the current `referenceFiles`.
+
+**Error cases**
+
+| Status | Case |
+|---|---|
+| `400` | `fileAssetIds` rỗng |
+| `401` | Task không thuộc Mangaka đang đăng nhập |
+| `403` | User không có role Mangaka |
+| `404` | Page task hoặc file asset không tồn tại |
+
 ### 6.6. Lấy danh sách task của Mangaka
 
 Trả về các page task thuộc chapter trong series của Mangaka đang đăng nhập.
@@ -363,7 +421,7 @@ GET /api/page-tasks/mangaka
           "objectPath": "task-submissions/example.zip",
           "status": 0,
           "note": "Đã hoàn thành.",
-          "rejectReason": null,
+          "feedback": null,
           "submittedAt": "2026-06-13T08:00:00Z",
           "reviewedAt": null
         }
@@ -539,9 +597,10 @@ Response trả về toàn bộ `PageTaskResponse`, bao gồm submission vừa t�
         "pageTaskId": "33333333-3333-3333-3333-333333333333",
         "versionNo": 1,
         "submittedFileAssetId": "66666666-6666-6666-6666-666666666666",
+        "submittedFileAssetUrl": "https://<storage-host>/task-submissions/example.zip",
         "status": 0,
         "note": "Đã hoàn thành line art trang 1 đến trang 5.",
-        "rejectReason": null,
+        "feedback": null,
         "submittedAt": "2026-06-13T08:00:00Z",
         "reviewedAt": null
       }
@@ -568,7 +627,7 @@ Submission: tạo mới với Submitted
 | `401` | Assistant không phải người được giao task |
 | `403` | User không có role Assistant |
 | `404` | Không tìm thấy task hoặc file asset |
-| `409` | Task đã Approved hoặc đã có submission chờ review |
+| `409` | Task đã Approved, đã có submission chờ review hoặc đã hết 3 lượt nộp active |
 
 ### 6.10. Mangaka approve submission
 
@@ -602,7 +661,7 @@ POST /api/page-tasks/submissions/{submissionId}/approve
       {
         "submissionId": "55555555-5555-5555-5555-555555555555",
         "status": 1,
-        "rejectReason": null,
+        "feedback": null,
         "reviewedAt": "2026-06-14T08:00:00Z"
       }
     ]
@@ -652,13 +711,13 @@ POST /api/page-tasks/submissions/{submissionId}/reject
 
 ```json
 {
-  "rejectReason": "Line art ở trang 3 chưa đúng với storyboard."
+  "feedback": "Line art ở trang 3 chưa đúng với storyboard."
 }
 ```
 
 | Field | Type | Required | Validation |
 |---|---|---|---|
-| `rejectReason` | string | Có | Không được rỗng, tối đa 1000 ký tự |
+| `feedback` | string | Có | Không được rỗng, tối đa 1000 ký tự |
 
 **Success response: `200 OK`**
 
@@ -672,7 +731,7 @@ POST /api/page-tasks/submissions/{submissionId}/reject
       {
         "submissionId": "55555555-5555-5555-5555-555555555555",
         "status": 2,
-        "rejectReason": "Line art ở trang 3 chưa đúng với storyboard.",
+        "feedback": "Line art ở trang 3 chưa đúng với storyboard.",
         "reviewedAt": "2026-06-14T08:00:00Z"
       }
     ]
@@ -698,7 +757,7 @@ Sau đó Assistant có thể upload file mới và gọi lại API submit. Submi
 
 | Status | Trường hợp |
 |---|---|
-| `400` | `rejectReason` rỗng hoặc dài quá 1000 ký tự |
+| `400` | `feedback` rỗng hoặc dài quá 1000 ký tự |
 | `401` | Submission không thuộc series của Mangaka |
 | `403` | User không có role Mangaka |
 | `404` | Không tìm thấy task hoặc submission |
@@ -733,7 +792,7 @@ Sau đó Assistant có thể upload file mới và gọi lại API submit. Submi
 | `assistantName` | string | Có | Tên hiển thị của Assistant |
 | `pageStart` | integer | Không | Trang bắt đầu |
 | `pageEnd` | integer | Không | Trang kết thúc |
-| `taskType` | string | Không | Loại công việc |
+| `taskType` | string | Có | Loại công việc |
 | `ratePerPage` | decimal | Có | Đơn giá trên mỗi trang của task; `null` hoặc `0` đều hợp lệ |
 | `description` | string | Có | Mô tả công việc |
 | `dueDate` | datetime | Có | Hạn hoàn thành |
@@ -742,6 +801,7 @@ Sau đó Assistant có thể upload file mới và gọi lại API submit. Submi
 | `approvedAt` | datetime | Có | Thời điểm approve |
 | `updatedAt` | datetime | Có | Thời điểm cập nhật gần nhất |
 | `submissions` | array | Không | Danh sách submission theo version mới nhất |
+| `referenceFiles` | array | Không | Danh sách file tham khảo đã attach vào task |
 
 #### PageTaskSubmissionResponse
 
@@ -751,11 +811,12 @@ Sau đó Assistant có thể upload file mới và gọi lại API submit. Submi
 | `pageTaskId` | UUID | Không | Task chứa submission |
 | `versionNo` | integer | Không | Số phiên bản, bắt đầu từ 1 |
 | `submittedFileAssetId` | UUID | Không | ID file đã upload |
+| `submittedFileAssetUrl` | string | Có | URL public của file đã submit nếu storage URL được cấu hình |
 | `originalFileName` | string | Có | Tên file gốc |
 | `objectPath` | string | Có | Đường dẫn object trong storage |
 | `status` | integer | Không | `PageTaskSubmissionStatus` |
 | `note` | string | Có | Ghi chú của Assistant |
-| `rejectReason` | string | Có | Lý do reject của Mangaka |
+| `feedback` | string | Có | Feedback review của Mangaka |
 | `submittedAt` | datetime | Có | Thời điểm submit |
 | `reviewedAt` | datetime | Có | Thời điểm review |
 
@@ -781,9 +842,102 @@ Lý do:
 Những endpoint này cần được deprecated hoặc loại bỏ sau khi xác nhận không còn
 consumer phụ thuộc.
 
-## 7. Review and Board Decision APIs
+## 7. Annotation APIs
 
-Chưa được mô tả.
+### 7.1. Mục đích
+
+Annotation có thể thuộc một trong hai loại owner:
+
+- Manuscript annotation: `manuscriptId` có giá trị, `pageTaskSubmissionId` là `null`.
+- Submission annotation: `pageTaskSubmissionId` có giá trị, `manuscriptId` là `null`.
+
+Hai owner này loại trừ nhau. Service và database đều enforce rule chỉ được có
+đúng một owner.
+
+### 7.2. AnnotationResponse
+
+| Field | Type | Nullable | Mô tả |
+|---|---|---|---|
+| `annotationId` | UUID | Không | ID của annotation |
+| `manuscriptId` | UUID | Có | Có giá trị với manuscript annotation |
+| `pageTaskSubmissionId` | UUID | Có | Có giá trị với submission annotation |
+| `chapterId` | UUID | Có | Chapter của manuscript annotation; submission annotation hiện trả `null` |
+| `authorId` | UUID | Không | User tạo annotation |
+| `authorName` | string | Không | Tên hiển thị của user tạo |
+| `authorRole` | string | Không | Role của user tạo |
+| `pageNo` | integer | Không | Số trang được annotate |
+| `positionX` | decimal | Không | Tọa độ X theo tỷ lệ `0..1` |
+| `positionY` | decimal | Không | Tọa độ Y theo tỷ lệ `0..1` |
+| `content` | string | Không | Nội dung annotation |
+| `createdAt` | datetime | Không | Thời điểm tạo |
+
+### 7.3. Manuscript annotations
+
+| Method | Endpoint | Authorization | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/manuscripts/{manuscriptId}/annotations?pageNo={pageNo}` | Authenticated | Lấy annotation của manuscript |
+| `GET` | `/api/manuscripts/{manuscriptId}/annotations/{id}` | Authenticated | Lấy một annotation |
+| `POST` | `/api/manuscripts/{manuscriptId}/annotations` | Authenticated | Tạo annotation cho manuscript |
+| `PUT` | `/api/manuscripts/{manuscriptId}/annotations/{id}` | TantouEditor | Cập nhật content annotation của chính user |
+| `DELETE` | `/api/manuscripts/{manuscriptId}/annotations/{id}/soft-delete` | Authenticated | Soft-delete annotation |
+
+**Create request body**
+
+```json
+{
+  "pageNo": 3,
+  "positionX": 0.42,
+  "positionY": 0.58,
+  "content": "Cần chỉnh lại khung thoại."
+}
+```
+
+**Access rules**
+
+- Mangaka được annotate manuscript thuộc series của chính mình.
+- Tantou Editor được annotate manuscript của Mangaka mà mình đang được assign.
+- `pageNo` phải nằm trong tổng số trang của chapter.
+- Khi tạo manuscript annotation, response có `manuscriptId` và
+  `pageTaskSubmissionId: null`.
+
+### 7.4. Submission annotations
+
+| Method | Endpoint | Authorization | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/submissions/{submissionId}/annotations` | Authenticated | Lấy annotation của submission |
+| `POST` | `/api/submissions/{submissionId}/annotations` | Authenticated | Tạo annotation cho submission |
+| `PUT` | `/api/submissions/{submissionId}/annotations/{id}` | Authenticated | Cập nhật annotation của chính user |
+| `DELETE` | `/api/submissions/{submissionId}/annotations/{id}/soft-delete` | Authenticated | Soft-delete annotation của chính user |
+
+**Create request body**
+
+```json
+{
+  "pageNo": 3,
+  "positionX": 0.42,
+  "positionY": 0.58,
+  "content": "Line art trang này cần clean lại."
+}
+```
+
+**Update request body**
+
+```json
+{
+  "content": "Line art trang này cần clean lại phần tóc."
+}
+```
+
+**Access rules**
+
+- Assistant chỉ được annotate submission của task được giao cho chính mình.
+- Mangaka chỉ được annotate submission thuộc chapter/series của chính mình.
+- Các role khác không được annotate submission.
+- Update/delete submission annotation chỉ áp dụng cho annotation do chính user
+  hiện tại tạo.
+- `pageNo` phải nằm trong page range của task.
+- Khi tạo submission annotation, response có `pageTaskSubmissionId` và
+  `manuscriptId: null`.
 
 ## 8. Notification APIs
 
