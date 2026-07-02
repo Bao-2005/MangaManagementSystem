@@ -95,6 +95,7 @@ public class PageTaskService : IPageTaskService
             PageStart = request.PageStart,
             PageEnd = request.PageEnd,
             TaskType = string.IsNullOrWhiteSpace(request.TaskType) ? null : request.TaskType.Trim(),
+            RatePerPage = request.RatePerPage,
             Description = request.Description?.Trim(),
             DueDate = request.DueDate,
             Status = PageTaskStatus.Assigned,
@@ -159,6 +160,7 @@ public class PageTaskService : IPageTaskService
         var assistantChanged = request.AssistantId.HasValue && request.AssistantId.Value != task.AssistantId;
         var taskContentChanged = request.PageStart.HasValue
             || request.PageEnd.HasValue
+            || request.RatePerPage.HasValue
             || request.Description != null
             || request.DueDate.HasValue;
 
@@ -229,6 +231,9 @@ public class PageTaskService : IPageTaskService
 
         if (request.Description != null)
             task.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+
+        if (request.RatePerPage.HasValue)
+            task.RatePerPage = request.RatePerPage;
 
         if (request.DueDate.HasValue)
             task.DueDate = request.DueDate;

@@ -19,6 +19,9 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Tasks
         [MaxLength(50)]
         public string? TaskType { get; set; }
 
+        [Range(0, double.MaxValue)]
+        public decimal? RatePerPage { get; set; }
+
         [MaxLength(1000)]
         public string? Description { get; set; }
 
