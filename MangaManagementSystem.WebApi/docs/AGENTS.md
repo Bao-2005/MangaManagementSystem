@@ -57,7 +57,7 @@ The DataAccess layer currently models a manga production workflow:
 - Users and roles: `User`, `Role`.
 - Manga structure: `Series`, `Chapter`, `ChapterPage`.
 - Production artifacts: `Manuscript`, `FileAsset`.
-- Work assignment: `PageTask`, `PageTaskSubmission`.
+- Work assignment: `PageTask`, `PageTaskSubmission`; `PageTask` belongs to `Chapter` only and must not reference `Manuscript`.
 - Review feedback: `Annotation`.
 - Proposal workflow: `Series` uses `SeriesStatus` for proposal and active lifecycle states; `ProposalPage`, `BoardDecision`, and `BoardVote` support proposal review and editorial board voting.
 - Notifications: `Notification` and `UserNotification` store persisted workflow notifications. Use `INotificationDispatchService` for reusable user or role notification dispatch.

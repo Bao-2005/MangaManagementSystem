@@ -21,6 +21,9 @@ This plan covers the remaining **16 entities** grouped into **10 feature domains
 > **ChapterPage belongs to Chapter only**: `ChapterPage` should have **no relationship with `Manuscript`**. The current entity and DbContext incorrectly include a `ManuscriptId` FK. This will be corrected as part of this plan (entity fix + EF migration).
 
 > [!NOTE]
+> **PageTask belongs to Chapter only**: `PageTask` should have **no relationship with `Manuscript`**. Page tasks are page-level work assignments inside a chapter; manuscripts are later chapter submissions/versioned artifacts created after required tasks are approved. Do not add `ManuscriptId` to `PageTask` request/response DTOs or database schema.
+
+> [!NOTE]
 > **Annotation belongs to Manuscript**: `Annotation` links to a `Manuscript` via `ManuscriptId` + `PageNo`. This means an editor can annotate a specific page of a specific manuscript submission. The chapter context is derived via `Manuscript → Chapter`. No schema change needed here — the existing model is correct.
 
 > [!NOTE]
@@ -243,12 +246,12 @@ SoftDeleteAsync(id)
 
 ### Domain 6 — PageTask & PageTaskSubmission
 
-PageTasks belong to a Chapter + Manuscript. Submissions belong to a PageTask; each submission has a `SubmittedFileAsset`.
+PageTasks belong to a Chapter only. Submissions belong to a PageTask; each submission has a `SubmittedFileAsset`.
 
 #### [NEW] DTOs (PageTask)
-- `CreatePageTaskRequest` (ChapterId, ManuscriptId, AssistantId, PageStart, PageEnd, TaskType, Description?, DueDate?)
+- `CreatePageTaskRequest` (ChapterId, AssistantId, PageStart, PageEnd, TaskType, Description?, DueDate?)
 - `UpdatePageTaskRequest` (Status?, Description?, DueDate?)
-- `PageTaskResponse` (PageTaskId, ChapterId, ManuscriptId, AssistantId, AssistantName, PageStart, PageEnd, TaskType, Description, DueDate, Status, CreatedAt, ApprovedAt?)
+- `PageTaskResponse` (PageTaskId, ChapterId, AssistantId, AssistantName, PageStart, PageEnd, TaskType, Description, DueDate, Status, CreatedAt, ApprovedAt?)
 
 #### [NEW] DTOs (PageTaskSubmission)
 - `CreateSubmissionRequest` (PageTaskId, VersionNo, SubmittedFileAssetId, Note?)
@@ -258,7 +261,6 @@ PageTasks belong to a Chapter + Manuscript. Submissions belong to a PageTask; ea
 #### [NEW] `IPageTaskService.cs`
 ```
 GetByChapterAsync(chapterId) → IEnumerable<PageTaskResponse>
-GetByManuscriptAsync(manuscriptId) → IEnumerable<PageTaskResponse>
 GetByAssistantAsync(assistantId) → IEnumerable<PageTaskResponse>
 GetByIdAsync(id) → PageTaskResponse
 CreateAsync(req) → PageTaskResponse
@@ -279,7 +281,6 @@ SoftDeleteAsync(id)
 | Method | Route | Policy |
 |--------|-------|--------|
 | GET | `/api/chapters/{chapterId}/tasks` | `MangakaOnly` or `TantouEditorOnly` |
-| GET | `/api/manuscripts/{manuscriptId}/tasks` | `MangakaOnly` |
 | GET | `/api/tasks/my` | `AssistantOnly` |
 | GET | `/api/tasks/{id}` | Any authenticated |
 | POST | `/api/tasks` | `MangakaOnly` |
@@ -528,7 +529,7 @@ Register all 14+ new `IXxxService → XxxService` pairs.
 4. Chapter (depends on Series)
 5. Manuscript (depends on Chapter)
 6. ChapterPage (depends on Chapter only, after schema fix)
-7. PageTask + PageTaskSubmission (depends on Chapter, Manuscript)
+7. PageTask + PageTaskSubmission (depends on Chapter)
 8. Annotation (depends on Manuscript)
 9. BoardDecision + BoardVote (depends on Series)
 10. VoteRecord + RankingSnapshot (depends on Series)
