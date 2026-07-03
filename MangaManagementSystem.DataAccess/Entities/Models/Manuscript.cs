@@ -27,6 +27,5 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public Chapter Chapter { get; set; } = null!;
         public User? Reviewer { get; set; }
         public ICollection<Annotation> Annotations { get; set; } = new List<Annotation>();
-        public ICollection<PageTask> PageTasks { get; set; } = new List<PageTask>();
     }
 }
