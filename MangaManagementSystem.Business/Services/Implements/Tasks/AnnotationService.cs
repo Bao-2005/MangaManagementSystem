@@ -31,10 +31,15 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             _assignmentRepo = assignmentRepo;
         }
 
-        public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId, int? pageNo = null)
+        public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(
+            Guid manuscriptId,
+            Guid userId,
+            int? pageNo = null)
         {
             if (pageNo <= 0)
                 throw new ArgumentException("Page number must be greater than 0.");
+
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
 
             return await _repo.GetAll()
                 .Include(a => a.Author)
@@ -44,6 +49,25 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                     && a.DeletedAt == null
                     && (!pageNo.HasValue || a.PageNo == pageNo.Value))
                 .Select(a => Map(a)).ToListAsync();
+        }
+
+        public async Task<AnnotationResponse> GetByManuscriptAnnotationIdAsync(
+            Guid manuscriptId,
+            Guid id,
+            Guid userId)
+        {
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
+
+            var annotation = await _repo.GetAll()
+                .Include(a => a.Author)
+                    .ThenInclude(u => u.Role)
+                .Include(a => a.Manuscript)
+                .FirstOrDefaultAsync(a => a.AnnotationId == id
+                    && a.ManuscriptId == manuscriptId
+                    && a.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Annotation not found.");
+
+            return Map(annotation);
         }
 
         public async Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(
@@ -156,6 +180,28 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             return await GetByIdAsync(id);
         }
 
+        public async Task<AnnotationResponse> UpdateForManuscriptAsync(
+            Guid manuscriptId,
+            Guid id,
+            Guid userId,
+            UpdateAnnotationRequest request)
+        {
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
+
+            var annotation = await _repo.GetAll()
+                    .FirstOrDefaultAsync(x => x.AnnotationId == id
+                        && x.ManuscriptId == manuscriptId
+                        && x.AuthorId == userId
+                        && x.DeletedAt == null)
+                    ?? throw new KeyNotFoundException("Annotation not found or access denied.");
+
+            ValidateAnnotationPayload(annotation.PageNo, annotation.PositionX, annotation.PositionY, request.Content);
+            annotation.Content = request.Content.Trim();
+            _repo.Update(annotation);
+            await _repo.SaveChangeAsync();
+            return await GetByManuscriptAnnotationIdAsync(manuscriptId, id, userId);
+        }
+
         public async Task<AnnotationResponse> UpdateForSubmissionAsync(
             Guid submissionId,
             Guid id,
@@ -195,6 +241,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                     ?? throw new KeyNotFoundException("Annotation not found or access denied.");
             a.DeletedAt = DateTime.UtcNow;
             _repo.Update(a);
+            await _repo.SaveChangeAsync();
+        }
+
+        public async Task SoftDeleteForManuscriptAsync(Guid manuscriptId, Guid id, Guid userId)
+        {
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
+
+            var annotation = await _repo.GetAll()
+                    .FirstOrDefaultAsync(x => x.AnnotationId == id
+                        && x.ManuscriptId == manuscriptId
+                        && x.AuthorId == userId
+                        && x.DeletedAt == null)
+                    ?? throw new KeyNotFoundException("Annotation not found or access denied.");
+
+            annotation.DeletedAt = DateTime.UtcNow;
+            _repo.Update(annotation);
             await _repo.SaveChangeAsync();
         }
 

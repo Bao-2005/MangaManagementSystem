@@ -21,13 +21,19 @@ namespace MangaManagementSystem.API.Controllers
         [Authorize]
         [SwaggerOperation(Summary = "Get all annotations for a manuscript")]
         public async Task<IActionResult> GetByManuscript(Guid manuscriptId, [FromQuery] int? pageNo)
-            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId, pageNo), Message = "Success" });
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId, userId, pageNo), Message = "Success" });
+        }
 
         [HttpGet("{id:guid}")]
         [Authorize]
         [SwaggerOperation(Summary = "Get annotation by ID")]
         public async Task<IActionResult> GetById(Guid manuscriptId, Guid id)
-            => Ok(new BaseResponse { Data = await _service.GetByIdAsync(id), Message = "Success" });
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetByManuscriptAnnotationIdAsync(manuscriptId, id, userId), Message = "Success" });
+        }
 
         [HttpPost]
         [Authorize]
@@ -105,7 +111,7 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> Update(Guid manuscriptId, Guid id, [FromBody] UpdateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _service.UpdateAsync(id, userId, request), Message = "Updated." });
+            return Ok(new BaseResponse { Data = await _service.UpdateForManuscriptAsync(manuscriptId, id, userId, request), Message = "Updated." });
         }
 
         [HttpDelete("{id:guid}/soft-delete")]
@@ -113,7 +119,8 @@ namespace MangaManagementSystem.API.Controllers
         [SwaggerOperation(Summary = "Soft-delete an annotation")]
         public async Task<IActionResult> SoftDelete(Guid manuscriptId, Guid id)
         {
-            await _service.SoftDeleteAsync(id);
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            await _service.SoftDeleteForManuscriptAsync(manuscriptId, id, userId);
             return Ok(new BaseResponse { Message = "Deleted." });
         }
 

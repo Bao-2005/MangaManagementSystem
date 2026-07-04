@@ -894,8 +894,14 @@ Hai owner này loại trừ nhau. Service và database đều enforce rule chỉ
 
 **Access rules**
 
-- Mangaka được annotate manuscript thuộc series của chính mình.
-- Tantou Editor được annotate manuscript của Mangaka mà mình đang được assign.
+- Mangaka chỉ được xem/tạo annotation của manuscript thuộc series của chính mình.
+- Tantou Editor chỉ được xem/tạo annotation của manuscript thuộc Mangaka mà mình đang được assign.
+- Với `GET /api/manuscripts/{manuscriptId}/annotations/{id}`, annotation phải thuộc đúng
+  `manuscriptId` trong path; nếu không, API trả về `404`.
+- Update manuscript annotation hiện chỉ cho role `TantouEditor`, đồng thời annotation phải
+  thuộc đúng `manuscriptId` trong path và do chính user hiện tại tạo.
+- Delete manuscript annotation yêu cầu user có quyền với manuscript, annotation phải thuộc đúng
+  `manuscriptId` trong path và do chính user hiện tại tạo.
 - `pageNo` phải nằm trong tổng số trang của chapter.
 - Khi tạo manuscript annotation, response có `manuscriptId` và
   `pageTaskSubmissionId: null`.

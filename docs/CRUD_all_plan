@@ -309,21 +309,26 @@ Annotations belong to a **Manuscript** (linked via `ManuscriptId` + `PageNo`). T
 
 #### [NEW] `IAnnotationService.cs`
 ```
-GetByManuscriptAsync(manuscriptId) → IEnumerable<AnnotationResponse>
-GetByIdAsync(id) → AnnotationResponse
+GetByManuscriptAsync(manuscriptId, userId) → IEnumerable<AnnotationResponse>
+GetByManuscriptAnnotationIdAsync(manuscriptId, id, userId) → AnnotationResponse
 CreateAsync(authorId, req) → AnnotationResponse
-UpdateAsync(id, authorId, req) → AnnotationResponse
+UpdateForManuscriptAsync(manuscriptId, id, userId, req) → AnnotationResponse
+SoftDeleteForManuscriptAsync(manuscriptId, id, userId)
 SoftDeleteAsync(id)
 ```
 
 #### [NEW] `AnnotationController.cs`
 | Method | Route | Policy |
 |--------|-------|--------|
-| GET | `/api/manuscripts/{manuscriptId}/annotations` | `TantouEditorOnly` or `MangakaOnly` |
-| GET | `/api/annotations/{id}` | Any authenticated |
-| POST | `/api/manuscripts/{manuscriptId}/annotations` | `TantouEditorOnly` |
-| PUT | `/api/annotations/{id}` | `TantouEditorOnly` |
-| DELETE | `/api/annotations/{id}/soft-delete` | `TantouEditorOnly` or `AdminOnly` |
+| GET | `/api/manuscripts/{manuscriptId}/annotations` | Authenticated + object-level check |
+| GET | `/api/manuscripts/{manuscriptId}/annotations/{id}` | Authenticated + object-level check |
+| POST | `/api/manuscripts/{manuscriptId}/annotations` | Authenticated + object-level check |
+| PUT | `/api/manuscripts/{manuscriptId}/annotations/{id}` | `TantouEditorOnly`, annotation author only |
+| DELETE | `/api/manuscripts/{manuscriptId}/annotations/{id}/soft-delete` | Authenticated, annotation author only |
+
+Manuscript annotation detail/update/delete must validate both `manuscriptId` from the
+path and `annotationId`; an annotation from another manuscript or a submission annotation
+must not be returned or modified through manuscript annotation routes.
 
 Submission annotation routes are separate from manuscript annotation routes:
 
