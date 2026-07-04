@@ -905,6 +905,7 @@ Hai owner này loại trừ nhau. Service và database đều enforce rule chỉ
 | Method | Endpoint | Authorization | Mô tả |
 |---|---|---|---|
 | `GET` | `/api/submissions/{submissionId}/annotations` | Authenticated | Lấy annotation của submission |
+| `GET` | `/api/submissions/{submissionId}/annotations/{id}` | Authenticated | Lấy một annotation cụ thể của submission |
 | `POST` | `/api/submissions/{submissionId}/annotations` | Authenticated | Tạo annotation cho submission |
 | `PUT` | `/api/submissions/{submissionId}/annotations/{id}` | Authenticated | Cập nhật annotation của chính user |
 | `DELETE` | `/api/submissions/{submissionId}/annotations/{id}/soft-delete` | Authenticated | Soft-delete annotation của chính user |
@@ -920,6 +921,43 @@ Hai owner này loại trừ nhau. Service và database đều enforce rule chỉ
 }
 ```
 
+**Success response: `201 Created`**
+
+Header `Location` trỏ tới annotation vừa tạo:
+
+```http
+Location: /api/submissions/{submissionId}/annotations/{annotationId}
+```
+
+```json
+{
+  "data": {
+    "annotationId": "88888888-8888-8888-8888-888888888888",
+    "manuscriptId": null,
+    "pageTaskSubmissionId": "55555555-5555-5555-5555-555555555555",
+    "chapterId": null,
+    "authorId": "22222222-2222-2222-2222-222222222222",
+    "authorName": "Assistant Name",
+    "authorRole": "Assistant",
+    "pageNo": 3,
+    "positionX": 0.42,
+    "positionY": 0.58,
+    "content": "Line art trang này cần clean lại.",
+    "createdAt": "2026-06-14T08:00:00Z"
+  },
+  "message": "Annotation added."
+}
+```
+
+**Get one submission annotation**
+
+```http
+GET /api/submissions/{submissionId}/annotations/{id}
+```
+
+Trả về annotation có `annotationId = id` và thuộc đúng `submissionId`. Nếu annotation
+tồn tại nhưng không thuộc submission trong path, API trả về `404`.
+
 **Update request body**
 
 ```json
@@ -930,6 +968,7 @@ Hai owner này loại trừ nhau. Service và database đều enforce rule chỉ
 
 **Access rules**
 
+- List/detail submission annotation cũng áp dụng object-level authorization như create.
 - Assistant chỉ được annotate submission của task được giao cho chính mình.
 - Mangaka chỉ được annotate submission thuộc chapter/series của chính mình.
 - Các role khác không được annotate submission.
