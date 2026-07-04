@@ -46,6 +46,25 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 .Select(a => Map(a)).ToListAsync();
         }
 
+        public async Task<AnnotationResponse> GetByManuscriptAnnotationIdAsync(
+            Guid manuscriptId,
+            Guid id,
+            Guid userId)
+        {
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
+
+            var annotation = await _repo.GetAll()
+                .Include(a => a.Author)
+                    .ThenInclude(u => u.Role)
+                .Include(a => a.Manuscript)
+                .FirstOrDefaultAsync(a => a.AnnotationId == id
+                    && a.ManuscriptId == manuscriptId
+                    && a.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Annotation not found.");
+
+            return Map(annotation);
+        }
+
         public async Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(
             Guid submissionId,
             Guid userId,
