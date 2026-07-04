@@ -108,7 +108,7 @@ namespace MangaManagementSystem.API.Controllers
         public async Task<IActionResult> Update(Guid manuscriptId, Guid id, [FromBody] UpdateAnnotationRequest request)
         {
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            return Ok(new BaseResponse { Data = await _service.UpdateAsync(id, userId, request), Message = "Updated." });
+            return Ok(new BaseResponse { Data = await _service.UpdateForManuscriptAsync(manuscriptId, id, userId, request), Message = "Updated." });
         }
 
         [HttpDelete("{id:guid}/soft-delete")]

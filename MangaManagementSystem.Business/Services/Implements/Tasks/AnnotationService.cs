@@ -175,6 +175,28 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             return await GetByIdAsync(id);
         }
 
+        public async Task<AnnotationResponse> UpdateForManuscriptAsync(
+            Guid manuscriptId,
+            Guid id,
+            Guid userId,
+            UpdateAnnotationRequest request)
+        {
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
+
+            var annotation = await _repo.GetAll()
+                    .FirstOrDefaultAsync(x => x.AnnotationId == id
+                        && x.ManuscriptId == manuscriptId
+                        && x.AuthorId == userId
+                        && x.DeletedAt == null)
+                    ?? throw new KeyNotFoundException("Annotation not found or access denied.");
+
+            ValidateAnnotationPayload(annotation.PageNo, annotation.PositionX, annotation.PositionY, request.Content);
+            annotation.Content = request.Content.Trim();
+            _repo.Update(annotation);
+            await _repo.SaveChangeAsync();
+            return await GetByManuscriptAnnotationIdAsync(manuscriptId, id, userId);
+        }
+
         public async Task<AnnotationResponse> UpdateForSubmissionAsync(
             Guid submissionId,
             Guid id,

@@ -13,6 +13,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Tasks
         Task<AnnotationResponse> CreateAsync(Guid authorId, Guid manuscriptId, CreateAnnotationRequest request);
         Task<AnnotationResponse> CreateForSubmissionAsync(Guid userId, string userRole, Guid submissionId, CreateSubmissionAnnotationRequest request);
         Task<AnnotationResponse> UpdateAsync(Guid id, Guid authorId, UpdateAnnotationRequest request);
+        Task<AnnotationResponse> UpdateForManuscriptAsync(Guid manuscriptId, Guid id, Guid userId, UpdateAnnotationRequest request);
         Task<AnnotationResponse> UpdateForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole, UpdateAnnotationRequest request);
         Task SoftDeleteAsync(Guid id);
         Task SoftDeleteAsync(Guid id, Guid authorId);
