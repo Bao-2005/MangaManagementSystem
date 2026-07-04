@@ -31,10 +31,15 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             _assignmentRepo = assignmentRepo;
         }
 
-        public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(Guid manuscriptId, int? pageNo = null)
+        public async Task<IEnumerable<AnnotationResponse>> GetByManuscriptAsync(
+            Guid manuscriptId,
+            Guid userId,
+            int? pageNo = null)
         {
             if (pageNo <= 0)
                 throw new ArgumentException("Page number must be greater than 0.");
+
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
 
             return await _repo.GetAll()
                 .Include(a => a.Author)

@@ -21,7 +21,10 @@ namespace MangaManagementSystem.API.Controllers
         [Authorize]
         [SwaggerOperation(Summary = "Get all annotations for a manuscript")]
         public async Task<IActionResult> GetByManuscript(Guid manuscriptId, [FromQuery] int? pageNo)
-            => Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId, pageNo), Message = "Success" });
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetByManuscriptAsync(manuscriptId, userId, pageNo), Message = "Success" });
+        }
 
         [HttpGet("{id:guid}")]
         [Authorize]
