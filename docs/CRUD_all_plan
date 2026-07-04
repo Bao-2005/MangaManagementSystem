@@ -305,7 +305,7 @@ Annotations belong to a **Manuscript** (linked via `ManuscriptId` + `PageNo`). T
 #### [NEW] DTOs
 - `CreateAnnotationRequest` (ManuscriptId, PageNo, PositionX, PositionY, Content)
 - `UpdateAnnotationRequest` (Content)
-- `AnnotationResponse` (AnnotationId, ManuscriptId, ChapterId *(derived)*, AuthorId, AuthorName, PageNo, PositionX, PositionY, Content, CreatedAt)
+- `AnnotationResponse` (AnnotationId, ManuscriptId?, PageTaskSubmissionId?, ChapterId *(derived for manuscript annotations)*, AuthorId, AuthorName, AuthorRole, PageNo, PositionX, PositionY, Content, CreatedAt)
 
 #### [NEW] `IAnnotationService.cs`
 ```
@@ -324,6 +324,21 @@ SoftDeleteAsync(id)
 | POST | `/api/manuscripts/{manuscriptId}/annotations` | `TantouEditorOnly` |
 | PUT | `/api/annotations/{id}` | `TantouEditorOnly` |
 | DELETE | `/api/annotations/{id}/soft-delete` | `TantouEditorOnly` or `AdminOnly` |
+
+Submission annotation routes are separate from manuscript annotation routes:
+
+| Method | Route | Policy |
+|--------|-------|--------|
+| GET | `/api/submissions/{submissionId}/annotations` | `AssistantOnly` or `MangakaOnly` by object-level check |
+| GET | `/api/submissions/{submissionId}/annotations/{id}` | `AssistantOnly` or `MangakaOnly` by object-level check |
+| POST | `/api/submissions/{submissionId}/annotations` | `AssistantOnly` or `MangakaOnly` by object-level check |
+| PUT | `/api/submissions/{submissionId}/annotations/{id}` | Annotation author only after object-level check |
+| DELETE | `/api/submissions/{submissionId}/annotations/{id}/soft-delete` | Annotation author only after object-level check |
+
+`POST /api/submissions/{submissionId}/annotations` returns `201 Created` with
+`Location: /api/submissions/{submissionId}/annotations/{annotationId}`. Do not point
+submission annotation creation at the manuscript annotation `GetById` route because
+submission annotations have `manuscriptId: null`.
 
 ---
 

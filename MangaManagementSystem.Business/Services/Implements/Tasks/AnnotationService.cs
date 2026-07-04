@@ -46,13 +46,40 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
                 .Select(a => Map(a)).ToListAsync();
         }
 
-        public async Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(Guid submissionId)
-            => await _repo.GetAll()
+        public async Task<IEnumerable<AnnotationResponse>> GetBySubmissionAsync(
+            Guid submissionId,
+            Guid userId,
+            string userRole)
+        {
+            await EnsureCanAnnotateSubmissionAsync(submissionId, userId, userRole);
+
+            return await _repo.GetAll()
                 .Include(a => a.Author)
                     .ThenInclude(u => u.Role)
                 .Include(a => a.Manuscript)
                 .Where(a => a.PageTaskSubmissionId == submissionId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
+        }
+
+        public async Task<AnnotationResponse> GetBySubmissionAnnotationIdAsync(
+            Guid submissionId,
+            Guid id,
+            Guid userId,
+            string userRole)
+        {
+            await EnsureCanAnnotateSubmissionAsync(submissionId, userId, userRole);
+
+            var annotation = await _repo.GetAll()
+                .Include(a => a.Author)
+                    .ThenInclude(u => u.Role)
+                .Include(a => a.Manuscript)
+                .FirstOrDefaultAsync(a => a.AnnotationId == id
+                    && a.PageTaskSubmissionId == submissionId
+                    && a.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Annotation not found.");
+
+            return Map(annotation);
+        }
 
         public async Task<AnnotationResponse> GetByIdAsync(Guid id)
         {
@@ -115,7 +142,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
 
             await _repo.AddAsync(annotation);
             await _repo.SaveChangeAsync();
-            return await GetByIdAsync(annotation.AnnotationId);
+            return await GetBySubmissionAnnotationIdAsync(submissionId, annotation.AnnotationId, userId, userRole);
         }
 
         public async Task<AnnotationResponse> UpdateAsync(Guid id, Guid authorId, UpdateAnnotationRequest request)

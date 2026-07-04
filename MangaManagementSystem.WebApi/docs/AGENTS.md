@@ -82,6 +82,7 @@ Treat the EF model as the source of truth for table structure, relationships, re
 - Add new routes under controllers in `MangaManagementSystem.WebApi/Controllers`.
 - Register new services through the existing dependency injection extension pattern.
 - Keep Swagger enabled for development.
+- Submission annotation creation should use `CreatedAtAction` against `GET /api/submissions/{submissionId}/annotations/{id}`, not the manuscript annotation route.
 
 ## Business Layer Rules
 
