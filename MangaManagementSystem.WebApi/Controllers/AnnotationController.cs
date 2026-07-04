@@ -43,7 +43,21 @@ namespace MangaManagementSystem.API.Controllers
         [Authorize]
         [SwaggerOperation(Summary = "Get all annotations for a page task submission")]
         public async Task<IActionResult> GetBySubmission(Guid submissionId)
-            => Ok(new BaseResponse { Data = await _service.GetBySubmissionAsync(submissionId), Message = "Success" });
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var userRole = GetUserRole() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetBySubmissionAsync(submissionId, userId, userRole), Message = "Success" });
+        }
+
+        [HttpGet("/api/submissions/{submissionId:guid}/annotations/{id:guid}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Get one annotation for a page task submission")]
+        public async Task<IActionResult> GetBySubmissionAnnotationId(Guid submissionId, Guid id)
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var userRole = GetUserRole() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetBySubmissionAnnotationIdAsync(submissionId, id, userId, userRole), Message = "Success" });
+        }
 
         [HttpPost("/api/submissions/{submissionId:guid}/annotations")]
         [Authorize]
@@ -55,7 +69,10 @@ namespace MangaManagementSystem.API.Controllers
             var userId = GetUserId() ?? throw new UnauthorizedAccessException();
             var userRole = GetUserRole() ?? throw new UnauthorizedAccessException();
             var result = await _service.CreateForSubmissionAsync(userId, userRole, submissionId, request);
-            return CreatedAtAction(nameof(GetById), new { manuscriptId = result.ManuscriptId, id = result.AnnotationId }, new BaseResponse { Data = result, Message = "Annotation added." });
+            return CreatedAtAction(
+                nameof(GetBySubmissionAnnotationId),
+                new { submissionId, id = result.AnnotationId },
+                new BaseResponse { Data = result, Message = "Annotation added." });
         }
 
         [HttpPut("/api/submissions/{submissionId:guid}/annotations/{id:guid}")]
