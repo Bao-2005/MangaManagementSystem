@@ -17,6 +17,7 @@ namespace MangaManagementSystem.Business.Services.Interfaces.Tasks
         Task<AnnotationResponse> UpdateForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole, UpdateAnnotationRequest request);
         Task SoftDeleteAsync(Guid id);
         Task SoftDeleteAsync(Guid id, Guid authorId);
+        Task SoftDeleteForManuscriptAsync(Guid manuscriptId, Guid id, Guid userId);
         Task SoftDeleteForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole);
     }
 }

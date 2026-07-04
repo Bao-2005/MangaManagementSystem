@@ -116,7 +116,8 @@ namespace MangaManagementSystem.API.Controllers
         [SwaggerOperation(Summary = "Soft-delete an annotation")]
         public async Task<IActionResult> SoftDelete(Guid manuscriptId, Guid id)
         {
-            await _service.SoftDeleteAsync(id);
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            await _service.SoftDeleteForManuscriptAsync(manuscriptId, id, userId);
             return Ok(new BaseResponse { Message = "Deleted." });
         }
 

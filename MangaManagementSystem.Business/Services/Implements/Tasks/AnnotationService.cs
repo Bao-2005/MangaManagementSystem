@@ -239,6 +239,22 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks
             await _repo.SaveChangeAsync();
         }
 
+        public async Task SoftDeleteForManuscriptAsync(Guid manuscriptId, Guid id, Guid userId)
+        {
+            await EnsureCanAnnotateManuscriptAsync(userId, manuscriptId);
+
+            var annotation = await _repo.GetAll()
+                    .FirstOrDefaultAsync(x => x.AnnotationId == id
+                        && x.ManuscriptId == manuscriptId
+                        && x.AuthorId == userId
+                        && x.DeletedAt == null)
+                    ?? throw new KeyNotFoundException("Annotation not found or access denied.");
+
+            annotation.DeletedAt = DateTime.UtcNow;
+            _repo.Update(annotation);
+            await _repo.SaveChangeAsync();
+        }
+
         public async Task SoftDeleteForSubmissionAsync(Guid submissionId, Guid id, Guid userId, string userRole)
         {
             await EnsureCanAnnotateSubmissionAsync(submissionId, userId, userRole);
