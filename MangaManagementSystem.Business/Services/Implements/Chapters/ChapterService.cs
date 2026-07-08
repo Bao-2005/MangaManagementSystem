@@ -57,7 +57,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
         {
             var chapters = await ChapterQuery()
                 .Where(c => c.SeriesId == seriesId && c.DeletedAt == null)
-                .OrderBy(c => c.ChapterNo)
+                .OrderByDescending(c => c.ChapterNo)
+                .ThenByDescending(c => c.CreatedAt)
                 .ToListAsync();
             return chapters.Select(Map);
         }
@@ -100,8 +101,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
 
             var now = DateTime.UtcNow;
             var publicationDate = request.PublicationDate;
-            if (publicationDate.HasValue && publicationDate.Value.Date < now.Date)
-                throw new ArgumentException("Publication date cannot be in the past.");
+            if (publicationDate.HasValue && publicationDate.Value.Date <= now.Date)
+                throw new ArgumentException("Publication date must be in the future.");
 
             // BR-42: deadline = publicationDate - 14 days if not provided.
             var deadline = request.SubmissionDeadline
@@ -116,6 +117,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
                     throw new ArgumentException("Submission deadline must be at least 3 days after chapter creation.");
             }
 
+            var fileAssetIds = NormalizeFileAssetIds(request.ReferenceFileAssetIds);
+            if (fileAssetIds.Count > 0)
+                await EnsureFileAssetsExistAsync(fileAssetIds);
+
             var chapter = new Chapter
             {
                 SeriesId = request.SeriesId,
@@ -129,19 +134,13 @@ namespace MangaManagementSystem.Business.Services.Implements.Chapters
             };
             await _repo.AddAsync(chapter);
 
-            var fileAssetIds = NormalizeFileAssetIds(request.ReferenceFileAssetIds);
-            if (fileAssetIds.Count > 0)
+            foreach (var fileAssetId in fileAssetIds)
             {
-                await EnsureFileAssetsExistAsync(fileAssetIds);
-
-                foreach (var fileAssetId in fileAssetIds)
+                chapter.ReferenceFiles.Add(new ChapterReferenceFile
                 {
-                    chapter.ReferenceFiles.Add(new ChapterReferenceFile
-                    {
-                        FileAssetId = fileAssetId,
-                        CreatedAt = now
-                    });
-                }
+                    FileAssetId = fileAssetId,
+                    CreatedAt = now
+                });
             }
 
             await _repo.SaveChangeAsync();

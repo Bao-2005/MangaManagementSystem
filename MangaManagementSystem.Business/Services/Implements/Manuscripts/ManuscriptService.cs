@@ -31,6 +31,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Manuscripts
             => await _repo.GetAll()
                 .Include(m => m.Reviewer)
                 .Where(m => m.ChapterId == chapterId && m.DeletedAt == null)
+                .OrderByDescending(m => m.VersionNo)
+                .ThenByDescending(m => m.SubmittedAt)
                 .Select(m => Map(m)).ToListAsync();
 
         public async Task<ManuscriptResponse> GetByIdAsync(Guid id)

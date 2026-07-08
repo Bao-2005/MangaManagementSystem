@@ -193,4 +193,59 @@
 |---|---|---|---|
 | | | | |
 
+---
+
+## KET QUA BACKEND DA DOI CHIEU
+
+> Section nay duoc dien dua tren `docs/testcase/backend-testcase.md`.
+> Da chay `dotnet build MangaManagementSystem.sln`: PASS, 0 warning, 0 error.
+> Chua the chay full API runtime vi moi truong bi chan boi DataProtection/EventLog permission,
+> database connection, token va seed data.
+
+Quy uoc trang thai:
+
+| Trang thai | Y nghia |
+|---|---|
+| `PASS-BY-CODE` | Da doi chieu controller/service/DTO/policy va build pass. |
+| `FAIL-BY-CODE` | Da doi chieu code va thay backend hien tai lech expected. |
+| `BLOCKED-RUNTIME` | Can chay API runtime voi DB/token/seed that de ket luan. |
+| `N/A-FE` | Case thuoc UI/FE, khong tinh la backend fail. |
+| `N/A-INFRA` | Case thuoc ha tang/runtime nhu CORS, SignalR connection, network. |
+| `REVIEW` | Can team thong nhat expected truoc khi chot PASS/FAIL. |
+
+### Bang tong hop backend
+
+| Nhom | Tong case | PASS-BY-CODE | FAIL-BY-CODE | BLOCKED | N/A-FE | N/A-INFRA | REVIEW | Ghi chu |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1. Chapter | 8 | 5 | 3 | 0 | 0 | 0 | 0 | Lech publication-date expected, required file, sort order. |
+| 2. Task | 10 | 8 | 0 | 0 | 2 | 0 | 0 | Backend PageTask khop phan lon testcase. |
+| 3. Assistant nop | 8 | 5 | 0 | 0 | 3 | 0 | 0 | Role policy da doi chieu code; runtime token test chua chay duoc do env. |
+| 4. Review/Ghim/Reject | 10 | 7 | 0 | 0 | 3 | 0 | 0 | Reject va annotation la 2 API rieng; backend ho tro ca hai. |
+| 5. So sanh | 8 | 0 | 0 | 0 | 7 | 1 | 0 | Chu yeu FE/client; Supabase CORS la infra. |
+| 6. Giao lai task | 5 | 5 | 0 | 0 | 0 | 0 | 0 | Reassign logic khop code. |
+| 7. Luong | 7 | 6 | 0 | 0 | 1 | 0 | 0 | Salary snapshot dung code. |
+| 8. Manuscript | 6 | 4 | 1 | 0 | 1 | 0 | 0 | Sort manuscript la backend gap. |
+| 9. SignalR | 3 | 0 | 1 | 0 | 0 | 2 | 0 | Approve/reject task chua dispatch notification cho Assistant. |
+| 10. Ranking | 6 | 1 | 3 | 0 | 1 | 0 | 1 | Ranking con CRUD/snapshot thu cong; bottom flag can thong nhat cach tao snapshot. |
+| 11. Whitelist | 3 | 2 | 0 | 0 | 0 | 0 | 1 | Whitelist thuc te rong hon testcase goc. |
+| 12. Edge case chung | 4 | 1 | 0 | 1 | 1 | 1 | 0 | Token auth pass by code; API independence can runtime verify. |
+| TONG | 78 | 44 | 8 | 1 | 19 | 4 | 2 | Build pass 0 warning/0 error; API runtime blocked by env/infra. |
+
+### Ghi loi backend
+
+| # case | Mo ta loi thuc te | Console/Network | Trang thai |
+|---|---|---|---|
+| Build | `dotnet build MangaManagementSystem.sln` thanh cong, 0 warning, 0 error. | CLI build | PASS-BY-CODE |
+| Runtime | API start duoc va listen `http://localhost:5151`, nhung full API flow bi chan do DataProtection/EventLog permission, database connection, token va seed data. | `dotnet run --project MangaManagementSystem.WebApi --no-build --launch-profile http` | BLOCKED-RUNTIME |
+| 1.2 | Backend khong chan truc tiep publication date bang hom nay. Code chi chan ngay nho hon hom nay; hom nay co the fail gian tiep do deadline auto. Can thong nhat expected message/rule. | `ChapterService.CreateAsync` | FAIL-BY-CODE |
+| 1.4 | Tao chapter khong bat buoc reference/manuscript file; `ReferenceFileAssetIds` dang optional. | `CreateChapterRequest.ReferenceFileAssetIds` | FAIL-BY-CODE |
+| 1.7 | Chapter list dang sort tang dan theo `ChapterNo`, khong phai moi nhat/giam dan nhu expected. | `ChapterService.GetBySeriesAsync` | FAIL-BY-CODE |
+| 8.6 | Manuscript list chua sort moi -> cu; service chi filter va select. | `ManuscriptService.GetByChapterAsync` | FAIL-BY-CODE |
+| 9.3 | Approve/reject PageTask submission chua tao notification/realtime cho Assistant. | `PageTaskService.ApproveSubmissionAsync`, `RejectSubmissionAsync` | FAIL-BY-CODE |
+| 10.1 | VoteRecord chua validate `voteCount <= readerCount` va gia tri am. | `VoteRecordService.CreateAsync` | FAIL-BY-CODE |
+| 10.2 | Confirm vote chi set status `Confirmed`, chua tao/cap nhat ranking snapshot/score. | `VoteRecordService.ConfirmAsync` | FAIL-BY-CODE |
+| 10.3 | Ranking response khong co score va sort theo `RankNo`, khong theo calculated score. | `RankingSnapshotService.GetAllByPeriodAsync` | FAIL-BY-CODE |
+| 10.5 | Backend response co `IsBottom20Percent`, nhung auto-calc bottom 20% chua co bang chung trong service. Can team thong nhat expected. | `RankingSnapshotService.GetAllByPeriodAsync` | REVIEW |
+| 11.3 | Whitelist thuc te rong hon testcase goc: mot so category cho phep them `.pdf/.rar/.psd/.clip/.ai`. | `FileUploadService` rules | REVIEW |
+
 > Test xong: gửi lại bảng tổng hợp + bảng ghi lỗi (nếu có case fail) để sửa tiếp.
