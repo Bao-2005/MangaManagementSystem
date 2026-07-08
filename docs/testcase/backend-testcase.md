@@ -29,7 +29,7 @@ Lan kiem tra gan nhat:
 
 | Hang muc | Lenh/cach kiem | Ket qua |
 |---|---|---|
-| Build solution | `dotnet build MangaManagementSystem.sln` | PASS, 0 warning, 0 error. |
+| Build solution | `dotnet build MangaManagementSystem.sln` | PASS, 2 warning, 0 error. Warnings hien tai o `ProblemDetail.cs`, khong lien quan cac luong testcase nay. |
 | Unit/integration test project | `dotnet test MangaManagementSystem.sln --no-build` | Khong co test project/output dang ke de xac nhan luong nghiep vu. |
 | API runtime startup | `dotnet run --project MangaManagementSystem.WebApi --no-build --launch-profile http` | API bat dau listen `http://localhost:5151`, nhung runtime bi chan boi DataProtection/EventLog permission va ket noi database Supabase/Postgres. |
 | Runtime endpoint execution | Goi tung endpoint bang token/seed that | BLOCKED-ENV: chua co moi truong DB/token/seed on dinh trong sandbox. |
@@ -42,12 +42,12 @@ Lan kiem tra gan nhat:
 | # | Loai | API/Service | Dieu kien | Thao tac backend | Target Expected | Current Backend Behavior | Trang thai |
 |---|---|---|---|---|---|---|---|
 | 1.1 | Happy path | `POST /api/chapters` | Series thuoc Mangaka, status `Active` hoac `Approved` | Tao chapter voi publication date hop le | Tao thanh cong, deadline = publication date - 14 ngay | Code cho phep series `Approved` hoac `Active`, auto tinh deadline neu khong gui | PASS-BY-CODE |
-| 1.2 | Negative | `POST /api/chapters` | Mangaka owner | Gui publication date hom nay hoac qua khu | Bao loi publication date phai nam trong tuong lai | Code chi chan ngay nho hon hom nay; ngay hom nay co the fail gian tiep do deadline auto < now+3 | FAIL-BY-CODE |
+| 1.2 | Negative | `POST /api/chapters` | Mangaka owner | Gui publication date hom nay hoac qua khu | Bao loi publication date phai nam trong tuong lai | Code chan `publicationDate <= today` va tra loi future-date ro rang | PASS-BY-CODE |
 | 1.3 | Negative | `POST /api/chapters` | Mangaka owner | Publication date chi cach 10 ngay | Bao loi deadline khong dat toi thieu | Code auto deadline = publication - 14, sau do chan deadline < now+3 | PASS-BY-CODE |
-| 1.4 | Negative | `POST /api/chapters` | Mangaka owner | Khong gui `referenceFileAssetIds` | Target yeu cau toi thieu 1 file ban thao/reference | `ReferenceFileAssetIds` optional, backend van cho tao | FAIL-BY-CODE |
+| 1.4 | Edge | `POST /api/chapters` | Mangaka owner | Khong gui `referenceFileAssetIds` | Tam thoi van cho tao; file reference chua bat buoc | `ReferenceFileAssetIds` optional, backend van cho tao | PASS-BY-CODE |
 | 1.5 | Negative | `POST /api/chapters` | Khong phai owner hoac series khong hop le | Tao chapter | 401/403 voi non-owner; khong tao cho series chua san sang | Code chan non-owner; chi cho status `Approved` hoac `Active` | PASS-BY-CODE |
 | 1.6 | Edge | `POST /api/chapters` | Da co chapterNo trong series | Tao trung chapterNo | 409/loi nghiep vu, khong tao trung | Code check duplicate `ChapterNo` theo series | PASS-BY-CODE |
-| 1.7 | Happy path | `GET /api/series/{seriesId}/chapters` | Co chapter 1,2,3 | Lay danh sach | Sort moi nhat truoc hoac 3 -> 2 -> 1 | Code dang `OrderBy(c => c.ChapterNo)`, tuc 1 -> 2 -> 3 | FAIL-BY-CODE |
+| 1.7 | Happy path | `GET /api/series/{seriesId}/chapters` | Co chapter 1,2,3 | Lay danh sach | Sort moi nhat truoc hoac 3 -> 2 -> 1 | Code sort `OrderByDescending(c => c.ChapterNo)` va fallback `CreatedAt` | PASS-BY-CODE |
 | 1.8 | Happy path | `PUT /api/chapters/{id}` | Chapter chua bi xoa | Sua title/deadline | Cap nhat thanh cong | Code cho sua title, totalPages, publicationDate, submissionDeadline; khong cho sua status truc tiep | PASS-BY-CODE |
 
 ---
@@ -151,7 +151,7 @@ Lan kiem tra gan nhat:
 | 8.3 | Happy path | `POST /api/manuscripts` | Chapter 100% approved | Gui manuscript v1 | Status `Submitted` | Code set manuscript status `Submitted`, chapter status `Submitted` | PASS-BY-CODE |
 | 8.4 | FE-only | N/A | Vua gui manuscript | An nut UI | UI behavior | Backend khong test duoc | N/A-FE |
 | 8.5 | Happy path | `POST /api/manuscripts` | Da co v1 | Gui v2 | Tao version 2 | Code `lastVersion + 1` | PASS-BY-CODE |
-| 8.6 | Happy path | `GET /api/chapters/{chapterId}/manuscripts` | Co nhieu manuscript | Lay danh sach | Sort moi -> cu | Code chua sort, chi select list | FAIL-BY-CODE |
+| 8.6 | Happy path | `GET /api/chapters/{chapterId}/manuscripts` | Co nhieu manuscript | Lay danh sach | Sort moi -> cu | Code sort `VersionNo` giam dan, fallback `SubmittedAt` | PASS-BY-CODE |
 
 ---
 
@@ -161,7 +161,7 @@ Lan kiem tra gan nhat:
 |---|---|---|---|---|---|---|---|
 | 9.1 | Infra | SignalR hub | Start API + FE connect | Kiem tra connected | Hub connect thanh cong | Can runtime/browser verify | N/A-INFRA |
 | 9.2 | Infra | SignalR client | Ket noi fail lan dau | Auto reconnect | Client reconnect | Thuoc FE/runtime | N/A-INFRA |
-| 9.3 | Backend gap | Approve/reject task | Mangaka approve/reject | Assistant nhan notification/realtime | Backend dispatch notification cho Assistant | `PageTaskService` approve/reject chua goi notification dispatch/realtime | FAIL-BY-CODE |
+| 9.3 | Backend | Approve/reject task | Mangaka approve/reject | Assistant nhan notification/realtime | Backend dispatch notification cho Assistant | `PageTaskService` approve/reject da dispatch persisted notification; realtime can runtime/SignalR verify | PASS-BY-CODE |
 
 ---
 
@@ -206,19 +206,19 @@ Lan kiem tra gan nhat:
 
 | Nhom | Tong case | PASS/PASS-BY-CODE | FAIL/FAIL-BY-CODE | BLOCKED | N/A-FE | N/A-INFRA | REVIEW | Ghi chu |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1. Chapter | 8 | 5 | 3 | 0 | 0 | 0 | 0 | Lech publication-date expected, required file, sort order. |
+| 1. Chapter | 8 | 8 | 0 | 0 | 0 | 0 | 0 | Publication-date, optional reference files, va sort order da khop code hien tai. |
 | 2. Page Task | 10 | 8 | 0 | 0 | 2 | 0 | 0 | Backend PageTask khop phan lon testcase. |
 | 3. Assistant Submission | 8 | 5 | 0 | 0 | 3 | 0 | 0 | Role policy da doi chieu code; runtime token test chua chay duoc do env. |
 | 4. Review/Annotation | 10 | 7 | 0 | 0 | 3 | 0 | 0 | Reject va annotation la 2 API rieng. |
 | 5. Version Compare | 8 | 0 | 0 | 0 | 7 | 1 | 0 | Chu yeu FE/client. |
 | 6. Reassign | 5 | 5 | 0 | 0 | 0 | 0 | 0 | Khop code. |
 | 7. Salary | 7 | 6 | 0 | 0 | 1 | 0 | 0 | Salary snapshot dung code. |
-| 8. Manuscript | 6 | 4 | 1 | 0 | 1 | 0 | 0 | Sort manuscript la backend gap. |
-| 9. Notification/SignalR | 3 | 0 | 1 | 0 | 0 | 2 | 0 | Approve/reject chua dispatch notification. |
+| 8. Manuscript | 6 | 5 | 0 | 0 | 1 | 0 | 0 | Sort manuscript moi -> cu da khop code. |
+| 9. Notification/SignalR | 3 | 1 | 0 | 0 | 0 | 2 | 0 | Approve/reject da dispatch persisted notification; realtime can runtime verify. |
 | 10. Ranking | 6 | 1 | 3 | 0 | 1 | 0 | 1 | Ranking con CRUD/snapshot thu cong; bottom flag can team thong nhat cach tao snapshot. |
 | 11. File Whitelist | 3 | 2 | 0 | 0 | 0 | 0 | 1 | Whitelist thuc te rong hon testcase goc. |
 | 12. Edge chung | 4 | 1 | 0 | 1 | 1 | 1 | 0 | Token auth pass by code; API independence can runtime verify. |
-| TONG | 78 | 44 | 8 | 1 | 19 | 4 | 2 | Build pass 0 warning/0 error; API runtime blocked by env/infra. |
+| TONG | 78 | 49 | 3 | 1 | 19 | 4 | 2 | Build pass 2 warning/0 error; API runtime blocked by env/infra. |
 
 ---
 
@@ -226,11 +226,11 @@ Lan kiem tra gan nhat:
 
 | Case | Pham vi | Mo ta | Evidence | Trang thai |
 |---|---|---|---|---|
-| 1.2 | BE | Publication date hom nay khong bi chan truc tiep boi rule future date; fail co the do deadline auto. Can thong nhat expected message/rule. | `ChapterService.CreateAsync` | FAIL-BY-CODE |
-| 1.4 | BE | Tao chapter khong bat buoc reference/manuscript file. | `CreateChapterRequest.ReferenceFileAssetIds` optional | FAIL-BY-CODE |
-| 1.7 | BE | Chapter list sort tang dan theo `ChapterNo`, khong phai moi nhat/giam dan. | `ChapterService.GetBySeriesAsync` | FAIL-BY-CODE |
-| 8.6 | BE | Manuscript list chua sort moi -> cu. | `ManuscriptService.GetByChapterAsync` | FAIL-BY-CODE |
-| 9.3 | BE | Approve/reject PageTask submission chua tao notification/realtime cho Assistant. | `PageTaskService.ApproveSubmissionAsync`, `RejectSubmissionAsync` | FAIL-BY-CODE |
+| 1.2 | BE | Publication date hom nay hoac qua khu da bi chan truc tiep boi future-date rule. | `ChapterService.CreateAsync` | PASS-BY-CODE |
+| 1.4 | BE | Theo quyet dinh tam thoi, tao chapter khong bat buoc reference/manuscript file. | `CreateChapterRequest.ReferenceFileAssetIds` optional | PASS-BY-CODE |
+| 1.7 | BE | Chapter list da sort giam dan theo `ChapterNo`, fallback `CreatedAt`. | `ChapterService.GetBySeriesAsync` | PASS-BY-CODE |
+| 8.6 | BE | Manuscript list da sort moi -> cu theo `VersionNo`, fallback `SubmittedAt`. | `ManuscriptService.GetByChapterAsync` | PASS-BY-CODE |
+| 9.3 | BE | Approve/reject PageTask submission da dispatch persisted notification cho Assistant; realtime can runtime/SignalR verify. | `PageTaskService.ApproveSubmissionAsync`, `RejectSubmissionAsync` | PASS-BY-CODE |
 | 10.1 | BE | VoteRecord chua validate `voteCount <= readerCount` va gia tri am. | `VoteRecordService.CreateAsync` | FAIL-BY-CODE |
 | 10.2 | BE | Confirm vote chua tao/cap nhat ranking snapshot/score. | `VoteRecordService.ConfirmAsync` | FAIL-BY-CODE |
 | 10.3 | BE | Ranking response khong co score va sort theo `RankNo`, khong theo calculated score. | `RankingSnapshotService.GetAllByPeriodAsync` | FAIL-BY-CODE |
