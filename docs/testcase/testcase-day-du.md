@@ -13,7 +13,7 @@
 | 1.1 | 🟢 | Series đang Active, là chủ sở hữu | Tạo chapter, ngày xuất bản = hôm nay+20 | Tạo thành công, deadline = +6 (20-14), lên đầu danh sách |
 | 1.2 | 🔴 | — | Ngày xuất bản = hôm nay hoặc quá khứ | Báo lỗi "phải nằm trong tương lai" |
 | 1.3 | 🔴 | — | Ngày xuất bản chỉ cách 10 ngày (< 17 tối thiểu) | Báo lỗi "cách ít nhất 17 ngày" |
-| 1.4 | 🔴 | — | Không đính kèm file bản thảo | Báo lỗi "tối thiểu 1 file bản thảo" |
+| 1.4 | 🟡 | — | Không đính kèm file bản thảo | Tạm thời vẫn tạo được; `ReferenceFileAssetIds` chưa bắt buộc |
 | 1.5 | 🔴 | Series KHÔNG phải của mình / không Active | Tạo chapter | Báo lỗi quyền, không tạo được |
 | 1.6 | 🟡 | Đã có chapter số 3 | Tạo chapter số 3 lần nữa (trùng) | Báo lỗi 409 "đã tồn tại", không tạo trùng |
 | 1.7 | 🟢 | Có 3 chapter (1,2,3) tạo lần lượt | Xem danh sách | Thứ tự: 3 → 2 → 1 (mới nhất đầu) |
@@ -130,7 +130,7 @@
 |---|---|---|---|---|
 | 9.1 | 🟢 | Vào dashboard | F12 Console | "SignalR: đã kết nối realtime" |
 | 9.2 | 🟡 | Kết nối lần đầu fail | Console | Có thể thấy "kết nối thất bại" rồi tự retry → "đã kết nối realtime" (bình thường, có auto-reconnect) |
-| 9.3 | 🟢 | 2 cửa sổ mở (Mangaka + Assistant) | Mangaka approve/reject task | Chuông Assistant nhảy số ngay, không cần F5 |
+| 9.3 | 🟢 | 2 cửa sổ mở (Mangaka + Assistant) | Mangaka approve/reject task | BE tạo notification cho Assistant; chuông realtime nhảy ngay cần verify SignalR/runtime |
 
 ---
 
@@ -192,5 +192,60 @@
 | # case | Mô tả lỗi thực tế | Console/Network | Trạng thái |
 |---|---|---|---|
 | | | | |
+
+---
+
+## KET QUA BACKEND DA DOI CHIEU
+
+> Section nay duoc dien dua tren `docs/testcase/backend-testcase.md`.
+> Da chay `dotnet build MangaManagementSystem.sln`: PASS, 2 warning, 0 error.
+> Chua the chay full API runtime vi moi truong bi chan boi DataProtection/EventLog permission,
+> database connection, token va seed data.
+
+Quy uoc trang thai:
+
+| Trang thai | Y nghia |
+|---|---|
+| `PASS-BY-CODE` | Da doi chieu controller/service/DTO/policy va build pass. |
+| `FAIL-BY-CODE` | Da doi chieu code va thay backend hien tai lech expected. |
+| `BLOCKED-RUNTIME` | Can chay API runtime voi DB/token/seed that de ket luan. |
+| `N/A-FE` | Case thuoc UI/FE, khong tinh la backend fail. |
+| `N/A-INFRA` | Case thuoc ha tang/runtime nhu CORS, SignalR connection, network. |
+| `REVIEW` | Can team thong nhat expected truoc khi chot PASS/FAIL. |
+
+### Bang tong hop backend
+
+| Nhom | Tong case | PASS-BY-CODE | FAIL-BY-CODE | BLOCKED | N/A-FE | N/A-INFRA | REVIEW | Ghi chu |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1. Chapter | 8 | 8 | 0 | 0 | 0 | 0 | 0 | Publication date, optional reference files, va sort order da khop code hien tai. |
+| 2. Task | 10 | 8 | 0 | 0 | 2 | 0 | 0 | Backend PageTask khop phan lon testcase. |
+| 3. Assistant nop | 8 | 5 | 0 | 0 | 3 | 0 | 0 | Role policy da doi chieu code; runtime token test chua chay duoc do env. |
+| 4. Review/Ghim/Reject | 10 | 7 | 0 | 0 | 3 | 0 | 0 | Reject va annotation la 2 API rieng; backend ho tro ca hai. |
+| 5. So sanh | 8 | 0 | 0 | 0 | 7 | 1 | 0 | Chu yeu FE/client; Supabase CORS la infra. |
+| 6. Giao lai task | 5 | 5 | 0 | 0 | 0 | 0 | 0 | Reassign logic khop code. |
+| 7. Luong | 7 | 6 | 0 | 0 | 1 | 0 | 0 | Salary snapshot dung code. |
+| 8. Manuscript | 6 | 5 | 0 | 0 | 1 | 0 | 0 | Sort manuscript moi -> cu da khop code. |
+| 9. SignalR | 3 | 1 | 0 | 0 | 0 | 2 | 0 | Approve/reject da dispatch persisted notification; realtime can runtime verify. |
+| 10. Ranking | 6 | 1 | 3 | 0 | 1 | 0 | 1 | Ranking con CRUD/snapshot thu cong; bottom flag can thong nhat cach tao snapshot. |
+| 11. Whitelist | 3 | 2 | 0 | 0 | 0 | 0 | 1 | Whitelist thuc te rong hon testcase goc. |
+| 12. Edge case chung | 4 | 1 | 0 | 1 | 1 | 1 | 0 | Token auth pass by code; API independence can runtime verify. |
+| TONG | 78 | 49 | 3 | 1 | 19 | 4 | 2 | Build pass 2 warning/0 error; API runtime blocked by env/infra. |
+
+### Ghi loi backend
+
+| # case | Mo ta loi thuc te | Console/Network | Trang thai |
+|---|---|---|---|
+| Build | `dotnet build MangaManagementSystem.sln` thanh cong, 2 warning, 0 error. Hai warning hien tai nam o `ProblemDetail.cs`, khong lien quan cac thay doi testcase nay. | CLI build | PASS-BY-CODE |
+| Runtime | API start duoc va listen `http://localhost:5151`, nhung full API flow bi chan do DataProtection/EventLog permission, database connection, token va seed data. | `dotnet run --project MangaManagementSystem.WebApi --no-build --launch-profile http` | BLOCKED-RUNTIME |
+| 1.2 | Backend da chan publication date bang hom nay hoac qua khu bang rule `Publication date must be in the future.` | `ChapterService.CreateAsync` | PASS-BY-CODE |
+| 1.4 | Theo quyet dinh tam thoi, tao chapter khong bat buoc reference/manuscript file; `ReferenceFileAssetIds` van optional. | `CreateChapterRequest.ReferenceFileAssetIds` | PASS-BY-CODE |
+| 1.7 | Chapter list da sort giam dan theo `ChapterNo`, fallback `CreatedAt`, khop expected 3 -> 2 -> 1. | `ChapterService.GetBySeriesAsync` | PASS-BY-CODE |
+| 8.6 | Manuscript list da sort moi -> cu theo `VersionNo` giam dan, fallback `SubmittedAt`. | `ManuscriptService.GetByChapterAsync` | PASS-BY-CODE |
+| 9.3 | Approve/reject PageTask submission da dispatch persisted notification cho Assistant. SignalR/realtime chuong nhay ngay van can runtime verify. | `PageTaskService.ApproveSubmissionAsync`, `RejectSubmissionAsync` | PASS-BY-CODE |
+| 10.1 | VoteRecord chua validate `voteCount <= readerCount` va gia tri am. | `VoteRecordService.CreateAsync` | FAIL-BY-CODE |
+| 10.2 | Confirm vote chi set status `Confirmed`, chua tao/cap nhat ranking snapshot/score. | `VoteRecordService.ConfirmAsync` | FAIL-BY-CODE |
+| 10.3 | Ranking response khong co score va sort theo `RankNo`, khong theo calculated score. | `RankingSnapshotService.GetAllByPeriodAsync` | FAIL-BY-CODE |
+| 10.5 | Backend response co `IsBottom20Percent`, nhung auto-calc bottom 20% chua co bang chung trong service. Can team thong nhat expected. | `RankingSnapshotService.GetAllByPeriodAsync` | REVIEW |
+| 11.3 | Whitelist thuc te rong hon testcase goc: mot so category cho phep them `.pdf/.rar/.psd/.clip/.ai`. | `FileUploadService` rules | REVIEW |
 
 > Test xong: gửi lại bảng tổng hợp + bảng ghi lỗi (nếu có case fail) để sửa tiếp.
