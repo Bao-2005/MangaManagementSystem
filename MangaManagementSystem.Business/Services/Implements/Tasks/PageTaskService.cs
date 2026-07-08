@@ -4,15 +4,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AutoMapper;
+using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Requests.Tasks;
+using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.Business.DTOs.Responses.Tasks;
+using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
@@ -27,7 +31,9 @@ public class PageTaskService : IPageTaskService
     private readonly IRepository<FileAsset> _fileAssetRepository;
     private readonly IRepository<PageTaskReferenceFile> _pageTaskReferenceFileRepository;
     private readonly IRepository<SalaryRecord> _salaryRecordRepository;
+    private readonly INotificationDispatchService _notificationDispatchService;
     private readonly IMapper _mapper;
+    private readonly ILogger<PageTaskService> _logger;
     private readonly string _supabaseUrl;
 
     public PageTaskService(
@@ -38,8 +44,10 @@ public class PageTaskService : IPageTaskService
         IRepository<FileAsset> fileAssetRepository,
         IRepository<PageTaskReferenceFile> pageTaskReferenceFileRepository,
         IRepository<SalaryRecord> salaryRecordRepository,
+        INotificationDispatchService notificationDispatchService,
         IConfiguration configuration,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<PageTaskService> logger)
     {
         _pageTaskRepository = pageTaskRepository;
         _submissionRepository = submissionRepository;
@@ -48,7 +56,9 @@ public class PageTaskService : IPageTaskService
         _fileAssetRepository = fileAssetRepository;
         _pageTaskReferenceFileRepository = pageTaskReferenceFileRepository;
         _salaryRecordRepository = salaryRecordRepository;
+        _notificationDispatchService = notificationDispatchService;
         _mapper = mapper;
+        _logger = logger;
         _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
     }
 
@@ -385,6 +395,7 @@ public class PageTaskService : IPageTaskService
         _submissionRepository.Update(submission);
         _pageTaskRepository.Update(task);
         await _pageTaskRepository.SaveChangeAsync();
+        await TryNotifyAssistantReviewResultAsync(task, approved: true);
 
         return await GetTaskResponseForMangakaAsync(mangakaId, task.PageTaskId);
     }
@@ -406,8 +417,56 @@ public class PageTaskService : IPageTaskService
         _submissionRepository.Update(submission);
         _pageTaskRepository.Update(task);
         await _pageTaskRepository.SaveChangeAsync();
+        await TryNotifyAssistantReviewResultAsync(task, approved: false, submission.Feedback);
 
         return await GetTaskResponseForMangakaAsync(mangakaId, task.PageTaskId);
+    }
+
+    private async Task TryNotifyAssistantReviewResultAsync(PageTask task, bool approved, string? feedback = null)
+    {
+        var title = approved
+            ? "Page task approved"
+            : "Page task needs revision";
+
+        var taskLabel = string.IsNullOrWhiteSpace(task.TaskType)
+            ? $"pages {task.PageStart}-{task.PageEnd}"
+            : $"{task.TaskType} pages {task.PageStart}-{task.PageEnd}";
+
+        var message = approved
+            ? $"Your page task for {taskLabel} has been approved."
+            : $"Your page task for {taskLabel} was rejected and needs revision."
+                + (string.IsNullOrWhiteSpace(feedback) ? string.Empty : $" Feedback: {feedback}");
+
+        var request = new NotificationDispatchRequest
+        {
+            Title = title,
+            Message = message.Length <= 1000 ? message : message[..1000],
+            Type = approved ? "PageTaskApproved" : "PageTaskRejected",
+            Link = "/api/page-tasks/assistant",
+            Priority = approved ? "Normal" : "High"
+        };
+
+        try
+        {
+            var result = await _notificationDispatchService.DispatchToUsersAsync(
+                request,
+                new[] { task.AssistantId });
+
+            if (result.Status == NotificationDispatchStatus.NoRecipients)
+            {
+                _logger.LogWarning(
+                    "Page task {PageTaskId} review notification had no recipients: {Message}",
+                    task.PageTaskId,
+                    result.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Page task {PageTaskId} was reviewed, but assistant notification dispatch failed.",
+                task.PageTaskId);
+        }
     }
 
     private async Task<(PageTask Task, PageTaskSubmission Submission)> GetReviewTargetAsync(Guid mangakaId, Guid submissionId)
