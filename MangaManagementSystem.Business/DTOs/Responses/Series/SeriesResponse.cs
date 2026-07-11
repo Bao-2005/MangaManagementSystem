@@ -10,6 +10,8 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Series
         public string PublicationType { get; set; } = null!;
         public string Status { get; set; } = null!;
         public decimal RankingScore { get; set; }
+        public Guid? SourceZipFileAssetId { get; set; }
+        public Guid? CoverImageFileAssetId { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? SubmittedAt { get; set; }
         public string? RejectReason { get; set; }

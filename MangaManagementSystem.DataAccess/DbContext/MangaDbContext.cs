@@ -256,6 +256,10 @@ public class MangaDbContext : DbContext
                 .IsUnique()
                 .HasFilter("\"SourceZipFileAssetId\" IS NOT NULL");
 
+            entity.HasIndex(x => x.CoverImageFileAssetId)
+                .IsUnique()
+                .HasFilter("\"CoverImageFileAssetId\" IS NOT NULL");
+
             entity.HasOne(x => x.Mangaka)
                 .WithMany(x => x.Series)
                 .HasForeignKey(x => x.MangakaId)
@@ -264,6 +268,11 @@ public class MangaDbContext : DbContext
             entity.HasOne(x => x.SourceZipFileAsset)
                 .WithOne(x => x.SeriesSourceZip)
                 .HasForeignKey<Series>(x => x.SourceZipFileAssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.CoverImageFileAsset)
+                .WithOne(x => x.SeriesCoverImage)
+                .HasForeignKey<Series>(x => x.CoverImageFileAssetId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
