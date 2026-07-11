@@ -14,7 +14,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Users
         [MaxLength(150)]
         public string? DisplayName { get; set; }
 
-        public Guid? RoleId { get; set; }
+        //public Guid? RoleId { get; set; }
 
         [MinLength(6)]
         public string? NewPassword { get; set; }

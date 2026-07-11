@@ -21,6 +21,8 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime? DeletedAt { get; set; }
 
         public Series? SeriesSourceZip { get; set; }
+        public Series? SeriesCoverImage { get; set; }
+
         public ProposalPage? ProposalPagePreview { get; set; }
         public User? AvatarUser { get; set; }
         public ICollection<PageTaskSubmission> PageTaskSubmissions { get; set; } = new List<PageTaskSubmission>();

@@ -282,7 +282,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             CreatedAt = s.CreatedAt,
             SubmittedAt = s.SubmittedAt,
             RejectReason = s.RejectReason,
-            Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList()
+            Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList(),
+            CoverImageFileAssetId = s.CoverImageFileAssetId,
+            SourceZipFileAssetId = s.SourceZipFileAssetId
         };
 
         private static string ValidateTitle(string? title)

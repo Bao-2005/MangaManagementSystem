@@ -18,6 +18,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public DateTime CreatedAt { get; set; }
         public SeriesStatus Status { get; set; }
         public Guid? SourceZipFileAssetId { get; set; }
+        public Guid? CoverImageFileAssetId { get; set; }
         public string Synopsis { get; set; } = null!;
         public string? RejectReason { get; set; }
         public DateTime? SubmittedAt { get; set; }
@@ -25,6 +26,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public User Mangaka { get; set; } = null!;
         public FileAsset? SourceZipFileAsset { get; set; }
+        public FileAsset? CoverImageFileAsset { get; set; }
 
         public ICollection<SeriesGenre> SeriesGenres { get; set; } = new List<SeriesGenre>();
         public ICollection<ProposalPage> ProposalPages { get; set; } = new List<ProposalPage>();
