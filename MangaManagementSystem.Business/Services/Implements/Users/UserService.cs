@@ -99,18 +99,18 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
             if (request.DisplayName != null)
                 user.DisplayName = RequireText(request.DisplayName, "DisplayName");
 
-            if (request.RoleId.HasValue)
-            {
-                if (request.RoleId.Value == Guid.Empty)
-                    throw new ArgumentException("RoleId is invalid.");
+            //if (request.RoleId.HasValue)
+            //{
+            //    if (request.RoleId.Value == Guid.Empty)
+            //        throw new ArgumentException("RoleId is invalid.");
 
-                var roleExists = await _roleRepository.GetAll()
-                    .AnyAsync(x => x.RoleId == request.RoleId.Value && x.DeletedAt == null);
-                if (!roleExists)
-                    throw new KeyNotFoundException("Role not found.");
+            //    var roleExists = await _roleRepository.GetAll()
+            //        .AnyAsync(x => x.RoleId == request.RoleId.Value && x.DeletedAt == null);
+            //    if (!roleExists)
+            //        throw new KeyNotFoundException("Role not found.");
 
-                user.RoleId = request.RoleId.Value;
-            }
+            //    user.RoleId = request.RoleId.Value;
+            //}
 
             if (request.NewPassword != null)
             {
