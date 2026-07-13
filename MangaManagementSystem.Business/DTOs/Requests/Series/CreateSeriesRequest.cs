@@ -19,6 +19,7 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Series
         public List<Guid> GenreIds { get; set; } = new();
 
         public Guid? SourceZipFileAssetId { get; set; }
+        public Guid? CoverImageFileAssetId { get; set; }
 
         public List<Guid> SamplePageFileAssetIds { get; set; } = new();
     }
