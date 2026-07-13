@@ -159,7 +159,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 .ToListAsync();
         }
 
-        public async Task<SeriesResponse> CreateAsync(Guid mangakaId, CreateSeriesRequest request)
+        public async Task<SeriesDetailResponse> CreateAsync(Guid mangakaId, CreateSeriesRequest request)
         {
             var title = ValidateTitle(request.Title);// BR-06: Proposal Validation Requirements
             var synopsis = ValidateSynopsis(request.Synopsis);
@@ -214,11 +214,10 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             await _seriesRepo.SaveChangeAsync();
 
-            return await GetByIdAsync(series.SeriesId) as SeriesResponse
-                   ?? throw new Exception("Failed to retrieve created series.");
+            return await GetByIdAsync(series.SeriesId);
         }
 
-        public async Task<SeriesResponse> UpdateAsync(Guid id, Guid mangakaId, UpdateSeriesRequest request)
+        public async Task<SeriesDetailResponse> UpdateAsync(Guid id, Guid mangakaId, UpdateSeriesRequest request)
         {
             var series = await _seriesRepo.GetAll()
                 .FirstOrDefaultAsync(s => s.SeriesId == id && s.DeletedAt == null)
@@ -337,7 +336,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
             _seriesRepo.Update(series); 
             await _seriesRepo.SaveChangeAsync();
-            return await GetByIdAsync(id) as SeriesResponse ?? throw new Exception("Update failed.");
+            return await GetByIdAsync(id);
         }
         
 
