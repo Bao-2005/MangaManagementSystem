@@ -312,7 +312,7 @@ public class MangaDbContext : DbContext
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
             entity.HasIndex(x => x.PreviewFileAssetId).IsUnique();
-            entity.HasIndex(x => new { x.SeriesId, x.PageNo }).IsUnique();
+            entity.HasIndex(x => new { x.SeriesId, x.PageNo }).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
 
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.ProposalPages)
