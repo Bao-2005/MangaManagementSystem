@@ -12,5 +12,13 @@ namespace MangaManagementSystem.Business.DTOs.Requests.Series
 
         [MaxLength(50)]
         public string? PublicationType { get; set; }
+
+        public List<Guid>? GenreIds { get; set; }
+
+        public Guid? SourceZipFileAssetId { get; set; }
+
+        public Guid? CoverImageFileAssetId { get; set; }
+
+        public List<Guid>? SamplePageFileAssetIds { get; set; }
     }
 }
