@@ -15,6 +15,7 @@ namespace MangaManagementSystem.Business.DTOs.Responses.Series
         public DateTime CreatedAt { get; set; }
         public DateTime? SubmittedAt { get; set; }
         public string? RejectReason { get; set; }
+        public string? CoverImagePublicUrl { get; set; }
         public List<string> Genres { get; set; } = new();
     }
 }
