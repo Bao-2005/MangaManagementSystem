@@ -9,6 +9,7 @@ using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace MangaManagementSystem.Business.Services.Implements.Series
@@ -34,6 +35,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<BoardDecision> _boardDecisionRepo;
         private readonly ISeriesService _seriesService;
         private readonly INotificationDispatchService _notificationDispatchService;
+        private readonly ILogger<SeriesProposalWorkflowService> _logger;
 
         public SeriesProposalWorkflowService(
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
@@ -41,7 +43,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             IRepository<UserAssignment> userAssignmentRepo,
             IRepository<BoardDecision> boardDecisionRepo,
             ISeriesService seriesService,
-            INotificationDispatchService notificationDispatchService)
+            INotificationDispatchService notificationDispatchService,
+            ILogger<SeriesProposalWorkflowService> logger)
         {
             _seriesRepo = seriesRepo;
             _proposalPageRepo = proposalPageRepo;
@@ -49,6 +52,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _boardDecisionRepo = boardDecisionRepo;
             _seriesService = seriesService;
             _notificationDispatchService = notificationDispatchService;
+            _logger = logger;
         }
 
         public async Task<SeriesDetailResponse> SubmitForReviewAsync(Guid seriesId, Guid mangakaId)
@@ -66,6 +70,21 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             series.SubmittedAt = DateTime.UtcNow;
             _seriesRepo.Update(series);
             await _seriesRepo.SaveChangeAsync();
+
+            var tantouEditorId = await GetAssignedTantouEditorIdAsync(series.MangakaId);
+            if (tantouEditorId.HasValue)
+            {
+                await TryNotifyUsersAsync(
+                    $"Proposal '{series.Title}' was submitted for Tantou review.",
+                    new[] { tantouEditorId.Value },
+                    series.SeriesId);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Proposal {SeriesId} was submitted for review, but no active assigned Tantou Editor was found.",
+                    series.SeriesId);
+            }
 
             return await _seriesService.GetByIdAsync(seriesId);
         }
@@ -90,6 +109,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _seriesRepo.Update(series);
             await _seriesRepo.SaveChangeAsync();
 
+            await TryNotifyUsersAsync(
+                $"Proposal '{series.Title}' requires revision. Reason: {revisionReason}",
+                new[] { series.MangakaId },
+                series.SeriesId);
+
             return await _seriesService.GetByIdAsync(seriesId);
         }
 
@@ -109,6 +133,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             series.RejectReason = rejectReason;
             _seriesRepo.Update(series);
             await _seriesRepo.SaveChangeAsync();
+
+            await TryNotifyUsersAsync(
+                $"Proposal '{series.Title}' was rejected. Reason: {rejectReason}",
+                new[] { series.MangakaId },
+                series.SeriesId);
 
             return await _seriesService.GetByIdAsync(seriesId);
         }
@@ -159,11 +188,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             var dispatchResult = await _notificationDispatchService.DispatchToRoleAsync(
                 new NotificationDispatchRequest
                 {
-                    Title = "Series proposal ready for board voting",
-                    Message = $"Series proposal '{series.Title}' has been submitted for editorial board voting.",
-                    Type = SeriesProposalDecisionType,
-                    Link = $"/api/board-decisions/{decision.BoardDecisionId}",
-                    Priority = "Normal"
+                    Message = $"Proposal '{series.Title}' was submitted for editorial board voting."
                 },
                 UserRole.EditorialBoard.ToString());
 
@@ -198,6 +223,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             series.Status = SeriesStatus.Active;
             _seriesRepo.Update(series);
             await _seriesRepo.SaveChangeAsync();
+
+            await TryNotifyUsersAsync(
+                $"Proposal '{series.Title}' was activated as an active series.",
+                new[] { series.MangakaId },
+                series.SeriesId);
 
             return await _seriesService.GetByIdAsync(seriesId);
         }
@@ -286,6 +316,48 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     && a.DeletedAt == null);
             if (!isAssigned)
                 throw new ForbiddenAccessException("Only the assigned Tantou Editor can review this proposal.");
+        }
+
+        private async Task<Guid?> GetAssignedTantouEditorIdAsync(Guid mangakaId)
+        {
+            return await _userAssignmentRepo.GetAll()
+                .Include(a => a.FromUser)
+                    .ThenInclude(u => u.Role)
+                .Where(a => a.ToUserId == mangakaId
+                    && a.UnassignedAt == null
+                    && a.DeletedAt == null
+                    && a.FromUser.DeletedAt == null
+                    && a.FromUser.Role.DeletedAt == null
+                    && a.FromUser.Role.RoleName == UserRole.TantouEditor.ToString())
+                .Select(a => (Guid?)a.FromUserId)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task TryNotifyUsersAsync(string message, IEnumerable<Guid> userIds, Guid seriesId)
+        {
+            try
+            {
+                var result = await _notificationDispatchService.DispatchToUsersAsync(
+                    new NotificationDispatchRequest { Message = TruncateNotificationMessage(message) },
+                    userIds);
+
+                if (result.Status == NotificationDispatchStatus.NoRecipients)
+                {
+                    _logger.LogWarning(
+                        "Proposal {SeriesId} notification had no recipients: {Message}",
+                        seriesId,
+                        result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Proposal {SeriesId} notification dispatch failed.", seriesId);
+            }
+        }
+
+        private static string TruncateNotificationMessage(string message)
+        {
+            return message.Length <= 1000 ? message : message[..1000];
         }
 
         private static BoardDecisionResponse MapDecision(BoardDecision decision) => new()

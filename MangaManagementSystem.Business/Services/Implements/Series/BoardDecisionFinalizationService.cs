@@ -82,6 +82,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _decisionRepo.Update(decision);
             _seriesRepo.Update(decision.Series);
             await _decisionRepo.SaveChangeAsync();
+
+            await TryNotifyUsersAsync(
+                decision,
+                result == ApprovedResult
+                    ? $"Proposal '{decision.Series.Title}' was approved by the editorial board."
+                    : $"Proposal '{decision.Series.Title}' was rejected by the editorial board.");
         }
 
         public async Task<BoardDecisionSummaryResponse> ProcessDeadlineAsync(Guid boardDecisionId)
@@ -136,6 +142,12 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 _decisionRepo.Update(decision);
                 _seriesRepo.Update(decision.Series);
                 await _decisionRepo.SaveChangeAsync();
+
+                await TryNotifyUsersAsync(
+                    decision,
+                    result == ApprovedResult
+                        ? $"Proposal '{decision.Series.Title}' was approved by the editorial board."
+                        : $"Proposal '{decision.Series.Title}' was rejected by the editorial board.");
 
                 return CreateSummary(decision, validVotes);
             }
@@ -251,21 +263,61 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             return await _notificationDispatchService.DispatchToRoleAsync(
                 new NotificationDispatchRequest
                 {
-                    Title = requiresSpecialDecision
-                        ? "Board vote requires special decision"
-                        : "Board vote requires deadline extension review",
                     Message = requiresSpecialDecision
-                        ? $"Extended board decision for series '{decision.Series.Title}' ended in {outcome} and requires a special decision."
-                        : $"Board decision for series '{decision.Series.Title}' ended in {outcome} and requires deadline extension review.",
-                    Type = requiresSpecialDecision
-                        ? "BoardDecisionSpecialDecisionRequired"
-                        : string.Equals(decision.Result, NoQuorumResult, StringComparison.OrdinalIgnoreCase)
-                            ? "BoardDecisionNoQuorum"
-                            : "BoardDecisionTie",
-                    Link = $"/board-decisions/{decision.BoardDecisionId}",
-                    Priority = "High"
+                        ? $"Extended board decision for proposal '{decision.Series.Title}' ended in {outcome} and requires a special decision."
+                        : $"Board decision for proposal '{decision.Series.Title}' ended in {outcome} and requires deadline extension review."
                 },
                 UserRole.EditorInChief.ToString());
+        }
+
+        private async Task<List<Guid>> GetMangakaAndAssignedTantouRecipientsAsync(BoardDecision decision)
+        {
+            var recipients = new List<Guid> { decision.Series.MangakaId };
+
+            var tantouEditorId = await _assignmentRepo.GetAll()
+                .Include(a => a.FromUser)
+                    .ThenInclude(u => u.Role)
+                .Where(a => a.ToUserId == decision.Series.MangakaId
+                    && a.UnassignedAt == null
+                    && a.DeletedAt == null
+                    && a.FromUser.DeletedAt == null
+                    && a.FromUser.Role.DeletedAt == null
+                    && a.FromUser.Role.RoleName == UserRole.TantouEditor.ToString())
+                .Select(a => (Guid?)a.FromUserId)
+                .FirstOrDefaultAsync();
+
+            if (tantouEditorId.HasValue)
+            {
+                recipients.Add(tantouEditorId.Value);
+            }
+
+            return recipients.Distinct().ToList();
+        }
+
+        private async Task TryNotifyUsersAsync(BoardDecision decision, string message)
+        {
+            try
+            {
+                var recipients = await GetMangakaAndAssignedTantouRecipientsAsync(decision);
+                var result = await _notificationDispatchService.DispatchToUsersAsync(
+                    new NotificationDispatchRequest { Message = TruncateNotificationMessage(message) },
+                    recipients);
+
+                if (result.Status == NotificationDispatchStatus.NoRecipients)
+                {
+                    _logger.LogWarning(
+                        "Board decision {BoardDecisionId} notification had no recipients: {Message}",
+                        decision.BoardDecisionId,
+                        result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Board decision {BoardDecisionId} notification dispatch failed.",
+                    decision.BoardDecisionId);
+            }
         }
 
         private async Task TryNotifyEditorInChiefOfFailedOutcomeAsync(BoardDecision decision)
@@ -309,6 +361,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             }
 
             return reason.Length <= 1000 ? reason : reason[..1000];
+        }
+
+        private static string TruncateNotificationMessage(string message)
+        {
+            return message.Length <= 1000 ? message : message[..1000];
         }
     }
 }
