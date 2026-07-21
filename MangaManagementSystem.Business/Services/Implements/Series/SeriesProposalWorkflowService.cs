@@ -32,6 +32,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepo;
         private readonly IRepository<ProposalPage> _proposalPageRepo;
         private readonly IRepository<UserAssignment> _userAssignmentRepo;
+        private readonly IRepository<User> _userRepo;
         private readonly IRepository<BoardDecision> _boardDecisionRepo;
         private readonly ISeriesService _seriesService;
         private readonly INotificationDispatchService _notificationDispatchService;
@@ -41,6 +42,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
             IRepository<ProposalPage> proposalPageRepo,
             IRepository<UserAssignment> userAssignmentRepo,
+            IRepository<User> userRepo,
             IRepository<BoardDecision> boardDecisionRepo,
             ISeriesService seriesService,
             INotificationDispatchService notificationDispatchService,
@@ -49,6 +51,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _seriesRepo = seriesRepo;
             _proposalPageRepo = proposalPageRepo;
             _userAssignmentRepo = userAssignmentRepo;
+            _userRepo = userRepo;
             _boardDecisionRepo = boardDecisionRepo;
             _seriesService = seriesService;
             _notificationDispatchService = notificationDispatchService;
@@ -159,6 +162,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     && d.DeletedAt == null);
             if (hasOpenDecision)
                 throw new InvalidOperationException("This proposal already has an open board decision.");
+
+            await EnsureActiveEditorialBoardRecipientAsync();
 
             var now = DateTime.UtcNow;
             var decision = new BoardDecision
@@ -316,6 +321,19 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     && a.DeletedAt == null);
             if (!isAssigned)
                 throw new ForbiddenAccessException("Only the assigned Tantou Editor can review this proposal.");
+        }
+
+        private async Task EnsureActiveEditorialBoardRecipientAsync()
+        {
+            var hasActiveEditorialBoardRecipient = await _userRepo.GetAll()
+                .Include(u => u.Role)
+                .AnyAsync(u => u.DeletedAt == null
+                    && u.Role.DeletedAt == null
+                    && u.Role.RoleName == UserRole.EditorialBoard.ToString());
+
+            if (!hasActiveEditorialBoardRecipient)
+                throw new InvalidOperationException(
+                    $"No active users were found for role '{UserRole.EditorialBoard}'.");
         }
 
         private async Task<Guid?> GetAssignedTantouEditorIdAsync(Guid mangakaId)

@@ -130,8 +130,8 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.NotificationId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.Message).IsRequired().HasMaxLength(1000);
-            entity.Property(x => x.CreatedAt).IsRequired();
-            entity.Property(x => x.DeletedAt);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamp with time zone");
         });
     }
 
