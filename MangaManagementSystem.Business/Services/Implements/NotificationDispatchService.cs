@@ -1,9 +1,12 @@
 using MangaManagementSystem.Business.DTOs.Requests;
+using MangaManagementSystem.Business.DTOs.Requests.Notifications;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.Services.Interfaces.Notifications;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MangaManagementSystem.Business.Services.Implements
 {
@@ -11,13 +14,19 @@ namespace MangaManagementSystem.Business.Services.Implements
     {
         private readonly IRepository<Notification> _notificationRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IRealtimeNotifier _realtimeNotifier;
+        private readonly ILogger<NotificationDispatchService> _logger;
 
         public NotificationDispatchService(
             IRepository<Notification> notificationRepo,
-            IRepository<User> userRepo)
+            IRepository<User> userRepo,
+            IRealtimeNotifier realtimeNotifier,
+            ILogger<NotificationDispatchService> logger)
         {
             _notificationRepo = notificationRepo;
             _userRepo = userRepo;
+            _realtimeNotifier = realtimeNotifier;
+            _logger = logger;
         }
 
         public async Task<NotificationDispatchResponse> DispatchToUsersAsync(
@@ -131,11 +140,7 @@ namespace MangaManagementSystem.Business.Services.Implements
         {
             var notification = new Notification
             {
-                Title = request.Title,
                 Message = request.Message,
-                Type = request.Type,
-                Link = request.Link,
-                Priority = request.Priority,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -151,6 +156,7 @@ namespace MangaManagementSystem.Business.Services.Implements
 
             await _notificationRepo.AddAsync(notification, cancellationToken);
             await _notificationRepo.SaveChangeAsync(cancellationToken);
+            await TryPushRealtimeAsync(notification, recipientUserIds, cancellationToken);
 
             var skippedMissingUserIds = missingUserIds.ToList();
             var skippedInactiveUserIds = inactiveUserIds.ToList();
@@ -172,14 +178,40 @@ namespace MangaManagementSystem.Business.Services.Implements
 
         private static void ValidateRequest(NotificationDispatchRequest request)
         {
-            ValidateRequiredText(request.Title, nameof(request.Title), 150);
             ValidateRequiredText(request.Message, nameof(request.Message), 1000);
-            ValidateRequiredText(request.Type, nameof(request.Type), 50);
-            ValidateRequiredText(request.Priority, nameof(request.Priority), 50);
+        }
 
-            if (request.Link is { Length: > 500 })
+        private async Task TryPushRealtimeAsync(
+            Notification notification,
+            IReadOnlyCollection<Guid> recipientUserIds,
+            CancellationToken cancellationToken)
+        {
+            if (recipientUserIds.Count == 0)
             {
-                throw new ArgumentException("Link must be 500 characters or fewer.", nameof(request.Link));
+                return;
+            }
+
+            var payload = new RealtimeNotificationPayload
+            {
+                NotificationId = notification.NotificationId,
+                Message = notification.Message,
+                CreatedAt = notification.CreatedAt
+            };
+
+            try
+            {
+                await _realtimeNotifier.NotifyUsersAsync(recipientUserIds, payload);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Notification {NotificationId} was persisted, but realtime push failed.",
+                    notification.NotificationId);
             }
         }
 
