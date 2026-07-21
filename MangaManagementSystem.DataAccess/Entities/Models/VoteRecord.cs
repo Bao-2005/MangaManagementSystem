@@ -22,5 +22,6 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
 
         public Series Series { get; set; } = null!;
         public User? Confirmer { get; set; }
+        public ICollection<RankingSnapshot> RankingSnapshots { get; set; } = new List<RankingSnapshot>();
     }
 }
