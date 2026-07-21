@@ -224,13 +224,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private async Task NotifyResolversAsync(Escalation escalation)
         {
+            var message = $"{escalation.EntityType} issue was escalated: {escalation.Reason}";
+
             var request = new NotificationDispatchRequest
             {
-                Title = "New escalation requires review",
-                Message = $"{escalation.EntityType} issue was escalated: {escalation.Reason}",
-                Type = "EscalationRaised",
-                Link = $"/api/escalations/{escalation.EscalationId}",
-                Priority = escalation.Priority
+                Message = message.Length <= 1000 ? message : message[..1000]
             };
 
             try
