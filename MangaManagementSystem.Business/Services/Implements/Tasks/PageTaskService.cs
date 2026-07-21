@@ -424,10 +424,6 @@ public class PageTaskService : IPageTaskService
 
     private async Task TryNotifyAssistantReviewResultAsync(PageTask task, bool approved, string? feedback = null)
     {
-        var title = approved
-            ? "Page task approved"
-            : "Page task needs revision";
-
         var taskLabel = string.IsNullOrWhiteSpace(task.TaskType)
             ? $"pages {task.PageStart}-{task.PageEnd}"
             : $"{task.TaskType} pages {task.PageStart}-{task.PageEnd}";
@@ -439,11 +435,7 @@ public class PageTaskService : IPageTaskService
 
         var request = new NotificationDispatchRequest
         {
-            Title = title,
-            Message = message.Length <= 1000 ? message : message[..1000],
-            Type = approved ? "PageTaskApproved" : "PageTaskRejected",
-            Link = "/api/page-tasks/assistant",
-            Priority = approved ? "Normal" : "High"
+            Message = message.Length <= 1000 ? message : message[..1000]
         };
 
         try

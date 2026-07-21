@@ -24,11 +24,12 @@ namespace MangaManagementSystem.Business.Services.Implements
                 .Where(un => un.UserId == userId && un.DeletedAt == null && un.Notification.DeletedAt == null)
                 .Select(un => new UserNotificationResponse
                 {
-                    UserNotificationId = un.UserNotificationId, NotificationId = un.NotificationId,
-                    Title = un.Notification.Title, Message = un.Notification.Message,
-                    Type = un.Notification.Type, Link = un.Notification.Link,
-                    Priority = un.Notification.Priority, IsRead = un.IsRead,
-                    ReadAt = un.ReadAt, CreatedAt = un.Notification.CreatedAt
+                    UserNotificationId = un.UserNotificationId,
+                    NotificationId = un.NotificationId,
+                    Message = un.Notification.Message,
+                    IsRead = un.IsRead,
+                    ReadAt = un.ReadAt,
+                    CreatedAt = un.Notification.CreatedAt
                 }).ToListAsync();
 
         public async Task MarkAsReadAsync(Guid userNotificationId, Guid userId)
@@ -46,8 +47,8 @@ namespace MangaManagementSystem.Business.Services.Implements
         {
             var notification = new Notification
             {
-                Title = request.Title, Message = request.Message, Type = request.Type,
-                Link = request.Link, Priority = request.Priority, CreatedAt = DateTime.UtcNow
+                Message = request.Message,
+                CreatedAt = DateTime.UtcNow
             };
             await _notifRepo.AddAsync(notification);
 
@@ -57,9 +58,9 @@ namespace MangaManagementSystem.Business.Services.Implements
             await _notifRepo.SaveChangeAsync();
             return new NotificationResponse
             {
-                NotificationId = notification.NotificationId, Title = notification.Title,
-                Message = notification.Message, Type = notification.Type, Link = notification.Link,
-                Priority = notification.Priority, CreatedAt = notification.CreatedAt
+                NotificationId = notification.NotificationId,
+                Message = notification.Message,
+                CreatedAt = notification.CreatedAt
             };
         }
 
