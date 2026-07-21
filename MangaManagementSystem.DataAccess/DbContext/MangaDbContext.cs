@@ -662,8 +662,16 @@ public class MangaDbContext : DbContext
 
             entity.ToTable(t =>
             {
-                t.HasCheckConstraint("CK_VoteRecords_Count", "\"VoteCount\" <= \"ReaderCount\"");
+                t.HasCheckConstraint(
+                    "CK_VoteRecords_Count",
+                    "\"ReaderCount\" >= 0 AND \"VoteCount\" >= 0 AND \"VoteCount\" <= \"ReaderCount\"");
             });
+
+            entity.HasIndex(x => new { x.SeriesId, x.Period })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasIndex(x => new { x.Period, x.Status });
 
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.VoteRecords)
@@ -686,13 +694,31 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.RankingSnapshotId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.Period).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Score).IsRequired().HasPrecision(18, 2);
+            entity.Property(x => x.ReaderCount).IsRequired();
+            entity.Property(x => x.VoteCount).IsRequired();
             entity.Property(x => x.IsBottom20Percent).IsRequired().HasDefaultValue(false);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
+            entity.HasIndex(x => new { x.SeriesId, x.Period })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasIndex(x => new { x.Period, x.RankNo })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasIndex(x => new { x.Period, x.Score, x.VoteCount });
+
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.RankingSnapshots)
                 .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.VoteRecord)
+                .WithMany(x => x.RankingSnapshots)
+                .HasForeignKey(x => x.VoteRecordId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
