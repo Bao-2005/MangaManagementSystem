@@ -115,6 +115,8 @@ builder.Services.AddCors(options =>
         policy.SetIsOriginAllowed(origin =>
             origin == "http://localhost:3000" ||
             origin == "https://manga-management-system.vercel.app" ||
+            origin == "http://localhost:5500" ||
+            origin == "http://127.0.0.1:5500" ||
             origin.EndsWith(".vercel.app")) // Cho phép tất cả subdomain vercel.app
             .AllowAnyHeader()
             .AllowAnyMethod()

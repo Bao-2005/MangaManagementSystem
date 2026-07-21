@@ -129,13 +129,9 @@ public class MangaDbContext : DbContext
             entity.HasKey(x => x.NotificationId);
 
             entity.Property(x => x.NotificationId).HasDefaultValueSql(NewGuidSql);
-            entity.Property(x => x.Title).IsRequired().HasMaxLength(150);
             entity.Property(x => x.Message).IsRequired().HasMaxLength(1000);
-            entity.Property(x => x.Type).IsRequired().HasMaxLength(50);
-            entity.Property(x => x.Link).HasMaxLength(500);
-            entity.Property(x => x.Priority).IsRequired().HasMaxLength(50);
-            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
-            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamp with time zone");
         });
     }
 

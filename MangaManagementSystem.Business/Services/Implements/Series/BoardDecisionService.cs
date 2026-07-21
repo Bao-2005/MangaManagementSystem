@@ -1,10 +1,14 @@
+using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Requests.Series;
+using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.DTOs.Responses.Series;
+using MangaManagementSystem.Business.Services.Interfaces;
 using MangaManagementSystem.Business.Services.Interfaces.Series;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MangaManagementSystem.Business.Services.Implements.Series
 {
@@ -21,16 +25,25 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
 
         private readonly IRepository<BoardDecision> _repo;
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepo;
+        private readonly IRepository<UserAssignment> _assignmentRepo;
         private readonly IBoardDecisionFinalizationService _finalizationService;
+        private readonly INotificationDispatchService _notificationDispatchService;
+        private readonly ILogger<BoardDecisionService> _logger;
 
         public BoardDecisionService(
             IRepository<BoardDecision> repo,
             IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> seriesRepo,
-            IBoardDecisionFinalizationService finalizationService)
+            IRepository<UserAssignment> assignmentRepo,
+            IBoardDecisionFinalizationService finalizationService,
+            INotificationDispatchService notificationDispatchService,
+            ILogger<BoardDecisionService> logger)
         {
             _repo = repo;
             _seriesRepo = seriesRepo;
+            _assignmentRepo = assignmentRepo;
             _finalizationService = finalizationService;
+            _notificationDispatchService = notificationDispatchService;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<BoardDecisionResponse>> GetBySeriesAsync(Guid seriesId)
@@ -123,6 +136,11 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _seriesRepo.Update(decision.Series);
             await _repo.SaveChangeAsync();
 
+            await TryNotifyRoleAsync(
+                UserRole.EditorialBoard.ToString(),
+                $"Voting deadline for proposal '{decision.Series.Title}' was extended.",
+                decision.BoardDecisionId);
+
             return Map(decision);
         }
 
@@ -187,6 +205,20 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             _seriesRepo.Update(decision.Series);
             await _repo.SaveChangeAsync();
 
+            var recipients = new List<Guid> { decision.Series.MangakaId };
+            var tantouEditorId = await GetAssignedTantouEditorIdAsync(decision.Series.MangakaId);
+            if (tantouEditorId.HasValue)
+            {
+                recipients.Add(tantouEditorId.Value);
+            }
+
+            await TryNotifyUsersAsync(
+                decisionResult == ApprovedResult
+                    ? $"Proposal '{decision.Series.Title}' was approved by Editor-in-Chief special decision."
+                    : $"Proposal '{decision.Series.Title}' was rejected by Editor-in-Chief special decision.",
+                recipients,
+                decision.BoardDecisionId);
+
             return Map(decision);
         }
 
@@ -236,6 +268,70 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             return value.Kind == DateTimeKind.Unspecified
                 ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
                 : value.ToUniversalTime();
+        }
+
+        private async Task TryNotifyRoleAsync(string roleName, string message, Guid boardDecisionId)
+        {
+            try
+            {
+                var result = await _notificationDispatchService.DispatchToRoleAsync(
+                    new NotificationDispatchRequest { Message = TruncateNotificationMessage(message) },
+                    roleName);
+
+                if (result.Status == NotificationDispatchStatus.NoRecipients)
+                {
+                    _logger.LogWarning(
+                        "Board decision {BoardDecisionId} role notification had no recipients: {Message}",
+                        boardDecisionId,
+                        result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Board decision {BoardDecisionId} role notification failed.", boardDecisionId);
+            }
+        }
+
+        private async Task<Guid?> GetAssignedTantouEditorIdAsync(Guid mangakaId)
+        {
+            return await _assignmentRepo.GetAll()
+                .Include(a => a.FromUser)
+                    .ThenInclude(u => u.Role)
+                .Where(a => a.ToUserId == mangakaId
+                    && a.UnassignedAt == null
+                    && a.DeletedAt == null
+                    && a.FromUser.DeletedAt == null
+                    && a.FromUser.Role.DeletedAt == null
+                    && a.FromUser.Role.RoleName == UserRole.TantouEditor.ToString())
+                .Select(a => (Guid?)a.FromUserId)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task TryNotifyUsersAsync(string message, IEnumerable<Guid> userIds, Guid boardDecisionId)
+        {
+            try
+            {
+                var result = await _notificationDispatchService.DispatchToUsersAsync(
+                    new NotificationDispatchRequest { Message = TruncateNotificationMessage(message) },
+                    userIds);
+
+                if (result.Status == NotificationDispatchStatus.NoRecipients)
+                {
+                    _logger.LogWarning(
+                        "Board decision {BoardDecisionId} user notification had no recipients: {Message}",
+                        boardDecisionId,
+                        result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Board decision {BoardDecisionId} user notification failed.", boardDecisionId);
+            }
+        }
+
+        private static string TruncateNotificationMessage(string message)
+        {
+            return message.Length <= 1000 ? message : message[..1000];
         }
 
         private static BoardDecisionResponse Map(BoardDecision b) => new()
