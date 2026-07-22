@@ -40,6 +40,7 @@ public class MangaDbContext : DbContext
     public DbSet<VoteRecord> VoteRecords => Set<VoteRecord>();
     public DbSet<RankingSnapshot> RankingSnapshots => Set<RankingSnapshot>();
     public DbSet<Escalation> Escalations => Set<Escalation>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +70,7 @@ public class MangaDbContext : DbContext
         ConfigureVoteRecords(modelBuilder);
         ConfigureRankingSnapshots(modelBuilder);
         ConfigureEscalations(modelBuilder);
+        ConfigureSystemSettings(modelBuilder);
     }
 
     private static void ConfigureRoles(ModelBuilder modelBuilder)
@@ -758,6 +760,27 @@ public class MangaDbContext : DbContext
                 .WithMany(x => x.ResolvedEscalations)
                 .HasForeignKey(x => x.ResolvedBy)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureSystemSettings(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SystemSetting>(entity =>
+        {
+            entity.ToTable("SystemSettings");
+            entity.HasKey(x => x.SystemSettingId);
+
+            entity.Property(x => x.SystemSettingId).HasDefaultValueSql(NewGuidSql);
+            entity.Property(x => x.Key).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.Value).IsRequired().HasMaxLength(500);
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
+            entity.Property(x => x.UpdatedAt).HasColumnType("timestamptz");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+
+            entity.HasIndex(x => x.Key)
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
         });
     }
 }
