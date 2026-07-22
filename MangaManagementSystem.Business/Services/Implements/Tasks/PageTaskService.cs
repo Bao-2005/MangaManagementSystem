@@ -10,6 +10,7 @@ using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.DTOs.Responses.Files;
 using MangaManagementSystem.Business.DTOs.Responses.Tasks;
 using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.Business.Services.Interfaces.Settings;
 using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
@@ -22,8 +23,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Tasks;
 
 public class PageTaskService : IPageTaskService
 {
-    private const int MaxActiveSubmissionAttempts = 3;
-
     private readonly IRepository<PageTask> _pageTaskRepository;
     private readonly IRepository<PageTaskSubmission> _submissionRepository;
     private readonly IRepository<Chapter> _chapterRepository;
@@ -32,6 +31,7 @@ public class PageTaskService : IPageTaskService
     private readonly IRepository<PageTaskReferenceFile> _pageTaskReferenceFileRepository;
     private readonly IRepository<SalaryRecord> _salaryRecordRepository;
     private readonly INotificationDispatchService _notificationDispatchService;
+    private readonly ISystemSettingService _systemSettingService;
     private readonly IMapper _mapper;
     private readonly ILogger<PageTaskService> _logger;
     private readonly string _supabaseUrl;
@@ -45,6 +45,7 @@ public class PageTaskService : IPageTaskService
         IRepository<PageTaskReferenceFile> pageTaskReferenceFileRepository,
         IRepository<SalaryRecord> salaryRecordRepository,
         INotificationDispatchService notificationDispatchService,
+        ISystemSettingService systemSettingService,
         IConfiguration configuration,
         IMapper mapper,
         ILogger<PageTaskService> logger)
@@ -57,6 +58,7 @@ public class PageTaskService : IPageTaskService
         _pageTaskReferenceFileRepository = pageTaskReferenceFileRepository;
         _salaryRecordRepository = salaryRecordRepository;
         _notificationDispatchService = notificationDispatchService;
+        _systemSettingService = systemSettingService;
         _mapper = mapper;
         _logger = logger;
         _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).TrimEnd('/');
@@ -326,7 +328,8 @@ public class PageTaskService : IPageTaskService
         var activeSubmissionAttemptCount = task.Submissions
             .Count(x => x.Status != PageTaskSubmissionStatus.Approved);
 
-        if (activeSubmissionAttemptCount >= MaxActiveSubmissionAttempts)
+        var maxSubmissionAttempts = await _systemSettingService.GetMaxSubmissionAttemptsValueAsync();
+        if (activeSubmissionAttemptCount >= maxSubmissionAttempts)
             throw new InvalidOperationException("Đã hết lượt nộp.");
 
         var fileExists = await _fileAssetRepository.GetAll()
