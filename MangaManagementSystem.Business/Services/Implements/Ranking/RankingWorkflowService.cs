@@ -1,5 +1,6 @@
 using MangaManagementSystem.Business.DTOs.Requests.Ranking;
 using MangaManagementSystem.Business.DTOs.Responses.Ranking;
+using MangaManagementSystem.Business.DTOs.Responses.Series;
 using MangaManagementSystem.Business.Services.Interfaces.Ranking;
 using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
@@ -12,19 +13,25 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
 {
     public class RankingWorkflowService : IRankingWorkflowService
     {
+        private const string RankingEliminationDecisionType = "RankingElimination";
+        private const string OpenDecisionStatus = "Open";
+
         private readonly IRepository<VoteRecord> _voteRecordRepository;
         private readonly IRepository<RankingSnapshot> _rankingSnapshotRepository;
+        private readonly IRepository<BoardDecision> _boardDecisionRepository;
         private readonly IRepository<SeriesEntity> _seriesRepository;
         private readonly IRepository<User> _userRepository;
 
         public RankingWorkflowService(
             IRepository<VoteRecord> voteRecordRepository,
             IRepository<RankingSnapshot> rankingSnapshotRepository,
+            IRepository<BoardDecision> boardDecisionRepository,
             IRepository<SeriesEntity> seriesRepository,
             IRepository<User> userRepository)
         {
             _voteRecordRepository = voteRecordRepository;
             _rankingSnapshotRepository = rankingSnapshotRepository;
+            _boardDecisionRepository = boardDecisionRepository;
             _seriesRepository = seriesRepository;
             _userRepository = userRepository;
         }
@@ -100,6 +107,52 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
                 TotalRanked = totalRanked,
                 Snapshots = snapshots
             };
+        }
+
+        public async Task<BoardDecisionResponse> CreateEliminationDecisionAsync(
+            Guid actorId,
+            Guid rankingSnapshotId,
+            CreateRankingEliminationDecisionRequest request)
+        {
+            await EnsureActiveEditorialBoardAsync(actorId);
+
+            var snapshot = await _rankingSnapshotRepository.GetAll()
+                .Include(x => x.Series)
+                .FirstOrDefaultAsync(x => x.RankingSnapshotId == rankingSnapshotId && x.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Ranking snapshot not found.");
+
+            if (!snapshot.IsBottom20Percent)
+                throw new InvalidOperationException("Only bottom 20 percent ranking snapshots can have elimination decisions.");
+
+            if (snapshot.Series.DeletedAt != null || snapshot.Series.Status != SeriesStatus.Active)
+                throw new InvalidOperationException("Only active series can have elimination decisions.");
+
+            if (request.VotingDeadline <= DateTime.UtcNow)
+                throw new ArgumentException("Voting deadline must be in the future.");
+
+            var duplicateExists = await _boardDecisionRepository.GetAll()
+                .AnyAsync(x => x.SeriesId == snapshot.SeriesId
+                    && x.DecisionType == RankingEliminationDecisionType
+                    && x.Status == OpenDecisionStatus
+                    && x.DeletedAt == null);
+            if (duplicateExists)
+                throw new InvalidOperationException("An open ranking elimination decision already exists for this series.");
+
+            var now = DateTime.UtcNow;
+            var decision = new BoardDecision
+            {
+                SeriesId = snapshot.SeriesId,
+                DecisionType = RankingEliminationDecisionType,
+                Status = OpenDecisionStatus,
+                VotingDeadline = request.VotingDeadline,
+                CreatedBy = actorId,
+                CreatedAt = now
+            };
+
+            await _boardDecisionRepository.AddAsync(decision);
+            await _boardDecisionRepository.SaveChangeAsync();
+
+            return MapDecision(decision);
         }
 
         public async Task<IReadOnlyList<RankingSnapshotDetailResponse>> GetRankingsAsync(string period)
@@ -260,6 +313,30 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
                 VoteCount = snapshot.VoteCount,
                 IsBottom20Percent = snapshot.IsBottom20Percent,
                 CreatedAt = snapshot.CreatedAt
+            };
+        }
+
+        private static BoardDecisionResponse MapDecision(BoardDecision decision)
+        {
+            return new BoardDecisionResponse
+            {
+                BoardDecisionId = decision.BoardDecisionId,
+                SeriesId = decision.SeriesId,
+                DecisionType = decision.DecisionType,
+                Status = decision.Status,
+                Result = decision.Result,
+                VotingDeadline = decision.VotingDeadline,
+                FinalizedAt = decision.FinalizedAt,
+                CreatedBy = decision.CreatedBy,
+                ExtensionCount = decision.ExtensionCount,
+                ExtendedBy = decision.ExtendedBy,
+                ExtendedAt = decision.ExtendedAt,
+                ExtensionReason = decision.ExtensionReason,
+                SpecialDecisionBy = decision.SpecialDecisionBy,
+                SpecialDecisionAt = decision.SpecialDecisionAt,
+                SpecialDecisionReason = decision.SpecialDecisionReason,
+                CreatedAt = decision.CreatedAt,
+                VoteCount = decision.BoardVotes.Count(v => v.DeletedAt == null)
             };
         }
 

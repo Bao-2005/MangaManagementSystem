@@ -61,6 +61,32 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = ranking, Message = "Vote record confirmed and rankings recalculated." });
         }
 
+        [HttpPost("snapshots/{rankingSnapshotId:guid}/elimination-decision")]
+        [Authorize(Policy = "EditorialBoardOnly")]
+        [SwaggerOperation(
+            Summary = "Create an elimination board decision for a low-ranked series",
+            Description = "Editorial Board only. Creates an open board decision for a bottom 20 percent ranking snapshot.")]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> CreateEliminationDecision(
+            Guid rankingSnapshotId,
+            [FromBody] CreateRankingEliminationDecisionRequest request)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized(new BaseResponse { Message = "Unauthorized" });
+
+            var decision = await _rankingWorkflowService.CreateEliminationDecisionAsync(
+                userId.Value,
+                rankingSnapshotId,
+                request);
+
+            return Ok(new BaseResponse { Data = decision, Message = "Elimination decision created." });
+        }
+
         [HttpGet("periods")]
         [Authorize]
         [SwaggerOperation(
