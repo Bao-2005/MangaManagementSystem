@@ -121,7 +121,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         //BR-14: Conflict of Interest Definition
         private async Task EnsureNoConflictOfInterestAsync(Guid voterId, BoardDecision decision)
         { 
-            if (decision.Series.MangakaId == voterId || decision.CreatedBy == voterId)
+            if (decision.Series.MangakaId == voterId)
             {
                 throw new ForbiddenAccessException("You cannot vote on a decision where you have a conflict of interest.");
             }
