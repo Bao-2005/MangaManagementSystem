@@ -65,7 +65,7 @@ namespace MangaManagementSystem.API.Controllers
         [Authorize(Policy = "EditorialBoardOnly")]
         [SwaggerOperation(
             Summary = "Create an elimination board decision for a low-ranked series",
-            Description = "Editorial Board only. Creates an open board decision for a bottom 20 percent ranking snapshot.")]
+            Description = "Editorial Board only. Creates an open board decision for a ranking snapshot with score below 20.")]
         [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

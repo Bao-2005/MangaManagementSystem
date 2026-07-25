@@ -15,6 +15,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
     {
         private const string RankingEliminationDecisionType = "RankingElimination";
         private const string OpenDecisionStatus = "Open";
+        private const decimal EliminationScoreThreshold = 20m;
 
         private readonly IRepository<VoteRecord> _voteRecordRepository;
         private readonly IRepository<RankingSnapshot> _rankingSnapshotRepository;
@@ -121,8 +122,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
                 .FirstOrDefaultAsync(x => x.RankingSnapshotId == rankingSnapshotId && x.DeletedAt == null)
                 ?? throw new KeyNotFoundException("Ranking snapshot not found.");
 
-            if (!snapshot.IsBottom20Percent)
-                throw new InvalidOperationException("Only bottom 20 percent ranking snapshots can have elimination decisions.");
+            if (snapshot.Score >= EliminationScoreThreshold)
+                throw new InvalidOperationException("Only ranking snapshots with score below 20 can have elimination decisions.");
 
             if (snapshot.Series.DeletedAt != null || snapshot.Series.Status != SeriesStatus.Active)
                 throw new InvalidOperationException("Only active series can have elimination decisions.");
