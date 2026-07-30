@@ -98,9 +98,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
             voteRecord.ConfirmedAt = DateTime.UtcNow;
             voteRecord.Confirmer = actor;
 
-            var totalRanked = await RecalculatePeriodAsync(voteRecord.Period);
             await _voteRecordRepository.SaveChangeAsync();
 
+            var totalRanked = await RecalculatePeriodAsync(voteRecord.Period);
             var snapshots = await GetRankingsAsync(voteRecord.Period);
             return new RankingRecalculationResponse
             {
@@ -251,6 +251,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
             {
                 staleSnapshot.DeletedAt = now;
             }
+
+            await _rankingSnapshotRepository.SaveChangeAsync();
 
             return rankedRecords.Count;
         }
