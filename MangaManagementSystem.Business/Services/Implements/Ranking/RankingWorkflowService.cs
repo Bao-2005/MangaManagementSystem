@@ -60,7 +60,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
 
             if (existingVoteRecord is not null)
             {
-                if (existingVoteRecord.Status != RankingConstants.VoteRecordStatus.Pending)
+                if (existingVoteRecord.Status != VoteRecordStatus.Pending)
                     throw new InvalidOperationException("Confirmed vote record cannot be imported again for this series and period.");
 
                 existingVoteRecord.ReaderCount = request.ReaderCount;
@@ -78,7 +78,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
                 Period = period,
                 ReaderCount = request.ReaderCount,
                 VoteCount = request.VoteCount,
-                Status = RankingConstants.VoteRecordStatus.Pending,
+                Status = VoteRecordStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -99,13 +99,13 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
                 .FirstOrDefaultAsync(x => x.VoteRecordId == voteRecordId && x.DeletedAt == null)
                 ?? throw new KeyNotFoundException("Vote record not found.");
 
-            if (voteRecord.Status != RankingConstants.VoteRecordStatus.Pending)
+            if (voteRecord.Status != VoteRecordStatus.Pending)
                 throw new InvalidOperationException("Only pending vote records can be confirmed.");
 
             if (voteRecord.Series.DeletedAt != null || voteRecord.Series.Status != SeriesStatus.Active)
                 throw new InvalidOperationException("Only active series can be ranked.");
 
-            voteRecord.Status = RankingConstants.VoteRecordStatus.Confirmed;
+            voteRecord.Status = VoteRecordStatus.Confirmed;
             voteRecord.ConfirmedBy = actorId;
             voteRecord.ConfirmedAt = DateTime.UtcNow;
             voteRecord.Confirmer = actor;
@@ -205,7 +205,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
             var confirmedRecords = await _voteRecordRepository.GetAll()
                 .Include(x => x.Series)
                 .Where(x => x.Period == period
-                    && x.Status == RankingConstants.VoteRecordStatus.Confirmed
+                    && x.Status == VoteRecordStatus.Confirmed
                     && x.DeletedAt == null
                     && x.Series.DeletedAt == null
                     && x.Series.Status == SeriesStatus.Active)
@@ -305,7 +305,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
                 ReaderCount = voteRecord.ReaderCount,
                 VoteCount = voteRecord.VoteCount,
                 Score = CalculateScore(voteRecord.ReaderCount, voteRecord.VoteCount),
-                Status = voteRecord.Status,
+                Status = voteRecord.Status.ToString(),
                 ConfirmedBy = voteRecord.ConfirmedBy,
                 ConfirmerName = voteRecord.Confirmer?.DisplayName,
                 ConfirmedAt = voteRecord.ConfirmedAt,

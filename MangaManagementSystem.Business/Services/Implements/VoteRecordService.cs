@@ -1,6 +1,7 @@
 using MangaManagementSystem.Business.DTOs.Requests;
 using MangaManagementSystem.Business.DTOs.Responses;
 using MangaManagementSystem.Business.Services.Interfaces;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ namespace MangaManagementSystem.Business.Services.Implements
                 Period = request.Period,
                 ReaderCount = request.ReaderCount,
                 VoteCount = request.VoteCount,
-                Status = "Pending",
+                Status = VoteRecordStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
             await _repo.AddAsync(vr);
@@ -44,7 +45,7 @@ namespace MangaManagementSystem.Business.Services.Implements
             var vr = await _repo.GetAll().Include(v => v.Confirmer)
                 .FirstOrDefaultAsync(x => x.VoteRecordId == id && x.DeletedAt == null)
                 ?? throw new KeyNotFoundException("VoteRecord not found.");
-            vr.Status = "Confirmed";
+            vr.Status = VoteRecordStatus.Confirmed;
             vr.ConfirmedBy = confirmerId;
             vr.ConfirmedAt = DateTime.UtcNow;
             _repo.Update(vr);
@@ -64,7 +65,7 @@ namespace MangaManagementSystem.Business.Services.Implements
         private static VoteRecordResponse Map(VoteRecord v) => new()
         {
             VoteRecordId = v.VoteRecordId, SeriesId = v.SeriesId, Period = v.Period,
-            ReaderCount = v.ReaderCount, VoteCount = v.VoteCount, Status = v.Status,
+            ReaderCount = v.ReaderCount, VoteCount = v.VoteCount, Status = v.Status.ToString(),
             ConfirmedBy = v.ConfirmedBy, ConfirmerName = v.Confirmer?.DisplayName,
             ConfirmedAt = v.ConfirmedAt, CreatedAt = v.CreatedAt
         };

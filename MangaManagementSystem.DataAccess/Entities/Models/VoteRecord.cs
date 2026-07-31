@@ -1,4 +1,5 @@
 ﻿using System;
+using MangaManagementSystem.DataAccess.Entities.Enums;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,7 +15,7 @@ namespace MangaManagementSystem.DataAccess.Entities.Models
         public string Period { get; set; } = null!;
         public int ReaderCount { get; set; }
         public int VoteCount { get; set; }
-        public string Status { get; set; } = null!;
+        public VoteRecordStatus Status { get; set; }
         public Guid? ConfirmedBy { get; set; }
         public DateTime? ConfirmedAt { get; set; }
         public DateTime CreatedAt { get; set; }

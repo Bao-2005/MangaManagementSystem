@@ -333,7 +333,7 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.BoardDecisionId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.DecisionType).IsRequired().HasMaxLength(50);
-            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.Result).HasMaxLength(50);
             entity.Property(x => x.VotingDeadline).IsRequired().HasColumnType("timestamptz");
             entity.Property(x => x.CreatedBy);
