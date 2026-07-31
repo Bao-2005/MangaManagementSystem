@@ -22,6 +22,8 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private const string RejectedResult = "Rejected";
         private const string NoQuorumResult = "NoQuorum";
         private const string TieResult = "Tie";
+        private const string RankingEliminationDecisionType = "RankingElimination";
+        private const string SeriesProposalDecisionType = "SeriesProposal";
 
         private readonly IRepository<BoardDecision> _decisionRepo;
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepo;
@@ -70,9 +72,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             decision.Result = result;
             decision.FinalizedAt = now;
 
-            decision.Series.Status = result == ApprovedResult
-                ? SeriesStatus.Approved
-                : SeriesStatus.Rejected;
+            ApplyFinalizedResultToSeriesStatus(decision, result);
 
             if (result == RejectedResult)
             {
@@ -130,9 +130,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 decision.Status = FinalizedStatus;
                 decision.Result = result;
                 decision.FinalizedAt = now;
-                decision.Series.Status = result == ApprovedResult
-                    ? SeriesStatus.Approved
-                    : SeriesStatus.Rejected;
+                ApplyFinalizedResultToSeriesStatus(decision, result);
 
                 if (result == RejectedResult)
                 {
@@ -225,6 +223,24 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 : rejectCount > validVotes.Count / 2.0
                     ? RejectedResult
                     : null;
+        }
+
+        private static void ApplyFinalizedResultToSeriesStatus(BoardDecision decision, string result)
+        {
+            if (string.Equals(decision.DecisionType, RankingEliminationDecisionType, StringComparison.OrdinalIgnoreCase))
+            {
+                decision.Series.Status = result == ApprovedResult
+                    ? SeriesStatus.Cancelled
+                    : SeriesStatus.Active;
+                return;
+            }
+
+            if (string.Equals(decision.DecisionType, SeriesProposalDecisionType, StringComparison.OrdinalIgnoreCase))
+            {
+                decision.Series.Status = result == ApprovedResult
+                    ? SeriesStatus.Approved
+                    : SeriesStatus.Rejected;
+            }
         }
 
         private async Task<BoardDecisionSummaryResponse> BuildSummaryAsync(BoardDecision decision)

@@ -1,0 +1,18 @@
+using MangaManagementSystem.Business.DTOs.Requests.Ranking;
+using MangaManagementSystem.Business.DTOs.Responses.Ranking;
+using MangaManagementSystem.Business.DTOs.Responses.Series;
+
+namespace MangaManagementSystem.Business.Services.Interfaces.Ranking
+{
+    public interface IRankingWorkflowService
+    {
+        Task<RankingVoteRecordResponse> CreateVoteRecordAsync(Guid actorId, CreateRankingVoteRecordRequest request);
+        Task<RankingRecalculationResponse> ConfirmVoteRecordAsync(Guid actorId, Guid voteRecordId);
+        Task<BoardDecisionResponse> CreateEliminationDecisionAsync(
+            Guid actorId,
+            Guid rankingSnapshotId,
+            CreateRankingEliminationDecisionRequest request);
+        Task<IReadOnlyList<RankingSnapshotDetailResponse>> GetRankingsAsync(string period);
+        Task<IReadOnlyList<RankingSnapshotDetailResponse>> GetSeriesRankingHistoryAsync(Guid seriesId);
+    }
+}
