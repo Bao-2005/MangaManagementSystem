@@ -5,6 +5,7 @@ using MangaManagementSystem.DataAccess.Entities.Enums;
 using MangaManagementSystem.DataAccess.Entities.Models;
 using MangaManagementSystem.DataAccess.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Supabase.Core.Extensions;
 
 namespace MangaManagementSystem.Business.Services.Implements.Users
 {
@@ -25,16 +26,21 @@ namespace MangaManagementSystem.Business.Services.Implements.Users
                 .Where(a => a.ToUserId == mangakaId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
 
+        public async Task<IEnumerable<UserAssignmentResponse>> GetAssistantByMangakaAsync(Guid mangakaId)
+            => await _repo.GetAll().Include(a => a.FromUser).Include(a => a.ToUser).ThenInclude(a => a.Role)
+                .Where(a => a.ToUserId == mangakaId && a.DeletedAt == null && a.FromUser.Role.RoleName == UserRole.Assistant.ToString() && a.UnassignedAt == null)
+                .Select(a => Map(a)).ToListAsync();
+
         public async Task<IEnumerable<UserAssignmentResponse>> GetByTantouEditorAsync(Guid tantouEditorId)
             => await _repo.GetAll().Include(a => a.FromUser).Include(a => a.ToUser)
                 .Where(a => a.FromUserId == tantouEditorId && a.DeletedAt == null)
                 .Select(a => Map(a)).ToListAsync();
 
-        public async Task<UserAssignmentResponse> CreateAsync(Guid fromUserId, CreateUserAssignmentRequest request)
+        public async Task<UserAssignmentResponse> CreateAsync(CreateUserAssignmentRequest request)
         {
             var assignment = new UserAssignment
             {
-                FromUserId = fromUserId,
+                FromUserId = request.FromUserId,
                 ToUserId = request.ToUserId,
                 AssignedAt = DateTime.UtcNow
             };
