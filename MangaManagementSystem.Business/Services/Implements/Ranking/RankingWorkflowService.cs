@@ -53,12 +53,24 @@ namespace MangaManagementSystem.Business.Services.Implements.Ranking
             if (series.Status != SeriesStatus.Active)
                 throw new InvalidOperationException("Only active series can be ranked.");
 
-            var duplicateExists = await _voteRecordRepository.GetAll()
-                .AnyAsync(x => x.SeriesId == request.SeriesId
+            var existingVoteRecord = await _voteRecordRepository.GetAll()
+                .FirstOrDefaultAsync(x => x.SeriesId == request.SeriesId
                     && x.Period == period
                     && x.DeletedAt == null);
-            if (duplicateExists)
-                throw new InvalidOperationException("Vote record already exists for this series and period.");
+
+            if (existingVoteRecord is not null)
+            {
+                if (existingVoteRecord.Status != RankingConstants.VoteRecordStatus.Pending)
+                    throw new InvalidOperationException("Confirmed vote record cannot be imported again for this series and period.");
+
+                existingVoteRecord.ReaderCount = request.ReaderCount;
+                existingVoteRecord.VoteCount = request.VoteCount;
+
+                await _voteRecordRepository.SaveChangeAsync();
+
+                existingVoteRecord.Series = series;
+                return MapVoteRecord(existingVoteRecord);
+            }
 
             var voteRecord = new VoteRecord
             {
