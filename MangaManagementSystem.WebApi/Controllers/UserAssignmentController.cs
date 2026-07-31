@@ -25,6 +25,15 @@ namespace MangaManagementSystem.API.Controllers
             return Ok(new BaseResponse { Data = await _service.GetByMangakaAsync(userId), Message = "Success" });
         }
 
+        [HttpGet("api/user-assignments/assistant-from-me")]
+        [Authorize(Policy = "MangakaOnly")]
+        [SwaggerOperation(Summary = "Get my assigned Assistant (Mangaka only)")]
+        public async Task<IActionResult> GetAssistantFromMe()
+        {
+            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            return Ok(new BaseResponse { Data = await _service.GetAssistantByMangakaAsync(userId), Message = "Success" });
+        }
+
         [HttpGet("api/user-assignments/to-me")]
         [Authorize(Policy = "TantouEditorOnly")]
         [SwaggerOperation(Summary = "Get Mangaka(s) assigned to me (Tantou Editor only)")]
@@ -44,12 +53,12 @@ namespace MangaManagementSystem.API.Controllers
         }
 
         [HttpPost("api/user-assignments")]
-        [Authorize(Policy = "MangakaOnly")]
-        [SwaggerOperation(Summary = "Assign an assistant (Mangaka only)")]
+        [Authorize(Policy = "AdminOnly")]
+        [SwaggerOperation(Summary = "Assign an assistant")]
         public async Task<IActionResult> Create([FromBody] CreateUserAssignmentRequest request)
         {
-            var userId = GetUserId() ?? throw new UnauthorizedAccessException();
-            var result = await _service.CreateAsync(userId, request);
+            //var userId = GetUserId() ?? throw new UnauthorizedAccessException();
+            var result = await _service.CreateAsync(request);
             return Ok(new BaseResponse { Data = result, Message = "Assignment created." });
         }
 

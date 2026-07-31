@@ -89,7 +89,6 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         {
             var query = _seriesRepo.GetAll()
                 .Include(s => s.Mangaka)
-                .Include(s => s.CoverImageFileAsset)
                 .Include(s => s.SeriesGenres).ThenInclude(sg => sg.Genre)
                 .Where(s => s.DeletedAt == null);
 
@@ -113,9 +112,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                 }
             }
 
-            var resultList = await query.ToListAsync();
-
-            return resultList.Select(s => MapToResponse(s));
+            return await query.Select(s => MapToResponse(s)).ToListAsync();
         }
 
         public async Task<SeriesDetailResponse> GetByIdAsync(Guid id)
@@ -147,20 +144,19 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
                     .Select(p => new ProposalPageResponse { ProposalPageId = p.ProposalPageId, SeriesId = p.SeriesId, PageNo = p.PageNo, PreviewFileAssetId = p.PreviewFileAssetId, CreatedAt = p.CreatedAt }).ToList(),
                 SourceZipFileAssetId = s.SourceZipFileAssetId,
                 CoverImageFileAssetId = s.CoverImageFileAssetId,
-                SourceZipPublicUrl = (s.SourceZipFileAsset == null || string.IsNullOrEmpty(_supabaseUrl)) ? null : (_supabaseUrl + "/storage/v1/object/public/" + s.SourceZipFileAsset.BucketName + "/" + s.SourceZipFileAsset.ObjectPath),
-                CoverImagePublicUrl = (s.CoverImageFileAsset == null || string.IsNullOrEmpty(_supabaseUrl)) ? null : (_supabaseUrl + "/storage/v1/object/public/" + s.CoverImageFileAsset.BucketName + "/" + s.CoverImageFileAsset.ObjectPath)
+                SourceZipPublicUrl = (s.SourceZipFileAsset == null || string.IsNullOrEmpty(_supabaseUrl)) ? null : (_supabaseUrl + "/storage/v1/object/public/" + s.SourceZipFileAsset.BucketName + "/" + s.SourceZipFileAsset.ObjectPath)
             };
             return detail;
         }
 
         public async Task<IEnumerable<SeriesResponse>> GetByMangakaAsync(Guid mangakaId)
         {
-            var result = await _seriesRepo.GetAll()
+            return await _seriesRepo.GetAll()
                 .Include(s => s.Mangaka)
                 .Include(s => s.SeriesGenres).ThenInclude(sg => sg.Genre)
                 .Where(s => s.MangakaId == mangakaId && s.DeletedAt == null)
+                .Select(s => MapToResponse(s))
                 .ToListAsync();
-            return result.Select(s => MapToResponse(s));
         }
 
         public async Task<SeriesDetailResponse> CreateAsync(Guid mangakaId, CreateSeriesRequest request)
@@ -371,7 +367,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             await _seriesRepo.SaveChangeAsync();
         }
 
-        private SeriesResponse MapToResponse(MangaManagementSystem.DataAccess.Entities.Models.Series s) => new()
+        private static SeriesResponse MapToResponse(MangaManagementSystem.DataAccess.Entities.Models.Series s) => new()
         {
             SeriesId = s.SeriesId,
             MangakaId = s.MangakaId,
@@ -386,8 +382,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             RejectReason = s.RejectReason,
             Genres = s.SeriesGenres.Where(sg => sg.Genre.DeletedAt == null).Select(sg => sg.Genre.Title).ToList(),
             CoverImageFileAssetId = s.CoverImageFileAssetId,
-            SourceZipFileAssetId = s.SourceZipFileAssetId,
-            CoverImagePublicUrl = (s.CoverImageFileAsset == null || string.IsNullOrEmpty(_supabaseUrl)) ? null : (_supabaseUrl + "/storage/v1/object/public/" + s.CoverImageFileAsset.BucketName + "/" + s.CoverImageFileAsset.ObjectPath)
+            SourceZipFileAssetId = s.SourceZipFileAssetId
         };
 
         private static string ValidateTitle(string? title)

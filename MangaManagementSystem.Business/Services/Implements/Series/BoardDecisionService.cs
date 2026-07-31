@@ -22,6 +22,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private const string RejectedResult = "Rejected";
         private const string NoQuorumResult = "NoQuorum";
         private const string TieResult = "Tie";
+        private const string RankingEliminationDecisionType = "RankingElimination";
 
         private readonly IRepository<BoardDecision> _repo;
         private readonly IRepository<MangaManagementSystem.DataAccess.Entities.Models.Series> _seriesRepo;
@@ -192,9 +193,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             decision.SpecialDecisionAt = now;
             decision.SpecialDecisionReason = reason;
 
-            decision.Series.Status = decisionResult == ApprovedResult
-                ? SeriesStatus.Approved
-                : SeriesStatus.Rejected;
+            ApplySpecialDecisionResultToSeriesStatus(decision, decisionResult);
 
             if (decisionResult == RejectedResult)
             {
@@ -261,6 +260,24 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
             }
 
             throw new ArgumentException("Special decision must be Approved or Rejected.");
+        }
+
+        private static void ApplySpecialDecisionResultToSeriesStatus(BoardDecision decision, string result)
+        {
+            if (string.Equals(decision.DecisionType, RankingEliminationDecisionType, StringComparison.OrdinalIgnoreCase))
+            {
+                decision.Series.Status = result == ApprovedResult
+                    ? SeriesStatus.Cancelled
+                    : SeriesStatus.Active;
+                return;
+            }
+
+            if (string.Equals(decision.DecisionType, SeriesProposalDecisionType, StringComparison.OrdinalIgnoreCase))
+            {
+                decision.Series.Status = result == ApprovedResult
+                    ? SeriesStatus.Approved
+                    : SeriesStatus.Rejected;
+            }
         }
 
         private static DateTime NormalizeUtc(DateTime value)

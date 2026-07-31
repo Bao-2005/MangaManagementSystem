@@ -40,6 +40,7 @@ public class MangaDbContext : DbContext
     public DbSet<VoteRecord> VoteRecords => Set<VoteRecord>();
     public DbSet<RankingSnapshot> RankingSnapshots => Set<RankingSnapshot>();
     public DbSet<Escalation> Escalations => Set<Escalation>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +70,7 @@ public class MangaDbContext : DbContext
         ConfigureVoteRecords(modelBuilder);
         ConfigureRankingSnapshots(modelBuilder);
         ConfigureEscalations(modelBuilder);
+        ConfigureSystemSettings(modelBuilder);
     }
 
     private static void ConfigureRoles(ModelBuilder modelBuilder)
@@ -662,8 +664,16 @@ public class MangaDbContext : DbContext
 
             entity.ToTable(t =>
             {
-                t.HasCheckConstraint("CK_VoteRecords_Count", "\"VoteCount\" <= \"ReaderCount\"");
+                t.HasCheckConstraint(
+                    "CK_VoteRecords_Count",
+                    "\"ReaderCount\" >= 0 AND \"VoteCount\" >= 0 AND \"VoteCount\" <= \"ReaderCount\"");
             });
+
+            entity.HasIndex(x => new { x.SeriesId, x.Period })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasIndex(x => new { x.Period, x.Status });
 
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.VoteRecords)
@@ -686,13 +696,31 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.RankingSnapshotId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.Period).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Score).IsRequired().HasPrecision(18, 2);
+            entity.Property(x => x.ReaderCount).IsRequired();
+            entity.Property(x => x.VoteCount).IsRequired();
             entity.Property(x => x.IsBottom20Percent).IsRequired().HasDefaultValue(false);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
+            entity.HasIndex(x => new { x.SeriesId, x.Period })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasIndex(x => new { x.Period, x.RankNo })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
+
+            entity.HasIndex(x => new { x.Period, x.Score, x.VoteCount });
+
             entity.HasOne(x => x.Series)
                 .WithMany(x => x.RankingSnapshots)
                 .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.VoteRecord)
+                .WithMany(x => x.RankingSnapshots)
+                .HasForeignKey(x => x.VoteRecordId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
@@ -732,6 +760,27 @@ public class MangaDbContext : DbContext
                 .WithMany(x => x.ResolvedEscalations)
                 .HasForeignKey(x => x.ResolvedBy)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureSystemSettings(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SystemSetting>(entity =>
+        {
+            entity.ToTable("SystemSettings");
+            entity.HasKey(x => x.SystemSettingId);
+
+            entity.Property(x => x.SystemSettingId).HasDefaultValueSql(NewGuidSql);
+            entity.Property(x => x.Key).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.Value).IsRequired().HasMaxLength(500);
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
+            entity.Property(x => x.UpdatedAt).HasColumnType("timestamptz");
+            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+
+            entity.HasIndex(x => x.Key)
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
         });
     }
 }

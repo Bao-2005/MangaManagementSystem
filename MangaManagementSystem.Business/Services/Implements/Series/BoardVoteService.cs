@@ -33,7 +33,9 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         }
 
         public async Task<IEnumerable<BoardVoteResponse>> GetByDecisionAsync(Guid boardDecisionId)
-            => await _repo.GetAll().Include(v => v.Voter)
+            => await _repo.GetAll()
+                .Include(v => v.BoardDecision)
+                .Include(v => v.Voter)
                 .Where(v => v.BoardDecisionId == boardDecisionId && v.DeletedAt == null)
                 .Select(v => Map(v)).ToListAsync();
 
@@ -97,6 +99,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         private static BoardVoteResponse Map(BoardVote v) => new()
         {
             BoardVoteId = v.BoardVoteId, BoardDecisionId = v.BoardDecisionId, VoterId = v.VoterId,
+            DecisionType = v.BoardDecision?.DecisionType ?? "",
             VoterName = v.Voter?.DisplayName ?? "", VoteValue = v.VoteValue, VotedAt = v.VotedAt, Comment = v.Comment
         };
 
@@ -118,7 +121,7 @@ namespace MangaManagementSystem.Business.Services.Implements.Series
         //BR-14: Conflict of Interest Definition
         private async Task EnsureNoConflictOfInterestAsync(Guid voterId, BoardDecision decision)
         { 
-            if (decision.Series.MangakaId == voterId || decision.CreatedBy == voterId)
+            if (decision.Series.MangakaId == voterId)
             {
                 throw new ForbiddenAccessException("You cannot vote on a decision where you have a conflict of interest.");
             }

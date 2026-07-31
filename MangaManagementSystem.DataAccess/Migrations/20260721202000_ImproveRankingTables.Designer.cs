@@ -3,6 +3,7 @@ using System;
 using MangaManagement.DataAccess.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MangaManagementSystem.DataAccess.Migrations
 {
     [DbContext(typeof(MangaDbContext))]
-    partial class MangaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721202000_ImproveRankingTables")]
+    partial class ImproveRankingTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -946,47 +949,6 @@ namespace MangaManagementSystem.DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("SeriesGenres", (string)null);
-                });
-
-            modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.SystemSetting", b =>
-                {
-                    b.Property<Guid>("SystemSettingId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamptz")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.HasKey("SystemSettingId");
-
-                    b.HasIndex("Key")
-                        .IsUnique()
-                        .HasFilter("\"DeletedAt\" IS NULL");
-
-                    b.ToTable("SystemSettings", (string)null);
                 });
 
             modelBuilder.Entity("MangaManagementSystem.DataAccess.Entities.Models.User", b =>

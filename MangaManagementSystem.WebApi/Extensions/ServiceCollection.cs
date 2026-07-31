@@ -5,8 +5,10 @@ using MangaManagementSystem.Business.Services.Implements.Auth;
 using MangaManagementSystem.Business.Services.Implements.Chapters;
 using MangaManagementSystem.Business.Services.Implements.Files;
 using MangaManagementSystem.Business.Services.Implements.Manuscripts;
+using MangaManagementSystem.Business.Services.Implements.Ranking;
 using MangaManagementSystem.Business.Services.Implements.SalaryRecords;
 using MangaManagementSystem.Business.Services.Implements.Series;
+using MangaManagementSystem.Business.Services.Implements.Settings;
 using MangaManagementSystem.Business.Services.Implements.Tasks;
 using MangaManagementSystem.Business.Services.Implements.Users;
 using MangaManagementSystem.Business.Services.Interfaces;
@@ -15,8 +17,10 @@ using MangaManagementSystem.Business.Services.Interfaces.Chapters;
 using MangaManagementSystem.Business.Services.Interfaces.Files;
 using MangaManagementSystem.Business.Services.Interfaces.Manuscripts;
 using MangaManagementSystem.Business.Services.Interfaces.Notifications;
+using MangaManagementSystem.Business.Services.Interfaces.Ranking;
 using MangaManagementSystem.Business.Services.Interfaces.SalaryRecords;
 using MangaManagementSystem.Business.Services.Interfaces.Series;
+using MangaManagementSystem.Business.Services.Interfaces.Settings;
 using MangaManagementSystem.Business.Services.Interfaces.Tasks;
 using MangaManagementSystem.Business.Services.Interfaces.Users;
 using MangaManagementSystem.DataAccess.Repositories.Implements;
@@ -54,11 +58,13 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IBoardVoteService, BoardVoteService>();
             services.AddScoped<IVoteRecordService, VoteRecordService>();
             services.AddScoped<IRankingSnapshotService, RankingSnapshotService>();
+            services.AddScoped<IRankingWorkflowService, RankingWorkflowService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
             services.AddScoped<ISalaryRecordService, SalaryRecordService>();
             services.AddScoped<IUserAssignmentService, UserAssignmentService>();
             services.AddScoped<IEscalationService, EscalationService>();
+            services.AddScoped<ISystemSettingService, SystemSettingService>();
             // Supabase client (singleton — shared, no Realtime)
             services.AddSingleton(provider =>
             {
