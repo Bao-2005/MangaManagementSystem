@@ -49,7 +49,6 @@ namespace MangaManagementSystem.API.Extensions
             services.AddScoped<IProposalPageService, ProposalPageService>();
             services.AddScoped<IChapterService, ChapterService>();
             services.AddScoped<IManuscriptService, ManuscriptService>();
-            services.AddScoped<IChapterPageService, ChapterPageService>();
             services.AddScoped<IPageTaskService, PageTaskService>();
             services.AddScoped<IPageTaskSubmissionService, PageTaskSubmissionService>();
             services.AddScoped<IAnnotationService, AnnotationService>();

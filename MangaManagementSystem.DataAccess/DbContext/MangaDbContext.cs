@@ -30,7 +30,6 @@ public class MangaDbContext : DbContext
     public DbSet<BoardVote> BoardVotes => Set<BoardVote>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
     public DbSet<ChapterReferenceFile> ChapterReferenceFiles => Set<ChapterReferenceFile>();
-    public DbSet<ChapterPage> ChapterPages => Set<ChapterPage>();
     public DbSet<Manuscript> Manuscripts => Set<Manuscript>();
     public DbSet<PageTask> PageTasks => Set<PageTask>();
     public DbSet<PageTaskReferenceFile> PageTaskReferenceFiles => Set<PageTaskReferenceFile>();
@@ -60,7 +59,6 @@ public class MangaDbContext : DbContext
         ConfigureBoardVotes(modelBuilder);
         ConfigureChapters(modelBuilder);
         ConfigureChapterReferenceFiles(modelBuilder);
-        ConfigureChapterPages(modelBuilder);
         ConfigureManuscripts(modelBuilder);
         ConfigurePageTasks(modelBuilder);
         ConfigurePageTaskReferenceFiles(modelBuilder);
@@ -333,7 +331,7 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.BoardDecisionId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.DecisionType).IsRequired().HasMaxLength(50);
-            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
             entity.Property(x => x.Result).HasMaxLength(50);
             entity.Property(x => x.VotingDeadline).IsRequired().HasColumnType("timestamptz");
             entity.Property(x => x.CreatedBy);
@@ -441,32 +439,6 @@ public class MangaDbContext : DbContext
         });
     }
 
-    private static void ConfigureChapterPages(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<ChapterPage>(entity =>
-        {
-            entity.ToTable("ChapterPages");
-            entity.HasKey(x => x.ChapterPageId);
-
-            entity.Property(x => x.ChapterPageId).HasDefaultValueSql(NewGuidSql);
-            entity.Property(x => x.PageNo).IsRequired();
-            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
-            entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
-
-            entity.HasIndex(x => new { x.ChapterId, x.PageNo }).IsUnique();
-
-            entity.HasOne(x => x.Chapter)
-                .WithMany()
-                .HasForeignKey(x => x.ChapterId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(x => x.ImageFileAsset)
-                .WithMany()
-                .HasForeignKey(x => x.ImageFileAssetId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-    }
-
     private static void ConfigureManuscripts(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Manuscript>(entity =>
@@ -476,7 +448,7 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.ManuscriptId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.FileUrl).IsRequired().HasMaxLength(1000);
-            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.Feedback).HasMaxLength(1000);
             entity.Property(x => x.RevisionCount).IsRequired().HasDefaultValue(0);
             entity.Property(x => x.SubmittedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
@@ -658,7 +630,7 @@ public class MangaDbContext : DbContext
 
             entity.Property(x => x.VoteRecordId).HasDefaultValueSql(NewGuidSql);
             entity.Property(x => x.Period).IsRequired().HasMaxLength(50);
-            entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.Status).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamptz").HasDefaultValueSql("now()");
             entity.Property(x => x.DeletedAt).HasColumnType("timestamptz");
 
